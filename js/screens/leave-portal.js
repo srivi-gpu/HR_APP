@@ -16,6 +16,7 @@
   var HRMS = window.HRMS;
   var React = window.React, h = React.createElement, V = window.Violet, I = window.Icons;
   var store = HRMS.store, router = HRMS.router, ui = HRMS.ui, seed = HRMS.seed;
+  var act = HRMS.actions;
   var Card = ui.Card, Grid = ui.Grid, Stat = ui.Stat, Stats = ui.Stats;
 
   function me() { return store.persona('me'); }
@@ -85,107 +86,193 @@
   }
 
   /* ------------------------------------------------------ Employee overview */
+  /* =========================================================== My leave
+     One screen, where there used to be six tabs. The balances sit across the top and
+     every request sits under them, because "can I take Friday off" was a question that
+     needed the balance, the history and the team calendar, and they were three places.
+
+     Apply, the team calendar, the old balance and history screens keep their routes and
+     are reached from here; they are no longer tabs of their own. */
+  function LeaveStatusCell(p) {
+    var l = p.request;
+    var decided = l.decidedBy ? emp(l.decidedBy) : null;
+    var tone = /pending/i.test(l.status) ? 'warning'
+      : l.status === 'Approved' ? 'success'
+        : l.status === 'Rejected' ? 'error' : 'neutral';
+    return h('span', { className: 'lstatus' },
+      h(ui.StatusChip, { status: l.status, tone: tone }),
+      decided && l.status !== 'Pending Approval'
+        ? h('span', { className: 'lstatus__by' }, 'by ' + decided.name)
+        : null);
+  }
+
+  /* Changing a request that nobody has decided yet. Once it is approved the dates are
+     somebody else's plan too, so the row offers nothing but cancel. */
+  function EditLeaveModal(p) {
+    var l = p.request;
+    var form = ui.useForm({ from: l.from, to: l.to, reason: l.reason || '' });
+    function save() {
+      var res = form.submit(function (v) { return ui.report(act.updateLeaveRequest(l.id, v)); });
+      if (res && res.ok) p.onClose();
+    }
+    var calc = form.values.from && form.values.to && form.values.from <= form.values.to
+      ? HRMS.rules.countLeaveDays(form.values.from, form.values.to, l.halfDay) : null;
+    return h(ui.Modal, {
+      title: 'Edit this request',
+      description: typeName(l.type) + ' · ' + l.id + ', still awaiting a decision.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, 'Save changes'))
+    },
+      h(ui.FieldRow, { cols: 2 },
+        h(V.DateField, Object.assign({ label: 'From', required: true }, form.field('from'))),
+        h(V.DateField, Object.assign({ label: 'To', required: true }, form.field('to')))),
+      calc
+        ? h('p', { className: 'muted', style: { fontSize: 12, margin: '-4px 0 10px' } },
+          calc.total + ' working day' + (calc.total === 1 ? '' : 's')
+          + (calc.weekends ? ', ' + calc.weekends + ' weekend day' + (calc.weekends === 1 ? '' : 's') : '')
+          + (calc.holidays ? ' and ' + calc.holidays + ' holiday' + (calc.holidays === 1 ? '' : 's') : '')
+          + (calc.weekends || calc.holidays ? ' excluded.' : '.'))
+        : null,
+      h(V.TextArea, Object.assign({ label: 'Reason', rows: 3 }, form.field('reason'))),
+      /* A refusal may key on something this form has no field for — the type's own
+         limits, for one — so anything not bound to a field is shown here rather than
+         living only in a toast that fades. */
+      (function () {
+        var loose = Object.keys(form.errors || {})
+          .filter(function (k) { return ['from', 'to', 'reason'].indexOf(k) < 0; })
+          .map(function (k) { return form.errors[k]; });
+        return loose.length
+          ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, loose.join(' · '))
+          : null;
+      }()));
+  }
+
   function MyLeaveOverview() {
     var m = me();
     var ledgerSt = React.useState(null);
+    var editSt = React.useState(null);
+    var cancelSt = React.useState(null);
+    var typeSt = React.useState('');
+    var statusSt = React.useState('');
+    var yearSt = React.useState('');
     if (!m) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
 
-    var today = seed.todayIso;
     var balances = store.balancesFor(m.id);
-    var mine = myRequests(m.id);
-    var pending = mine.filter(function (l) { return /pending/i.test(l.status); });
-    var booked = mine.filter(function (l) { return l.status === 'Approved' && l.to >= today; })
-      .sort(function (a, b) { return a.from < b.from ? -1 : 1; });
-    var available = balances.reduce(function (n, b) { return n + b.available; }, 0);
-    var carried = balances.reduce(function (n, b) { return n + (b.carried || 0); }, 0);
-    /* The department first, since that is whose absence lands on the same work. Where
-       nobody there is away the card widens to the organization rather than sitting empty,
-       and says which it is showing. */
-    var away = teamAway(m, today, addDays(today, 28));
-    var wide = false;
-    if (!away.length) {
-      wide = true;
-      away = store.collection('leaveRequests').filter(function (l) {
-        return l.status === 'Approved' && l.to >= today && l.from <= addDays(today, 28);
-      }).sort(function (a, b) { return a.from < b.from ? -1 : 1; });
-    }
-    var hols = holidaysAhead(5);
+    var mine = myRequests(m.id).slice().sort(function (a, b) { return a.from < b.from ? 1 : -1; });
+
+    var years = [];
+    mine.forEach(function (l) {
+      var y = String(l.from).slice(0, 4);
+      if (years.indexOf(y) < 0) years.push(y);
+    });
+    years.sort().reverse();
+
+    var rows = mine;
+    if (typeSt[0]) rows = rows.filter(function (l) { return l.type === typeSt[0]; });
+    if (statusSt[0]) rows = rows.filter(function (l) { return l.status === statusSt[0]; });
+    if (yearSt[0]) rows = rows.filter(function (l) { return String(l.from).slice(0, 4) === yearSt[0]; });
+
+    var target = cancelSt[0] ? store.find('leaveRequests', cancelSt[0]) : null;
 
     return h(React.Fragment, null,
       h(ui.PageHead, {
-        eyebrow: seed.todayLabel, title: 'My leave',
-        description: available + ' days available across ' + balances.length + ' leave types'
-          + (pending.length ? ' · ' + pending.length + ' request' + (pending.length === 1 ? '' : 's') + ' awaiting a decision' : '')
-          + '.',
+        title: 'Leave',
+        description: 'What you have left, and every request you have made.',
         actions: [
-          h(V.Button, { key: 'a', variant: 'outline', iconStart: I.calendar,
+          h(V.Button, { key: 'p', variant: 'ghost', iconStart: I.file,
+            onClick: function () { router.go('me/leave/holidays'); } }, 'View leave policy'),
+          h(V.Button, { key: 'w', variant: 'outline', iconStart: I.calendar,
             onClick: function () { router.go('me/leave/calendar'); } }, 'Who is away'),
-          h(V.Button, { key: 'b', variant: 'primary', iconStart: I.plus,
-            onClick: function () { router.go('me/leave/apply'); } }, 'Apply for leave')
+          h(V.Button, { key: 'a', variant: 'primary', iconStart: I.plus,
+            onClick: function () { router.go('me/leave/apply'); } }, 'Apply leave')
         ]
       }),
 
-      h(Stats, null,
-        h(Stat, { label: 'Available', value: available, unit: 'days', tone: 'good',
-          sub: carried ? carried + ' carried from last year' : 'Across every type you hold' }),
-        h(Stat, { label: 'Awaiting a decision', value: pending.length,
-          sub: pending.length ? 'With ' + (emp(pending[0].approver) || {}).name : 'Nothing pending',
-          tone: pending.length ? 'warn' : 'good',
-          onClick: function () { router.go('me/leave/history'); } }),
-        h(Stat, { label: 'Booked ahead', value: booked.reduce(function (n, l) { return n + l.days; }, 0), unit: 'days',
-          sub: booked.length ? 'Next on ' + ui.dateLabel(booked[0].from) : 'Nothing booked' }),
-        h(Stat, { label: 'Next holiday', value: hols.length ? ui.dateLabel(hols[0].date).replace(/,.*/, '') : '—',
-          sub: hols.length ? hols[0].name : 'None left this year' })),
+      /* The balance strip. Each cell opens the ledger behind its number. */
+      balances.length ? h('div', { className: 'lbal' }, balances.map(function (b) {
+        var total = b.entitled + (b.carried || 0);
+        return h('button', {
+          type: 'button', className: 'lbal__cell linklike', key: b.type,
+          title: 'Every line behind ' + typeName(b.type),
+          onClick: function () { ledgerSt[1](b.type); }
+        },
+          h('span', { className: 'lbal__n' }, b.available, h('small', null, '/' + total)),
+          h('span', { className: 'lbal__t' }, typeName(b.type)),
+          h('span', { className: 'lbal__s' }, 'Taken this year', h('b', null, b.used)));
+      })) : null,
 
-      h(Grid, null,
-        h(Card, { span: 7, title: 'What you have left',
-          description: 'Open a type to see every line that moved it.' },
-          balances.length
-            ? h('div', { className: 'lrows' }, balances.map(function (b) {
-                return h('div', { className: 'lrow', key: b.type },
-                  h('span', { className: 'lrow__ico' }, I.calendar),
-                  h('span', { className: 'lrow__m' },
-                    h('strong', null, typeName(b.type)),
-                    h('span', null, b.entitled + ' entitled · ' + b.used + ' used'
-                      + (b.carried ? ' · ' + b.carried + ' carried in' : '')
-                      + (b.encashed ? ' · ' + b.encashed + ' encashed' : ''))),
-                  h('span', { style: { width: 110 } },
-                    h(V.ProgressBar, { value: ui.pct(b.used, b.entitled + (b.carried || 0)), size: 'sm',
-                      tone: b.available <= 1 ? 'warning' : 'primary', 'aria-label': typeName(b.type) })),
-                  h('strong', { style: { width: 64, textAlign: 'right', fontWeight: 500 } }, b.available + 'd'),
-                  h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Ledger for ' + typeName(b.type),
-                    onClick: function () { ledgerSt[1](b.type); } }, I.right));
-              }))
-            : h(ui.Empty, { icon: I.calendar, title: 'No leave types on your policy' })),
+      h(Card, {
+        title: 'Applied leaves',
+        description: 'Edit or cancel a request while it is still waiting on a decision.'
+      },
+        h(ui.DataTable, {
+          exportName: 'my-leave', label: 'Applied leaves', rows: rows, pageSize: 10,
+          search: function (l) { return typeName(l.type) + ' ' + (l.reason || '') + ' ' + l.status; },
+          searchPlaceholder: 'Search your requests',
+          filters: h(React.Fragment, null,
+            h(ui.Filter, {
+              label: 'Leave type', value: typeSt[0], onChange: typeSt[1],
+              options: balances.map(function (b) { return { value: b.type, label: typeName(b.type) }; })
+            }),
+            h(ui.Filter, {
+              label: 'Status', value: statusSt[0], onChange: statusSt[1],
+              options: ['Pending Approval', 'Approved', 'Rejected', 'Cancelled']
+            }),
+            h(ui.Filter, { label: 'Year', value: yearSt[0], onChange: yearSt[1], options: years })),
+          columns: [
+            { key: 'type', header: 'Leave type', sortable: true,
+              sortValue: function (l) { return typeName(l.type); },
+              csv: function (l) { return typeName(l.type); },
+              cell: function (l) { return h('span', { style: { color: 'var(--text-brand)' } }, typeName(l.type)); } },
+            { key: 'from', header: 'From', sortable: true, cell: function (l) { return ui.dateLabel(l.from); } },
+            { key: 'to', header: 'To', sortable: true, cell: function (l) { return ui.dateLabel(l.to); } },
+            { key: 'days', header: 'Duration', numeric: true, align: 'right', sortable: true,
+              csv: function (l) { return l.days; },
+              cell: function (l) { return l.days + ' day' + (l.days === 1 ? '' : 's'); } },
+            { key: 'reason', header: 'Reason',
+              cell: function (l) {
+                return h('span', { className: 'muted', style: { display: 'block', maxWidth: 280 } }, l.reason || '—');
+              } },
+            { key: 'status', header: 'Leave status', sortable: true,
+              csv: function (l) { return l.status; },
+              cell: function (l) { return h(LeaveStatusCell, { request: l }); } },
+            { key: 'actions', header: 'Action', align: 'right',
+              cell: function (l) {
+                var open = /pending/i.test(l.status);
+                return h('span', { className: 'row gap-1', style: { justifyContent: 'flex-end' } },
+                  h(V.IconButton, {
+                    icon: I.pencil, 'aria-label': 'Edit the ' + typeName(l.type) + ' request', title: 'Edit',
+                    disabled: !open, onClick: function () { editSt[1](l.id); }
+                  }),
+                  h(V.IconButton, {
+                    icon: I.close, 'aria-label': 'Cancel the ' + typeName(l.type) + ' request', title: 'Cancel',
+                    disabled: !open, onClick: function () { cancelSt[1](l.id); }
+                  }));
+              } }
+          ],
+          emptyIcon: I.calendar,
+          emptyTitle: typeSt[0] || statusSt[0] || yearSt[0] ? 'No requests match these filters' : 'No leave requests yet',
+          emptyBody: typeSt[0] || statusSt[0] || yearSt[0]
+            ? 'Clear a filter to see everything you have applied for.'
+            : 'When you apply for leave it appears here, with what it is waiting on.',
+          emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
+            onClick: function () { router.go('me/leave/apply'); } }, 'Apply leave')
+        })),
 
-        h(Card, { span: 5, title: wide ? 'Away, next four weeks' : 'Your team, next four weeks',
-          description: wide
-            ? 'Nobody in ' + (store.department(m.department) || {}).name + ' is away, so this is everyone. Reasons are not shown.'
-            : 'Who is away in ' + (store.department(m.department) || {}).name + '. Reasons are not shown.' },
-          away.length
-            ? h('div', { className: 'lrows' }, away.slice(0, 7).map(function (l) {
-                var e = emp(l.employee);
-                return h('div', { className: 'lrow', key: l.id },
-                  h(V.Avatar, { name: e ? e.name : l.employee, size: 'sm' }),
-                  h('span', { className: 'lrow__m' },
-                    h('strong', null, e ? e.name : l.employee),
-                    h('span', null, ui.dateLabel(l.from) + ' – ' + ui.dateLabel(l.to) + ' · ' + l.days + ' day' + (l.days === 1 ? '' : 's'))),
-                  l.employee === m.id ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, 'You') : null);
-              }))
-            : h(ui.Empty, { icon: I.users, title: 'Nobody is away', body: 'Everyone is in for the next four weeks.' })),
-
-        h(Card, { span: 12, title: 'Holidays ahead',
-          aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
-            onClick: function () { router.go('me/leave/holidays'); } }, 'All holidays') },
-          hols.length
-            ? h('div', { className: 'row gap-2 wrap' }, hols.map(function (hd) {
-                return h(V.Chip, { key: hd.date, size: 'sm', shape: 'tag',
-                  variant: hd.type === 'Optional' ? 'outline' : 'soft',
-                  tone: hd.type === 'Optional' ? 'neutral' : 'info' },
-                  ui.dateLabel(hd.date) + ' · ' + hd.name);
-              }))
-            : h(ui.Empty, { icon: I.star, title: 'No holidays left this year' }))),
-
+      editSt[0] ? h(EditLeaveModal, {
+        request: store.find('leaveRequests', editSt[0]),
+        onClose: function () { editSt[1](null); }
+      }) : null,
+      target ? h(ui.Confirm, {
+        title: 'Cancel this request?',
+        body: typeName(target.type) + ', ' + ui.dateLabel(target.from) + ' to ' + ui.dateLabel(target.to)
+          + '. The days go back to your balance and your manager is told.',
+        confirmLabel: 'Cancel the request', cancelLabel: 'Keep it', tone: 'danger',
+        onConfirm: function () { ui.report(act.cancelLeave(target.id)); },
+        onClose: function () { cancelSt[1](null); }
+      }) : null,
       ledgerSt[0] ? h(Ledger, { employee: m.id, type: ledgerSt[0], onClose: function () { ledgerSt[1](null); } }) : null);
   }
 

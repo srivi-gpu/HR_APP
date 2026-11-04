@@ -283,23 +283,32 @@
       { path: 'today', route: 'me/attendance/today', group: 'Attendance', label: 'Today', section: '4.17', note: 'Check in and out, with hours worked so far against your shift.' },
       { path: 'attendance-history', route: 'me/attendance/history', group: 'Attendance', label: 'History', section: '4.17', note: 'Day-by-day record with status, punches and hours.' },
       { path: 'regularization', route: 'me/attendance/regularization', group: 'Attendance', label: 'Regularization', section: '4.18', note: 'Raise a correction for a missing or wrong punch.' },
-      { path: 'leave', route: 'me/leave/overview', group: 'Leave', label: 'Overview', section: '4.12', note: 'Balance, pending requests, booked time off, who is away in your team and the holidays ahead.' },
-      { path: 'apply', route: 'me/leave/apply', group: 'Leave', label: 'Apply', section: '4.12', note: 'Apply for leave, with days, balance and exclusions calculated before you submit.' },
-      { path: 'balance', route: 'me/leave/balance', group: 'Leave', label: 'Balance', section: '4.12', note: 'Entitlement, used and available for each leave type.' },
-      { path: 'calendar', route: 'me/leave/calendar', group: 'Leave', label: 'Who is away', section: '4.14', note: 'A month of the team\u2019s approved leave against the holiday calendar.' },
-      { path: 'leave-history', route: 'me/leave/history', group: 'Leave', label: 'History', section: '4.14', note: 'Your past requests and where each one stands.' },
-      { path: 'holidays', route: 'me/leave/holidays', group: 'Leave', label: 'Holidays', section: '4.11', note: 'The holidays this organization observes, including the optional ones.' }
+      /* Leave was six tabs over one subject: the balance, applying, the history and who
+         else is away were each a place to go, so answering "can I take Friday off" meant
+         visiting three of them. It is one screen now — balances across the top, every
+         request under them — with the holidays beside it.
+
+         Apply, the team calendar and the old balance and history screens keep their
+         routes and lose their tabs: the dashboard, the search index and the portal's own
+         buttons address them directly, and a route the IA drops stops resolving. */
+      /* "My leave" rather than "Leave": the group above it is already called Leave, and
+         a row reading Leave / Leave says nothing about which is which. */
+      { path: 'leave', route: 'me/leave/overview', group: 'Leave', label: 'My leave', section: '4.12', note: 'Your balances and every request you have made, with what each one is waiting on.' },
+      { path: 'holidays', route: 'me/leave/holidays', group: 'Leave', label: 'Holidays', section: '4.11', note: 'The holidays this organization observes, including the optional ones.' },
+      { path: 'apply', route: 'me/leave/apply', group: 'Leave', hidden: true, label: 'Apply', section: '4.12', note: 'Apply for leave, with days, balance and exclusions calculated before you submit.' },
+      { path: 'calendar', route: 'me/leave/calendar', group: 'Leave', hidden: true, label: 'Who is away', section: '4.14', note: 'A month of the team\u2019s approved leave against the holiday calendar.' },
+      { path: 'balance', route: 'me/leave/balance', group: 'Leave', hidden: true, label: 'Balance', section: '4.12', note: 'Entitlement, used and available for each leave type.' },
+      { path: 'leave-history', route: 'me/leave/history', group: 'Leave', hidden: true, label: 'History', section: '4.14', note: 'Your past requests and where each one stands.' }
     ]},
     { path: 'shifts', label: 'Shifts', icon: 'hourglass', section: '4.21', tabs: [
       { path: 'mine', label: 'Roster', section: '4.21', note: 'Your published roster for the week and month ahead.' },
       { path: 'swaps', label: 'Swap requests', section: '4.22', note: 'Request a swap and track swaps others have asked of you.' }
     ]},
 
-    { path: 'documents', label: 'Documents & policies', icon: 'file', section: '4.24', tabs: [
-      { path: 'mine', label: 'My documents', section: '4.24', note: 'Documents you have uploaded, with verification status and expiry.' },
-      { path: 'policies', label: 'Company policies', section: '4.26', note: 'Policies that apply to you, newest version first.' },
-      { path: 'acknowledgements', label: 'Acknowledgements', section: '4.26', note: 'Policies awaiting your acknowledgement, and ones you have signed.' }
-    ]},
+    /* The same library HR keeps, read-only: an employee opens and downloads, and has
+       no upload, folder or rename of their own. One page, as it is for HR. */
+    { path: 'documents', label: 'Documents & policies', icon: 'file', section: '4.24',
+      note: 'Company documents and policies, in folders: the handbook, insurance, compliance and the rest.' },
 
     { path: 'assets', label: 'Assets', icon: 'package', section: '4.31', tabs: [
       { path: 'assigned', label: 'Assigned', section: '4.30', note: 'What you hold, since when, and its condition on handover.' },
@@ -387,7 +396,9 @@
     { label: 'People', slots: [
       { label: 'Employees', icon: 'users', as: { admin: 'people', hr: 'people' } },
       { label: 'Onboarding', icon: 'person', path: 'onboarding' },
-      { label: 'Offboarding', icon: 'logout', as: { hr: 'offboarding', me: 'exit' } }
+      /* HR's offboarding belongs beside onboarding; an employee's own exit does not.
+         It is the last thing they will ever use here, so it sits at the bottom. */
+      { label: 'Offboarding', icon: 'logout', as: { hr: 'offboarding' } }
     ]},
     { label: 'Time & attendance', slots: [
       { label: 'Attendance & leave', icon: 'clock', path: 'time' },
@@ -424,6 +435,9 @@
       /* Admin's slot here used to be `settings`, which is Security now and belongs with
          the other administration rows. HR keeps Configuration. */
       { label: 'Configuration', icon: 'sliders', as: { hr: 'config' } }
+    ]},
+    { label: 'Leaving', slots: [
+      { label: 'Offboarding', icon: 'logout', as: { me: 'exit' } }
     ]}
   ];
 
