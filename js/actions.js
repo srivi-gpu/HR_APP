@@ -603,17 +603,36 @@
   }
 
   /* ================================================== Documents & policies (4.2x) */
+  /* `title` is what the person calls the document; `name` is the file it came from.
+     A row of filenames says very little, so the two are kept apart and the title is
+     what every list leads with. */
   function uploadDocument(employeeId, form) {
-    var errors = rules.required([{ key: 'category', label: 'Category' }, { key: 'name', label: 'File name' }], form);
+    var errors = rules.required([
+      { key: 'title', label: 'Document name' },
+      { key: 'category', label: 'Category' },
+      { key: 'name', label: 'File' }
+    ], form);
     if (rules.hasErrors(errors)) return fail(errors);
+    var title = String(form.title).trim();
     var id = store.nextId('employeeDocuments', 'DOC');
     store.add('employeeDocuments', {
-      id: id, employee: employeeId, category: form.category, name: form.name,
+      id: id, employee: employeeId, title: title, category: form.category, name: form.name,
       uploaded: today(), status: 'Pending Verification', verifiedBy: null,
       expiry: form.expiry || null, size: form.size || '— KB'
     });
-    store.log('uploaded ' + form.name, 'User activity');
-    return done(form.name + ' uploaded and sent for verification', { id: id });
+    store.log('uploaded "' + title + '"', 'User activity');
+    return done(title + ' uploaded and sent for verification', { id: id });
+  }
+  /* The name is the one thing the owner may change after upload: the file and its
+     verification are the record, the label is theirs. */
+  function renameEmployeeDocument(id, title) {
+    var doc = store.find('employeeDocuments', id);
+    if (!doc) return fail({ _: 'That document no longer exists' });
+    var clean = String(title || '').trim();
+    if (!clean) return fail({ title: 'Give the document a name' });
+    store.setOverride('employeeDocuments', id, { title: clean });
+    store.log('renamed a document to "' + clean + '"', 'User activity');
+    return done('Renamed to ' + clean);
   }
   function verifyDocument(id, decision, comment) {
     var doc = store.find('employeeDocuments', id);
@@ -1430,7 +1449,8 @@
     createShift: createShift, assignShift: assignShift, changeDefaultShift: changeDefaultShift,
     requestShiftSwap: requestShiftSwap, decideShiftSwap: decideShiftSwap,
     /* Documents */
-    uploadDocument: uploadDocument, verifyDocument: verifyDocument,
+    uploadDocument: uploadDocument, renameEmployeeDocument: renameEmployeeDocument,
+    verifyDocument: verifyDocument,
     publishPolicy: publishPolicy, acknowledgePolicy: acknowledgePolicy,
     addHoliday: addHoliday, updateHoliday: updateHoliday, deleteHoliday: deleteHoliday,
     importHolidays: importHolidays,

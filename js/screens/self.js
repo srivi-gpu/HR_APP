@@ -1788,6 +1788,205 @@
           onClick: function () { ui.toast('Exit documents download started', 'success'); } }, 'Download exit documents')));
   }
 
+  /* ================================================== My documents (PRD 4.24)
+     An employee's own papers, on their own record. Sharing one sends it to HR as
+     Pending Verification — the same path a document uploaded by HR takes — so the two
+     sides see one queue rather than two. */
+  var REQUIRED_DOCS = ['Identity Proof', 'Address Proof', 'Education Certificate', 'Employment Agreement'];
+
+  function docTitle(d) { return d.title || d.name; }
+
+  function ShareDocumentModal(p) {
+    var fileRef = React.useRef(null);
+    var fileSt = React.useState(null);              // { name, size }
+    var form = ui.useForm({ title: '', category: seed.documentCategories[0], expiry: '' });
+
+    function save() {
+      var res = form.submit(function (v) {
+        return ui.report(act.uploadDocument(p.employee, {
+          title: v.title, category: v.category,
+          name: fileSt[0] ? fileSt[0].name : '',
+          size: fileSt[0] ? prettySize(fileSt[0].size) : '— KB',
+          expiry: v.expiry || null
+        }));
+      });
+      if (res && res.ok) p.onClose();
+    }
+    function take(file) {
+      if (!file) return;
+      fileSt[1]({ name: file.name, size: file.size });
+      /* A first guess at the name, so the common case is one less thing to type. */
+      if (!form.values.title.trim()) form.set('title', file.name.replace(/\.[^.]+$/, ''));
+    }
+
+    return h(ui.Modal, {
+      title: 'Share a document',
+      description: 'HR verifies what you share. You can rename it afterwards; the file itself cannot be swapped.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', iconStart: I.up, onClick: save }, 'Share'))
+    },
+      h('div', {
+        className: 'dropzone', role: 'button', tabIndex: 0,
+        onClick: function () { if (fileRef.current) fileRef.current.click(); },
+        onKeyDown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileRef.current.click(); } },
+        onDragOver: function (e) { e.preventDefault(); },
+        onDrop: function (e) { e.preventDefault(); take(e.dataTransfer && e.dataTransfer.files[0]); }
+      },
+        h('span', { className: 'dropzone__mark' }, I.file),
+        h('span', { className: 'dropzone__title' }, fileSt[0] ? fileSt[0].name : 'Drop your document here'),
+        h('span', { className: 'dropzone__hint' },
+          fileSt[0] ? prettySize(fileSt[0].size) + ' · click to replace' : 'or click to browse')),
+      h('input', {
+        ref: fileRef, type: 'file', className: 'visually-hidden', 'aria-label': 'Choose a file',
+        onChange: function (e) { take(e.target.files && e.target.files[0]); e.target.value = ''; }
+      }),
+      h(V.TextField, Object.assign({
+        label: 'Document name', required: true, placeholder: 'e.g. Aadhaar card, front and back'
+      }, form.field('title', { hint: form.errors.title || 'What this is, in your words' }))),
+      h(ui.FieldRow, { cols: 2 },
+        h(V.Select, Object.assign({
+          label: 'Category', required: true, options: seed.documentCategories
+        }, form.select('category'))),
+        h(V.DateField, Object.assign({ label: 'Expires on' },
+          form.field('expiry', { hint: 'Leave empty if it does not lapse' })))),
+      form.errors.name ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, 'Choose a file to share') : null);
+  }
+
+  function prettySize(n) {
+    if (n == null) return '— KB';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  function MyDocuments() {
+    var m = me();
+    var shareSt = React.useState(false);
+    var renameSt = React.useState(null);
+    if (!m) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
+
+    var docs = store.collection('employeeDocuments')
+      .filter(function (d) { return d.employee === m.id; })
+      .sort(function (a, b) { return a.uploaded < b.uploaded ? 1 : -1; });
+    var held = {};
+    docs.forEach(function (d) { held[d.category] = true; });
+    var missing = REQUIRED_DOCS.filter(function (c) { return !held[c]; });
+    var pending = docs.filter(function (d) { return d.status === 'Pending Verification'; }).length;
+
+    return h(React.Fragment, null,
+      h(ui.PageHead, {
+        eyebrow: 'My profile', title: 'Documents',
+        description: 'What you have shared with HR, and what each one is waiting on.',
+        actions: [
+          h(V.Button, { key: 's', variant: 'primary', iconStart: I.up,
+            onClick: function () { shareSt[1](true); } }, 'Share a document')
+        ]
+      }),
+
+      missing.length
+        ? h('div', { className: 'ai-note', style: { marginBottom: 14 } },
+          h('span', { className: 'ai-note__mark' }, I.warn),
+          h('div', { className: 'ai-note__body' },
+            h('span', { className: 'ai-note__eyebrow' }, 'Still needed'),
+            h('p', { className: 'ai-note__text' },
+              missing.join(', ') + '. HR asks everyone for these, and your record is not complete without them.')))
+        : null,
+
+      h(Card, {
+        title: 'My documents',
+        description: docs.length
+          ? docs.length + ' shared · ' + (pending ? pending + ' awaiting verification' : 'all verified or decided')
+          : null
+      },
+        h(ui.DataTable, {
+          exportName: 'my-documents', label: 'My documents', rows: docs, pageSize: 10,
+          search: function (d) { return docTitle(d) + ' ' + d.category; },
+          searchPlaceholder: 'Search your documents',
+          columns: [
+            { key: 'title', header: 'Document', sortable: true,
+              sortValue: docTitle, csv: docTitle,
+              cell: function (d) {
+                /* The file and its size go under the title rather than in columns of
+                   their own: six columns plus two actions did not fit the card. */
+                var sub = [d.title && d.title !== d.name ? d.name : null, d.size]
+                  .filter(Boolean).join(' \u00b7 ');
+                return h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
+                  h('span', { className: 'empty__mark', style: { width: 26, height: 26 } }, I.file),
+                  h('span', { className: 'stack gap-1' },
+                    h('span', null, docTitle(d)),
+                    sub ? h('span', { className: 'list__meta' }, sub) : null));
+              } },
+            { key: 'category', header: 'Category', sortable: true },
+            { key: 'uploaded', header: 'Shared on', sortable: true,
+              cell: function (d) { return ui.dateLabel(d.uploaded); } },
+            { key: 'expiry', header: 'Expires',
+              csv: function (d) { return d.expiry || ''; },
+              cell: function (d) {
+                if (!d.expiry) return h('span', { className: 'muted' }, '—');
+                var n = Math.round((new Date(d.expiry + 'T00:00') - seed.today) / 86400000);
+                return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', dot: true,
+                  tone: n < 0 ? 'error' : n <= 30 ? 'error' : n <= 90 ? 'warning' : 'info' },
+                  n < 0 ? 'Expired' : ui.dateLabel(d.expiry));
+              } },
+            { key: 'status', header: 'Status',
+              cell: function (d) {
+                return h('span', { className: 'lstatus' },
+                  h(ui.StatusChip, { status: d.status }),
+                  d.verifiedBy && emp(d.verifiedBy)
+                    ? h('span', { className: 'lstatus__by' }, 'by ' + emp(d.verifiedBy).name)
+                    : null);
+              } },
+            { key: 'actions', header: '', align: 'right',
+              cell: function (d) {
+                return h('span', { className: 'row gap-1', style: { justifyContent: 'flex-end' } },
+                  h(V.IconButton, {
+                    icon: I.pencil, title: 'Rename', 'aria-label': 'Rename ' + docTitle(d),
+                    onClick: function () { renameSt[1](d.id); }
+                  }),
+                  h(V.IconButton, {
+                    icon: I.download, title: 'Download', 'aria-label': 'Download ' + docTitle(d),
+                    onClick: function () { ui.toast(docTitle(d) + ' download started', 'success'); }
+                  }));
+              } }
+          ],
+          emptyIcon: I.file, emptyTitle: 'You have not shared anything yet',
+          emptyBody: 'Share your identity, address, education and employment documents so HR can verify them.',
+          emptyActions: h(V.Button, { variant: 'primary', iconStart: I.up,
+            onClick: function () { shareSt[1](true); } }, 'Share a document')
+        })),
+
+      shareSt[0] ? h(ShareDocumentModal, {
+        employee: m.id, onClose: function () { shareSt[1](false); }
+      }) : null,
+      renameSt[0] ? h(RenameDocumentModal, {
+        doc: store.find('employeeDocuments', renameSt[0]),
+        onClose: function () { renameSt[1](null); }
+      }) : null);
+  }
+
+  function RenameDocumentModal(p) {
+    var d = p.doc;
+    var form = ui.useForm({ title: docTitle(d) });
+    function save() {
+      var res = form.submit(function (v) { return ui.report(act.renameEmployeeDocument(d.id, v.title)); });
+      if (res && res.ok) p.onClose();
+    }
+    return h(ui.Modal, {
+      title: 'Rename document',
+      description: 'The file stays as it is — ' + d.name + '.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, 'Rename'))
+    },
+      h(V.TextField, Object.assign({
+        label: 'Document name', required: true,
+        onKeyDown: function (e) { if (e.key === 'Enter') { e.preventDefault(); save(); } }
+      }, form.field('title'))));
+  }
+
   /* ------------------------------------------------- Preferences (PRD 11.1)
      These two tabs used to be a standalone "My settings" page. They are personal
      to the signed-in user, so they belong with the rest of the profile rather
@@ -1831,6 +2030,7 @@
     'me/profile/emergency': profileScreen('emergency'),
     'me/profile/education': profileScreen('education'),
     'me/profile/bank': profileScreen('bank'),
+    'me/profile/documents': MyDocuments,
     'me/profile/preferences': Preferences,
     'me/profile/notifications': NotificationChannels,
 
