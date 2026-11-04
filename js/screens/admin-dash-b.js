@@ -138,6 +138,15 @@
     }));
   }
 
+  var TL_TONE = { Security: 'bad', Permissions: 'warn', Configuration: 'info' };
+  var STEP_ROUTE = { 'Payroll configuration': 'hr/config/payroll', 'Integrations': 'admin/integrations', 'Payment method': 'admin/billing/billing' };
+  function plural(n, one, many) { return num(n) + ' ' + (n === 1 ? one : (many || one + 's')); }
+  function actorName(id) { var e = store.employee(id); return e ? e.name : 'Someone'; }
+  function ago(on) {
+    var d = daysBetween(on.slice(0, 10), seed.todayIso);
+    return d <= 0 ? 'today' : d === 1 ? 'yesterday' : d < 7 ? d + ' days ago' : ui.dateLabel(on.slice(0, 10));
+  }
+
   function AdminDashB(p) {
     var users = store.collection('users');
     var s = store.stats();
@@ -178,29 +187,21 @@
     ];
     var allOk = HEALTH.every(function (x) { return x.ok; });
 
-    /* The security strip, from the audit log: what has actually been recorded. */
-    var audit = store.collection('audit');
-    function inLast(days, cat) {
-      return audit.filter(function (a) {
-        return (!cat || a.category === cat) && daysBetween(a.on.slice(0, 10), today) <= days;
-      }).length;
-    }
-    var openAlerts = (integrations.length - connected) + 1;   // + single sign-on not configured
-    var SECURITY = [
-      { ico: I.lock, n: inLast(30, 'Security'), t: 'Security events', s: 'Last 30 days', to: 'admin/audit/security' },
-      { ico: KEY, n: inLast(30, 'Configuration'), t: 'Configuration changes', s: 'Last 30 days', to: 'admin/audit/config' },
-      { ico: I.users, n: inLast(30, 'Permissions'), t: 'Role changes', s: 'Last 30 days', to: 'admin/audit/permissions' },
-      { ico: I.shield, n: openAlerts, t: 'Open alerts', s: 'SSO and integrations', to: 'admin/settings' }
-    ];
+    /* The audit log's security-relevant entries, newest first. */
+    var activity = store.collection('audit')
+      .filter(function (e) { return e.category === 'Security' || e.category === 'Permissions' || e.category === 'Configuration'; })
+      .sort(function (x, y) { return x.on < y.on ? 1 : -1; }).slice(0, 5);
 
-    var org = seed.org;
-    var SETUP = [
-      { ico: I.sitemap, n: s.departments, t: 'Departments', to: 'admin/org/org-tree' },
-      { ico: I.users, n: seed.teams.length, t: 'Teams', to: 'admin/org/teams' },
-      { ico: I.world, n: s.locations, t: 'Locations', to: 'admin/org/locations' },
-      { ico: I.calendar, n: (org.workWeek && org.workWeek.length) || 5, t: 'Working days a week', to: 'admin/org/workweek' },
-      { ico: I.star, n: seed.holidays.length, t: 'Holidays', to: 'admin/org/workweek' }
-    ];
+    var steps = seed.setupSteps;
+
+    var live = store.collection('employees').filter(function (e) { return e.status !== 'Exited'; });
+    var liveCount = live.length;
+    var byLoc = seed.locations.map(function (l) {
+      return { id: l.id, name: l.name, n: live.filter(function (e) { return e.location === l.id; }).length };
+    }).sort(function (x, y) { return y.n - x.n; });
+    var locMax = Math.max.apply(null, byLoc.map(function (l) { return l.n; }).concat([1]));
+    var nextHols = seed.holidays.filter(function (x) { return x.date >= today; })
+      .sort(function (x, y) { return x.date < y.date ? -1 : 1; }).slice(0, 3);
 
     var KPIS = [
       { ico: I.users, t: 'Total users', s: '+' + s.newJoiners + ' this month', up: true, n: users.length },
@@ -267,26 +268,60 @@
               h('span', { className: 'adm-p adm-p--' + (x.ok ? 'ok' : 'warn') }, x.s));
           })))),
 
-      h('section', { className: 'adm-card', style: { padding: 0 }, 'aria-label': 'Security and access' },
-        h('div', { className: 'adm-card__head', style: { padding: '18px 22px 0' } },
-          h('div', null, h('h2', null, 'Security & access'), h('p', null, 'From the audit log'))),
-        h('div', { className: 'adm-kpis' }, SECURITY.map(function (k) {
-          return h('button', { type: 'button', className: 'adm-kpi admb-kbtn', key: k.t, onClick: function () { router.go(k.to); } },
-            h('div', { className: 'adm-kpi__t' },
-              h('span', { className: 'adm-ico' }, k.ico),
-              h('span', { className: 'adm-kpi__l' }, h('strong', null, k.t), h('span', null, k.s))),
-            h('span', { className: 'adm-kpi__n', style: { fontSize: 34 } }, num(k.n)));
-        }))),
+      /* What changed, what is left to set up, and where people are — three things an admin
+         acts on, in place of two strips of counts. */
+      h('div', { className: 'admb-three' },
+        /* Security activity: the audit log's security, permission and configuration
+           changes, newest first, as a timeline of who did what. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null, h('h2', null, 'Security activity'), h('p', null, 'Security, permission and configuration changes')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/audit/security'); } }, 'Audit log', I.right)),
+          activity.length ? h('ol', { className: 'admb-tl' }, activity.map(function (e) {
+            return h('li', { className: 'admb-tl__r is-' + (TL_TONE[e.category] || 'info'), key: e.id },
+              h('span', { className: 'admb-tl__dot', 'aria-hidden': 'true' }),
+              h('span', { className: 'admb-tl__m' },
+                h('span', { className: 'admb-tl__t' }, h('b', null, actorName(e.actor)), ' ', e.action),
+                h('span', { className: 'admb-tl__w' }, h('span', { className: 'ara-tag ara-tag--' + (TL_TONE[e.category] || 'info') }, e.category), ago(e.on))));
+          })) : h(ui.Empty, { icon: I.history, title: 'Nothing logged', body: 'Security and configuration changes appear here as they are made.' })),
 
-      h('section', { className: 'adm-card' },
-        h('div', { className: 'adm-card__head' },
-          h('div', null, h('h2', null, 'Organisation setup'), h('p', null, 'What every other screen is configured against'))),
-        h('div', { className: 'admb-setup' }, SETUP.map(function (x) {
-          return h('button', { type: 'button', className: 'admb-tile', key: x.t, onClick: function () { router.go(x.to); } },
-            h('span', { className: 'adm-ico' }, x.ico),
-            h('b', null, num(x.n)),
-            h('span', { className: 'admb-tile__l' }, x.t, I.right));
-        }))));
+        /* Setup progress: what is configured, and the steps still open, each a click from done. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null, h('h2', null, 'Setup progress'), h('p', null, steps.filter(function (x) { return x.done; }).length + ' of ' + steps.length + ' steps done')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('global/setup'); } }, 'Wizard', I.right)),
+          h('div', { className: 'admb-setup2' },
+            h(Gauge, { rows: [{ k: 'Done', n: steps.filter(function (x) { return x.done; }).length }, { k: 'Open', n: steps.filter(function (x) { return !x.done; }).length }],
+              center: pct(steps.filter(function (x) { return x.done; }).length, steps.length) + '%', caption: 'configured' }),
+            h('div', { className: 'admb-steps' },
+              steps.filter(function (x) { return !x.done; }).map(function (x) {
+                var to = STEP_ROUTE[x.label];
+                return h('div', { className: 'admb-step', key: x.label },
+                  h('span', { className: 'admb-step__i' }, I.clock),
+                  h('span', { className: 'grow' }, x.label),
+                  to ? h('button', { type: 'button', className: 'admb-step__go',
+                    onClick: function () { (/^hr\//.test(to) && router.goAs ? router.goAs : router.go)(to); } }, 'Finish', I.right) : null);
+              }),
+              h('span', { className: 'admb-steps__done' }, CHECK, steps.filter(function (x) { return x.done; }).length + ' done: ' +
+                steps.filter(function (x) { return x.done; }).slice(0, 3).map(function (x) { return x.label.toLowerCase(); }).join(', ') + '…')))),
+
+        /* Where people work, and the days off coming up. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null, h('h2', null, 'Locations'), h('p', null, num(liveCount) + ' people across ' + plural(byLoc.length, 'office'))),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/org/locations'); } }, 'Manage', I.right)),
+          h('div', { className: 'adm-stack adm-stack--mfa' }, byLoc.map(function (l, i) {
+            return h('div', { className: 'adm-stack__r adm-stack__r--static', key: l.id },
+              h('span', { className: 'adm-stack__l' }, l.name),
+              h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (l.n / locMax * 100) + '%', background: RAMP[i % RAMP.length] } })),
+              h('b', null, l.n));
+          })),
+          h('span', { className: 'adm-sub', style: { marginTop: 12 } }, 'Coming up'),
+          h('div', { className: 'admb-hols' }, nextHols.map(function (x) {
+            return h('div', { className: 'admb-hol', key: x.id },
+              h('span', { className: 'admb-hol__d' }, h('b', null, x.date.slice(8, 10)), h('small', null, MON[Number(x.date.slice(5, 7)) - 1])),
+              h('span', { className: 'grow' }, h('strong', null, x.name), h('small', null, x.type + ' · ' + (x.locs === 'all' ? 'every office' : x.locs))));
+          })))));
   }
 
   HRMS.adminDashB = AdminDashB;
