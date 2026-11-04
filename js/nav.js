@@ -183,13 +183,13 @@
       { path: 'loans', label: 'Loans & advances', section: '4.36', note: 'What the company has lent, what is outstanding and what each cycle recovers.' }
     ]},
 
-    { path: 'documents', label: 'Documents & policies', icon: 'file', section: '4.27', tabs: [
-      { path: 'company', label: 'Company documents', section: '4.24', note: 'Handbook, code of conduct and other org-wide documents.' },
-      { path: 'employee', label: 'Employee documents', section: '4.24', note: 'Identity, address, education and employment documents per person.' },
-      { path: 'policies', label: 'Policy library', section: '4.25', note: 'Published policies with version history and audience.' },
-      { path: 'acknowledgements', label: 'Acknowledgements', section: '4.26', note: 'Who has acknowledged each policy, and who is outstanding.' },
-      { path: 'expiring', label: 'Expiring', section: '4.27', note: 'Documents approaching their expiry date.' }
-    ]},
+    /* One place, no tabs. The five screens this replaced split one library across
+       Company documents, Policy library, Acknowledgements and Expiring, which meant a
+       document's version, its audience and who had signed it were never on screen
+       together. It is now a folder tree, with each of those on the file's own panel.
+       Employee documents moved to the employee's profile, where they belong. */
+    { path: 'documents', label: 'Documents & policies', icon: 'file', section: '4.24',
+      note: 'Folders of company documents and policies: the handbook, insurance, compliance and the rest, with version, audience, acknowledgement and expiry per file.' },
     { path: 'performance', label: 'Performance', icon: 'target', section: '4.47', tabs: [
       { path: 'dashboard', label: 'Dashboard', section: '4.47', note: 'Cycle progress, completion rate and rating distribution.' },
       { path: 'cycles', label: 'Cycles', section: '4.44', note: 'Appraisal cycles with period, eligibility, reviewers and workflow.' },

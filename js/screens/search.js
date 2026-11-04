@@ -139,13 +139,14 @@
       own: function (d) { return d.employee; },
       text: function (d) { return [d.name, d.category, empName(d.employee), d.status].join(' '); },
       row: function (d) { return { title: d.name, sub: d.category + ' · ' + empName(d.employee), chip: d.status }; },
-      to: { hr: 'hr/documents/employee', me: 'me/documents' } },
+      /* An employee's documents are on their profile now, not in the library. */
+      to: { hr: 'hr/people/all', me: 'me/documents' } },
 
     { key: 'policies', label: 'Policies', icon: 'shield', module: 'documents',
       rows: function () { return store.collection('policies'); },
       text: function (p) { return [p.name, p.category, p.audience, p.version].join(' '); },
       row: function (p) { return { title: p.name, sub: p.category + ' · ' + p.audience, chip: 'v' + p.version }; },
-      to: { hr: 'hr/documents/policies', me: 'me/documents' } },
+      to: { hr: 'hr/documents', me: 'me/documents' } },
 
     { key: 'payroll', label: 'Payslips', icon: 'card', module: 'payroll',
       rows: function () { return store.collection('payslips'); },

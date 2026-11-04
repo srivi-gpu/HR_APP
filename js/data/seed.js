@@ -786,16 +786,45 @@
   var EXIT_REASONS = ['Better opportunity', 'Higher studies', 'Relocation', 'Personal reasons', 'Career change', 'Retirement'];
 
   /* ------------------------------------------------------ Documents & policies */
+  /* The company library is a folder tree. `parent` is null at the root; a document names
+     the folder it sits in. Categories survive as the folder names, so nothing that read
+     `category` before has to change. */
+  var DOC_FOLDERS = [
+    { id: 'fld-handbook', name: 'Handbook', parent: null, description: 'The employee handbook and everything that introduces how we work.' },
+    { id: 'fld-hr', name: 'HR Policy', parent: null, description: 'Leave, attendance, remote work and the rest of the people policies.' },
+    { id: 'fld-compliance', name: 'Compliance', parent: null, description: 'Conduct, POSH and the statutory set.' },
+    { id: 'fld-it', name: 'IT', parent: null, description: 'Security, acceptable use and device policy.' },
+    { id: 'fld-finance', name: 'Finance', parent: null, description: 'Travel, expense and reimbursement.' },
+    { id: 'fld-insurance', name: 'Insurance & Benefits', parent: null, description: 'Group cover, claim forms and benefit summaries.' },
+    { id: 'fld-ins-health', name: 'Health', parent: 'fld-insurance', description: 'Group mediclaim and the hospital network.' },
+    { id: 'fld-ins-life', name: 'Life & Accident', parent: 'fld-insurance', description: 'Term life and personal accident cover.' },
+    { id: 'fld-templates', name: 'Templates & Forms', parent: null, description: 'Letter templates and forms employees fill in.' }
+  ];
+
   var POLICIES = [
-    { id: 'pol-1', name: 'Employee Handbook', version: 'v4.2', category: 'Handbook', ack: true, published: '2026-07-01', audience: 'All employees' },
-    { id: 'pol-2', name: 'Code of Conduct', version: 'v2.0', category: 'Compliance', ack: true, published: '2026-04-12', audience: 'All employees' },
-    { id: 'pol-3', name: 'Leave Policy', version: 'v3.1', category: 'HR Policy', ack: true, published: '2026-10-20', audience: 'All employees' },
-    { id: 'pol-4', name: 'Attendance & Work Hours Policy', version: 'v2.3', category: 'HR Policy', ack: true, published: '2026-09-02', audience: 'All employees' },
-    { id: 'pol-5', name: 'Information Security Policy', version: 'v5.0', category: 'IT', ack: true, published: '2026-10-28', audience: 'All employees', due: '2026-11-15' },
-    { id: 'pol-6', name: 'Travel & Expense Policy', version: 'v1.8', category: 'Finance', ack: false, published: '2026-03-15', audience: 'Sales, Operations' },
-    { id: 'pol-7', name: 'Remote Work Policy', version: 'v2.1', category: 'HR Policy', ack: true, published: '2026-08-11', audience: 'All employees' },
-    { id: 'pol-8', name: 'POSH Policy', version: 'v1.4', category: 'Compliance', ack: true, published: '2026-02-01', audience: 'All employees' },
-    { id: 'pol-9', name: 'Acceptable Use of AI Tools', version: 'v1.0', category: 'IT', ack: true, published: '2026-10-05', audience: 'All employees' }
+    { id: 'pol-1', name: 'Employee Handbook', version: 'v4.2', category: 'Handbook', folder: 'fld-handbook', kind: 'Policy', size: '4.2 MB', ack: true, published: '2026-07-01', audience: 'All employees' },
+    { id: 'pol-2', name: 'Code of Conduct', version: 'v2.0', category: 'Compliance', folder: 'fld-compliance', kind: 'Policy', size: '820 KB', ack: true, published: '2026-04-12', audience: 'All employees' },
+    { id: 'pol-3', name: 'Leave Policy', version: 'v3.1', category: 'HR Policy', folder: 'fld-hr', kind: 'Policy', size: '610 KB', ack: true, published: '2026-10-20', audience: 'All employees' },
+    { id: 'pol-4', name: 'Attendance & Work Hours Policy', version: 'v2.3', category: 'HR Policy', folder: 'fld-hr', kind: 'Policy', size: '540 KB', ack: true, published: '2026-09-02', audience: 'All employees' },
+    { id: 'pol-5', name: 'Information Security Policy', version: 'v5.0', category: 'IT', folder: 'fld-it', kind: 'Policy', size: '1.1 MB', ack: true, published: '2026-10-28', audience: 'All employees', due: '2026-11-15' },
+    { id: 'pol-6', name: 'Travel & Expense Policy', version: 'v1.8', category: 'Finance', folder: 'fld-finance', kind: 'Policy', size: '730 KB', ack: false, published: '2026-03-15', audience: 'Sales, Operations' },
+    { id: 'pol-7', name: 'Remote Work Policy', version: 'v2.1', category: 'HR Policy', folder: 'fld-hr', kind: 'Policy', size: '480 KB', ack: true, published: '2026-08-11', audience: 'All employees' },
+    { id: 'pol-8', name: 'POSH Policy', version: 'v1.4', category: 'Compliance', folder: 'fld-compliance', kind: 'Policy', size: '690 KB', ack: true, published: '2026-02-01', audience: 'All employees' },
+    { id: 'pol-9', name: 'Acceptable Use of AI Tools', version: 'v1.0', category: 'IT', folder: 'fld-it', kind: 'Policy', size: '390 KB', ack: true, published: '2026-10-05', audience: 'All employees' },
+
+    /* Reference material rather than policy: nothing to acknowledge, but it expires,
+       which is the other thing this library has to keep track of. */
+    { id: 'doc-1', name: 'Group Mediclaim — Policy Schedule 2026-27', version: 'v1.0', category: 'Insurance', folder: 'fld-ins-health', kind: 'Insurance', size: '2.8 MB', ack: false, published: '2026-04-01', audience: 'All employees', expiry: '2027-03-31' },
+    { id: 'doc-2', name: 'Group Mediclaim — Network Hospitals', version: 'v3.2', category: 'Insurance', folder: 'fld-ins-health', kind: 'Insurance', size: '5.4 MB', ack: false, published: '2026-09-18', audience: 'All employees', expiry: '2027-03-31' },
+    { id: 'doc-3', name: 'Cashless Claim Form', version: 'v2.1', category: 'Insurance', folder: 'fld-ins-health', kind: 'Form', size: '220 KB', ack: false, published: '2026-04-01', audience: 'All employees' },
+    { id: 'doc-4', name: 'Group Term Life — Certificate of Insurance', version: 'v1.0', category: 'Insurance', folder: 'fld-ins-life', kind: 'Insurance', size: '1.6 MB', ack: false, published: '2026-04-01', audience: 'All employees', expiry: '2027-03-31' },
+    { id: 'doc-5', name: 'Personal Accident Cover — Summary', version: 'v1.2', category: 'Insurance', folder: 'fld-ins-life', kind: 'Insurance', size: '740 KB', ack: false, published: '2026-05-20', audience: 'All employees', expiry: '2027-03-31' },
+    { id: 'doc-6', name: 'Benefits at a Glance', version: 'v2.0', category: 'Handbook', folder: 'fld-handbook', kind: 'Reference', size: '1.3 MB', ack: false, published: '2026-07-01', audience: 'All employees' },
+    { id: 'doc-7', name: 'New Joiner Welcome Guide', version: 'v3.0', category: 'Handbook', folder: 'fld-handbook', kind: 'Reference', size: '6.1 MB', ack: false, published: '2026-08-05', audience: 'All employees' },
+    { id: 'doc-8', name: 'Salary Revision Letter — Template', version: 'v1.4', category: 'Templates', folder: 'fld-templates', kind: 'Template', size: '96 KB', ack: false, published: '2026-06-12', audience: 'HR' },
+    { id: 'doc-9', name: 'Experience Letter — Template', version: 'v1.1', category: 'Templates', folder: 'fld-templates', kind: 'Template', size: '88 KB', ack: false, published: '2026-06-12', audience: 'HR' },
+    { id: 'doc-10', name: 'Reimbursement Claim Form', version: 'v2.3', category: 'Finance', folder: 'fld-finance', kind: 'Form', size: '140 KB', ack: false, published: '2026-03-15', audience: 'All employees' },
+    { id: 'doc-11', name: 'Fire Safety & Evacuation Plan', version: 'v1.0', category: 'Compliance', folder: 'fld-compliance', kind: 'Reference', size: '3.2 MB', ack: false, published: '2026-01-20', audience: 'All employees', expiry: '2026-12-31' }
   ];
   /* Acknowledgements: the new security policy is still outstanding for many. */
   var acknowledgements = [];
@@ -1596,7 +1625,7 @@
     assets: assets, assetRequests: assetRequests, assetCategories: ASSET_CATS.map(function (c) { return c.name; }),
     onboarding: onboarding, onboardingTemplates: ONB_TEMPLATES, onboardingTaskNames: ONB_TASKS,
     offboarding: offboarding, offboardingTaskNames: OFB_TASKS, exitReasons: EXIT_REASONS,
-    policies: POLICIES, acknowledgements: acknowledgements, documentCategories: DOC_CATEGORIES,
+    policies: POLICIES, docFolders: DOC_FOLDERS, acknowledgements: acknowledgements, documentCategories: DOC_CATEGORIES,
     employeeDocuments: employeeDocuments,
     salaryComponents: SALARY_COMPONENTS, salaryStructures: SALARY_STRUCTURES, payrollCycles: payrollCycles,
     reimbursements: reimbursements, reimbursementKinds: REIMBURSEMENT_KINDS,
