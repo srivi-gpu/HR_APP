@@ -642,6 +642,13 @@
     });
   }
   addAssetRequest(id('Farhan Ali'), 'Monitor', 'Dual screen setup for research sessions', 'Pending Approval');
+  /* The Employee workspace opens as Ananya Rao, so she has to have asked for something:
+     a screen that can only ever be empty for the persona looking at it demonstrates
+     nothing. One of each outcome, so the timeline has an approval, a refusal and a
+     request still walking the line to show. */
+  addAssetRequest(id('Ananya Rao'), 'Laptop', 'Replacement \u2014 battery swells under load', 'Approved');
+  addAssetRequest(id('Ananya Rao'), 'Docking Station', 'Two screens at the Bengaluru desk', 'Pending Approval');
+  addAssetRequest(id('Ananya Rao'), 'Mobile Phone', 'On-call rotation starting next month', 'Rejected');
   var arPool = shuffle(eligible.filter(function (e) { return e.name !== 'Farhan Ali'; }));
   var AR_PENDING = 7;
   arPool.slice(0, AR_PENDING - 1).forEach(function (e) {

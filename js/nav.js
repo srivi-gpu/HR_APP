@@ -305,7 +305,7 @@
 
     { path: 'assets', label: 'Assets', icon: 'package', section: '4.31', tabs: [
       { path: 'assigned', label: 'Assigned', section: '4.30', note: 'What you hold, since when, and its condition on handover.' },
-      { path: 'requests', label: 'Requests', section: '4.31', note: 'Request an asset and track the approval.' },
+      { path: 'requests', label: 'Requests', section: '4.31', note: 'Asset requests raised in Tracklivo, and how far each has got through the reporting line.' },
       { path: 'history', label: 'History', section: '4.33', note: 'Everything you have held and returned.' }
     ]},
 

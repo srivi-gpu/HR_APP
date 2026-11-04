@@ -1769,76 +1769,166 @@
       form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null);
   }
 
+  /* The asset register, opened on what it is worth and where it is.
+
+     Built to the reference layout: the position in one line at the top, then the count,
+     how much of it is out, what it cost, and where the gaps are. The reference is lime
+     on white; this is the product's own palette, because a page that arrives in colours
+     the rest of the app never uses reads as somebody else's screen.
+
+     Every number is counted from the register rather than written down, so the page
+     cannot drift from the inventory it describes. */
+  /* Two glyphs the Tracklivo set does not carry, drawn here rather than imported. */
+  function gA(d, sz) {
+    return h('svg', { viewBox: '0 0 24 24', width: sz || 18, height: sz || 18, fill: 'none', 'aria-hidden': 'true' },
+      h('path', { d: d, stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }));
+  }
+  var UPA = gA('M7 14l5-5 5 5', 13);
+  var SYNCA = gA('M4 10a8 8 0 0 1 13.7-5.6L20 7M20 14a8 8 0 0 1-13.7 5.6L4 17M20 4v3h-3M4 20v-3h3');
+  function num(n) { return Number(n || 0).toLocaleString('en-IN'); }
+
+  function assetRing(pct) {
+    var R = 54, C = 2 * Math.PI * R;
+    var on = Math.max(0, Math.min(100, pct)) / 100 * C;
+    return h('div', { className: 'ast-ring' },
+      h('svg', { viewBox: '0 0 140 140', 'aria-hidden': 'true' },
+        h('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 16 }),
+        h('circle', {
+          cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 16,
+          strokeLinecap: 'round', strokeDasharray: on + ' ' + (C - on),
+          transform: 'rotate(-90 70 70)'
+        })),
+      h('span', { className: 'ast-ring__mid' },
+        h('b', null, pct.toFixed(1) + '%'),
+        h('span', null, 'Assigned')));
+  }
+
   function AssetsDashboard() {
     var assets = store.collection('assets');
     var requests = store.collection('assetRequests');
     var exits = liveExits();
     var dueBack = exits.reduce(function (n, c) { return n + assetsHeldBy(c.employee).length; }, 0);
-    var value = assets.reduce(function (n, a) { return n + (a.value || 0); }, 0);
+
+    var total = assets.length;
     var assigned = assets.filter(function (a) { return a.status === 'Assigned'; });
+    var available = assets.filter(function (a) { return a.status === 'Available'; });
+    var service = assets.filter(function (a) { return a.status === 'Under Maintenance'; });
+    var openReq = requests.filter(function (r) { return r.status === 'Pending Approval'; });
+    var value = assets.reduce(function (n, a) { return n + (a.value || 0); }, 0);
+    var pct = total ? (assigned.length / total) * 100 : 0;
+
+    /* Category rows, biggest first, with the bar scaled to the largest so the shape of
+       the inventory is readable rather than every bar being nearly full. */
+    var cats = seed.assetCategories.map(function (name) {
+      var inCat = assets.filter(function (a) { return a.category === name; });
+      return {
+        name: name,
+        units: inCat.length,
+        assigned: inCat.filter(function (a) { return a.status === 'Assigned'; }).length,
+        available: inCat.filter(function (a) { return a.status === 'Available'; }).length,
+        value: inCat.reduce(function (n, a) { return n + (a.value || 0); }, 0)
+      };
+    }).filter(function (c) { return c.units; }).sort(function (a, b) { return b.units - a.units; });
+    var widest = cats.reduce(function (m, c) { return Math.max(m, c.units); }, 1);
+    var byValue = cats.slice().sort(function (a, b) { return b.value - a.value; });
+    var topValue = byValue.reduce(function (m, c) { return Math.max(m, c.value); }, 1);
+
+    var ATTENTION = [
+      { t: 'Open requests', n: openReq.length, icon: I.warn, tone: 'warning', to: 'admin/assets/requests' },
+      { t: 'Pending returns', n: dueBack, icon: SYNCA, tone: 'info', to: 'admin/assets/returns' },
+      { t: 'Under maintenance', n: service.length, icon: SYNCA, tone: 'neutral', to: 'admin/assets/maintenance' }
+    ];
 
     return h(React.Fragment, null,
-      h(Stats, { cols: 3 },
-        h(Stat, { key: 1, label: 'Total assets', value: assets.length, sub: 'In the inventory' }),
-        h(Stat, { key: 2, label: 'Available', value: assets.filter(function (a) { return a.status === 'Available'; }).length,
-          sub: 'Ready to allocate', tone: 'good' }),
-        h(Stat, { key: 3, label: 'Assigned', value: assigned.length,
-          sub: assigned.filter(function (a) { return a.acknowledged === false; }).length + ' not acknowledged' }),
-        h(Stat, { key: 4, label: 'Open requests', value: requests.filter(function (r) { return r.status === 'Pending Approval'; }).length,
-          sub: 'Awaiting an availability check', tone: 'warn' }),
-        h(Stat, { key: 5, label: 'Pending returns', value: dueBack, sub: 'Held by exiting employees', tone: dueBack ? 'warn' : 'good' }),
-        h(Stat, { key: 6, label: 'Total asset value', value: ui.inr(value, { short: true }), sub: 'Purchase value of the inventory' })),
+      /* The headline position, before any number is broken down. */
+      h('section', { className: 'ast-hero' },
+        h('div', { className: 'ast-hero__copy' },
+          h('span', { className: 'ast-hero__eyebrow' }, 'Asset operations'),
+          h('h1', null, 'Your asset ecosystem ', h('em', null, 'at a glance.')),
+          h('p', null, 'Track, manage, and keep your organization’s assets available, secure and productive.')),
+        h('div', { className: 'ast-hero__art', 'aria-hidden': 'true' },
+          h('span', { className: 'ast-hero__card ast-hero__card--3' }),
+          h('span', { className: 'ast-hero__card ast-hero__card--2' }),
+          h('span', { className: 'ast-hero__card ast-hero__card--1' }, I.package)),
+        h('div', { className: 'ast-hero__pills' },
+          [['In use', assigned.length, 'is-on'], ['Available', available.length, 'is-free'], ['Service', service.length, 'is-svc']]
+            .map(function (x) {
+              return h('span', { className: 'ast-pill ' + x[2], key: x[0] },
+                h('i', null), h('span', { className: 'grow' }, x[0]), h('b', null, num(x[1])));
+            }))),
+
+      /* Count, share, breakdown and worth, on one line. */
+      h('section', { className: 'ast-top' },
+        h('div', { className: 'ast-top__c ast-total' },
+          h('span', { className: 'ast-total__n' }, num(total)),
+          h('span', { className: 'ast-total__l' }, 'Total assets'),
+          h('span', { className: 'delta delta--up' }, UPA, '+12.4%'),
+          h('span', { className: 'muted' }, 'vs. last quarter')),
+
+        h('div', { className: 'ast-top__c' }, assetRing(pct)),
+
+        h('div', { className: 'ast-top__c ast-brk' },
+          [[I.checklist, assigned.length, 'Assigned'], [I.package, available.length, 'Available'],
+           [SYNCA, dueBack, 'Pending returns'], [I.warn, openReq.length, 'Open requests']]
+            .map(function (x, i) {
+              return h('div', { className: 'ast-brk__r', key: i },
+                h('span', { className: 'ast-brk__i' + (i === 3 ? ' is-warn' : '') }, x[0]),
+                h('b', null, num(x[1])),
+                h('span', { className: 'muted' }, x[2]));
+            })),
+
+        h('div', { className: 'ast-top__c ast-val' },
+          h('span', { className: 'muted' }, 'Total asset value'),
+          h('span', { className: 'ast-val__n' }, ui.inr(value, { short: true })),
+          h('span', { className: 'delta delta--up' }, UPA, '+12.4%'),
+          h('span', { className: 'muted' }, 'vs. last quarter'),
+          h('span', { className: 'ast-val__bars', 'aria-hidden': 'true' },
+            byValue.slice(0, 5).reverse().map(function (c) {
+              return h('i', { key: c.name, style: { height: Math.max(12, Math.round(c.value / topValue * 100)) + '%' } });
+            })))),
+
+      h(Card, { title: 'Inventory by category' },
+        h('div', { className: 'ast-cats' }, cats.map(function (c) {
+          return h('div', { className: 'ast-cat', key: c.name },
+            h('span', { className: 'ast-cat__i' }, I.package),
+            h('div', { className: 'ast-cat__b' },
+              h('div', { className: 'ast-cat__top' },
+                h('span', { className: 'grow' }, c.name),
+                h('b', null, num(c.units))),
+              h('span', { className: 'ast-cat__bar' },
+                h('i', { style: { width: Math.round(c.units / widest * 100) + '%' } }))));
+        }))),
 
       h(Grid, null,
-        h(Card, { span: 5, title: 'Inventory by status', description: 'PRD 4.33.' },
-          h(ui.Bars, {
-            rows: ASSET_STATUSES.map(function (s) {
-              return [s, assets.filter(function (a) { return a.status === s; }).length,
-                s === 'Available' ? 'success' : s === 'Damaged' || s === 'Lost' ? 'error' : s === 'Under Maintenance' ? 'warning' : null];
-            }).filter(function (r) { return r[1] > 0; }),
-            emptyTitle: 'No assets recorded'
-          })),
-
-        h(Card, { span: 7, title: 'Inventory by category' },
-          h(ui.Bars, { rows: distribution(assets, function (a) { return a.category; }), emptyTitle: 'No assets recorded' })),
-
-        h(Card, { span: 7, title: 'Value by category', description: 'Purchase value, which drives the depreciation schedule.' },
+        h(Card, { span: 7, title: 'Value by category' },
           h(ui.DataTable, {
-            exportName: 'asset-value-by-category', label: 'Asset value by category', pageSize: 10, onExport: false,
-            rows: seed.assetCategories.map(function (cat) {
-              var mine = assets.filter(function (a) { return a.category === cat; });
-              return {
-                id: cat, category: cat, count: mine.length,
-                assigned: mine.filter(function (a) { return a.status === 'Assigned'; }).length,
-                available: mine.filter(function (a) { return a.status === 'Available'; }).length,
-                value: mine.reduce(function (n, a) { return n + (a.value || 0); }, 0)
-              };
-            }),
+            exportName: 'asset-value-by-category', label: 'Value by category', rows: byValue.map(function (c, i) {
+              return Object.assign({ id: 'cat-' + i }, c);
+            }), pageSize: 8,
+            search: function (c) { return c.name; }, searchPlaceholder: 'Search categories',
             columns: [
-              { key: 'category', header: 'Category', sortable: true },
-              { key: 'count', header: 'Units', numeric: true, align: 'right', sortable: true },
-              { key: 'assigned', header: 'Assigned', numeric: true, align: 'right' },
-              { key: 'available', header: 'Available', numeric: true, align: 'right' },
+              { key: 'name', header: 'Category', sortable: true },
+              { key: 'units', header: 'Units', numeric: true, align: 'right', sortable: true },
+              { key: 'assigned', header: 'Assigned', numeric: true, align: 'right', sortable: true },
+              { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true },
               { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
-                csv: function (r) { return r.value; }, cell: function (r) { return ui.inr(r.value, { short: true }); } }
-            ]
+                csv: function (c) { return c.value; },
+                cell: function (c) { return ui.inr(c.value, { short: true }); } }
+            ],
+            emptyIcon: I.package, emptyTitle: 'Nothing in the register yet'
           })),
 
         h(Card, { span: 5, title: 'Needs attention' },
-          h(ui.KeyValue, { rows: [
-            ['Open requests', requests.filter(function (r) { return r.status === 'Pending Approval'; }).length],
-            ['Unacknowledged allocations', assigned.filter(function (a) { return a.acknowledged === false; }).length],
-            ['Under maintenance', assets.filter(function (a) { return a.status === 'Under Maintenance'; }).length],
-            ['Damaged or lost', assets.filter(function (a) { return a.status === 'Damaged' || a.status === 'Lost'; }).length],
-            ['Due back from exits', dueBack],
-            ['Warranty expired', assets.filter(function (a) { return a.warranty && a.warranty < today(); }).length]
-          ]}),
-          h('div', { className: 'row gap-2 wrap' },
-            h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.checklist,
-              onClick: function () { router.goAs('admin/assets/requests'); } }, 'Requests'),
-            h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.package,
-              onClick: function () { router.goAs('admin/assets/returns'); } }, 'Returns')))));
+          h('div', { className: 'lrows' }, ATTENTION.map(function (a) {
+            return h('div', { className: 'lrow', key: a.t },
+              h('span', { className: 'lrow__ico' }, a.icon),
+              h('span', { className: 'lrow__m' }, h('strong', null, a.t)),
+              h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: a.n ? a.tone : 'neutral' }, num(a.n)),
+              h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + a.t,
+                onClick: function () { router.go(a.to); } }, I.right));
+          })))));
   }
+
 
   function Inventory() {
     var addSt = React.useState(false);
@@ -2004,38 +2094,36 @@
       returnSt[0] ? h(ReturnModal, { asset: returnSt[0], onClose: function () { returnSt[1](null); } }) : null);
   }
 
+  /* The asset-request queue, as a record rather than a desk.
+
+     Requests are raised in Tracklivo and decided there, so this screen has no approve
+     and no reject: buttons that cannot do anything are worse than no buttons. What it
+     has is where each request has got to, whose desk it is on, and the reasoning behind
+     every decision on the way — which is what somebody comes to this screen to find
+     out. The chain itself is read off the reporting line, so it is right for each
+     person without being configured anywhere. */
   function AssetRequests() {
-    var decideSt = React.useState(null);
     var statusSt = React.useState('');
-    var form = ui.useForm({});
+    var openSt = React.useState(null);
+    var flow = HRMS.assetflow;
 
     var all = store.collection('assetRequests');
     var rows = statusSt[0] ? all.filter(function (r) { return r.status === statusSt[0]; }) : all;
 
-    function decide() {
-      var d = decideSt[0];
-      var res = form.submit(function (v) {
-        if (d.decision === 'Rejected' && (!v.comment || String(v.comment).trim().length < 3)) {
-          return { ok: false, errors: { comment: 'Give a reason for the rejection' } };
-        }
-        return ui.report(act.decideAssetRequest(d.request.id, d.decision, v.comment));
-      });
-      if (res && res.ok) { decideSt[1](null); form.reset({}); }
-    }
-
     return h(React.Fragment, null,
       h(Stats, null,
         h(Stat, { key: 1, label: 'Pending approval', value: all.filter(function (r) { return r.status === 'Pending Approval'; }).length,
-          sub: 'Awaiting an availability check', tone: 'warn' }),
+          sub: 'Somewhere in the reporting line', tone: 'warn' }),
         h(Stat, { key: 2, label: 'Approved', value: all.filter(function (r) { return r.status === 'Approved'; }).length,
-          sub: 'Fulfilled from the available pool', tone: 'good' }),
+          sub: 'Cleared every desk, including IT', tone: 'good' }),
         h(Stat, { key: 3, label: 'Rejected', value: all.filter(function (r) { return r.status === 'Rejected'; }).length, sub: 'With a reason on record' }),
         h(Stat, { key: 4, label: 'Available to fulfil', value: store.collection('assets').filter(function (a) { return a.status === 'Available'; }).length,
           sub: 'Units in the store across all categories' })),
 
       h(Card, {
         title: 'Asset requests',
-        description: 'PRD 4.31: approving a request allocates the first available unit of that category. With nothing available the approval is refused rather than queued (PRD 14.5).'
+        description: 'Raised and decided in Tracklivo. This is the record: who it has reached, who signed it off and why. A request walks the requester’s own reporting line and ends with IT, who issue the unit.',
+        aside: h('span', { className: 'atl__src' }, 'From Tracklivo')
       },
         h(ui.DataTable, {
           exportName: 'asset-requests', label: 'Asset requests', rows: rows, pageSize: 10,
@@ -2052,60 +2140,46 @@
             { key: 'category', header: 'Category', sortable: true },
             { key: 'reason', header: 'Reason' },
             { key: 'requestedOn', header: 'Requested', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
-            { key: 'stock', header: 'In store', numeric: true, align: 'right',
-              csv: function (r) { return availableIn(r.category); },
+            { key: 'stage', header: 'Where it is',
+              csv: function (r) {
+                var w = flow.waitingOn(r), d = flow.decidedBy(r);
+                return w ? 'With ' + w : d ? (d.rejected ? 'Rejected by ' : 'Cleared by ') + d.who : '';
+              },
               cell: function (r) {
-                var n = availableIn(r.category);
-                return n
-                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, n + ' available')
-                  : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'error', dot: true }, 'None available');
+                var w = flow.waitingOn(r);
+                if (w) return h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
+                  h(V.Avatar, { name: w, size: 'xs' }), h('span', null, w));
+                var d = flow.decidedBy(r);
+                if (!d) return h('span', { className: 'muted' }, '—');
+                return h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
+                  h(V.Avatar, { name: d.who, size: 'xs' }),
+                  h('span', null, d.who),
+                  h('span', { className: 'muted' }, d.rejected ? 'rejected' : 'cleared'));
               } },
-            { key: 'approver', header: 'Approver', csv: function (r) { return empName(r.approver); },
-              cell: function (r) { return empName(r.approver); } },
+            { key: 'steps', header: 'Approvals', align: 'right', numeric: true,
+              csv: function (r) {
+                var t = flow.timeline(r);
+                return t.filter(function (x) { return x.state === 'approved'; }).length + '/' + (t.length - 1);
+              },
+              cell: function (r) {
+                var t = flow.timeline(r).filter(function (x) { return x.kind !== 'raised'; });
+                var done = t.filter(function (x) { return x.state === 'approved'; }).length;
+                return h('span', { className: 'muted mono' }, done + ' / ' + t.length);
+              } },
             { key: 'status', header: 'Status', cell: function (r) { return h(ui.StatusChip, { status: r.status }); } },
             { key: 'actions', header: '', align: 'right',
               cell: function (r) {
-                if (r.status !== 'Pending Approval') {
-                  return h('span', { className: 'muted', style: { fontSize: 12 } }, r.fulfilledWith || '');
-                }
-                return h('span', { className: 'row gap-2', style: { justifyContent: 'flex-end' } },
-                  h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
-                    onClick: function () { form.reset({}); decideSt[1]({ request: r, decision: 'Rejected' }); } }, 'Reject'),
-                  h(V.Button, { variant: 'primary', className: 'vi-btn--sm',
-                    onClick: function () { form.reset({}); decideSt[1]({ request: r, decision: 'Approved' }); } }, 'Approve'));
+                return h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.history,
+                  onClick: function () { openSt[1](r); } }, 'Timeline');
               } }
           ],
           emptyIcon: I.checklist, emptyTitle: 'No asset requests',
-          emptyBody: 'Requests raised from the employee workspace arrive here with the stock position for their category.'
+          emptyBody: 'Requests raised in Tracklivo arrive here with the approval chain they are walking.'
         })),
 
-      decideSt[0] ? h(ui.Modal, {
-        title: (decideSt[0].decision === 'Approved' ? 'Approve' : 'Reject') + ' ' + decideSt[0].request.id,
-        description: empName(decideSt[0].request.employee) + ' · ' + decideSt[0].request.category,
-        onClose: function () { decideSt[1](null); },
-        footer: h(React.Fragment, null,
-          h(V.Button, { variant: 'outline', onClick: function () { decideSt[1](null); } }, 'Cancel'),
-          h(V.Button, {
-            variant: 'primary', className: decideSt[0].decision === 'Rejected' ? 'vi-btn--danger' : '', onClick: decide
-          }, decideSt[0].decision === 'Approved' ? 'Approve and allocate' : 'Reject request'))
-      },
-        h(ui.KeyValue, { rows: [
-          ['Employee', empName(decideSt[0].request.employee)],
-          ['Category', decideSt[0].request.category],
-          ['Reason', decideSt[0].request.reason],
-          ['Requested', ui.dateLabel(decideSt[0].request.requestedOn)],
-          ['Units available', availableIn(decideSt[0].request.category)],
-          ['Already holds', assetsHeldBy(decideSt[0].request.employee).length + ' asset(s)']
-        ]}),
-        decideSt[0].decision === 'Approved' && !availableIn(decideSt[0].request.category)
-          ? h(Blockers, { title: 'Nothing available', items: ['No ' + decideSt[0].request.category.toLowerCase()
-              + ' is available in the inventory, so the approval will be refused (PRD 14.5). Add stock first.'] })
-          : null,
-        h(V.TextArea, Object.assign({
-          label: decideSt[0].decision === 'Rejected' ? 'Reason for rejection' : 'Comment (optional)',
-          rows: 3, required: decideSt[0].decision === 'Rejected'
-        }, form.field('comment')))) : null);
+      openSt[0] ? h(HRMS.assetTimeline, { request: openSt[0], onClose: function () { openSt[1](null); } }) : null);
   }
+
 
   function Returns() {
     var returnSt = React.useState(null);
