@@ -943,26 +943,28 @@
             }))
           : h(ui.Empty, {
               icon: I.package, title: 'Nothing assigned to you',
-              body: 'Request an asset and HR will check availability.',
-              actions: h(V.Button, { variant: 'primary', onClick: function () { router.go('me/assets/requests'); } }, 'Request an asset')
+              body: 'Asset requests are raised in Tracklivo; their approvals show up here.',
+              actions: h(V.Button, { variant: 'outline', onClick: function () { router.go('me/assets/requests'); } }, 'See my requests')
             })));
   }
 
+  /* Your own asset requests, and how far each has got.
+
+     Asking for something happens in Tracklivo, so there is no form here. What there is
+     instead is the thing the form never told you: which desk it is on now, who has
+     already said yes, and — if it came back — exactly why. The chain is your own
+     reporting line, ending with IT. */
   function MyAssetRequests() {
     var m = me();
-    var openSt = React.useState(false);
-    var form = ui.useForm({});
+    var openSt = React.useState(null);
+    var flow = HRMS.assetflow;
     var rows = store.collection('assetRequests').filter(function (a) { return a.employee === m.id; });
-
-    function save() {
-      var res = form.submit(function (v) { return ui.report(act.requestAsset(m.id, v)); });
-      if (res && res.ok) { openSt[1](false); form.reset({}); }
-    }
 
     return h(React.Fragment, null,
       h(Card, {
         title: 'My asset requests',
-        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Request an asset')
+        description: 'Raised in Tracklivo. This is where each one has got to — open a request to see every approval and the reasoning behind it.',
+        aside: h('span', { className: 'atl__src' }, 'From Tracklivo')
       },
         h(ui.DataTable, {
           exportName: 'my-asset-requests', label: 'My asset requests', rows: rows, pageSize: 10, onExport: false,
@@ -971,29 +973,43 @@
             { key: 'category', header: 'Category' },
             { key: 'reason', header: 'Reason' },
             { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (a) { return ui.dateLabel(a.requestedOn); } },
-            { key: 'approver', header: 'Approver', csv: function (a) { return emp(a.approver) ? emp(a.approver).name : ''; },
-              cell: function (a) { return emp(a.approver) ? emp(a.approver).name : '—'; } },
+            { key: 'stage', header: 'Where it is',
+              csv: function (a) {
+                var w = flow.waitingOn(a), d = flow.decidedBy(a);
+                return w ? 'With ' + w : d ? (d.rejected ? 'Rejected by ' : 'Cleared by ') + d.who : '';
+              },
+              cell: function (a) {
+                var w = flow.waitingOn(a);
+                if (w) return h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
+                  h(V.Avatar, { name: w, size: 'xs' }), h('span', null, 'With ' + w));
+                var d = flow.decidedBy(a);
+                if (!d) return h('span', { className: 'muted' }, '—');
+                return h('span', null, (d.rejected ? 'Rejected by ' : 'Cleared by ') + d.who);
+              } },
+            { key: 'steps', header: 'Approvals', align: 'right',
+              csv: function (a) {
+                var t = flow.timeline(a).filter(function (x) { return x.kind !== 'raised'; });
+                return t.filter(function (x) { return x.state === 'approved'; }).length + '/' + t.length;
+              },
+              cell: function (a) {
+                var t = flow.timeline(a).filter(function (x) { return x.kind !== 'raised'; });
+                var done = t.filter(function (x) { return x.state === 'approved'; }).length;
+                return h('span', { className: 'muted mono' }, done + ' / ' + t.length);
+              } },
             { key: 'status', header: 'Status', cell: function (a) { return h(ui.StatusChip, { status: a.status }); } },
-            { key: 'fulfilled', header: 'Allocated', csv: function (a) { return a.fulfilledWith || ''; },
-              cell: function (a) { return a.fulfilledWith ? h('span', { className: 'mono' }, a.fulfilledWith) : ''; } }
+            { key: 'actions', header: '', align: 'right',
+              cell: function (a) {
+                return h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.history,
+                  onClick: function () { openSt[1](a); } }, 'Timeline');
+              } }
           ],
           emptyIcon: I.package, emptyTitle: 'No requests raised',
-          emptyBody: 'Ask for a laptop, monitor, headset or anything else you need to work.',
-          emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Request an asset')
+          emptyBody: 'Asset requests are raised in Tracklivo. Once one exists, its approvals show up here.'
         })),
 
-      openSt[0] ? h(ui.Modal, {
-        title: 'Request an asset', description: 'HR checks inventory before approving.',
-        onClose: function () { openSt[1](false); },
-        footer: h(React.Fragment, null,
-          h(V.Button, { variant: 'outline', onClick: function () { openSt[1](false); } }, 'Cancel'),
-          h(V.Button, { variant: 'primary', onClick: save }, 'Submit request'))
-      },
-        h(V.Select, Object.assign({ label: 'Asset category', required: true, placeholder: 'Choose',
-          options: seed.assetCategories }, form.select('category'))),
-        h(V.TextArea, Object.assign({ label: 'Reason', required: true, rows: 3,
-          placeholder: 'Why do you need it?' }, form.field('reason')))) : null);
+      openSt[0] ? h(HRMS.assetTimeline, { request: openSt[0], onClose: function () { openSt[1](null); } }) : null);
   }
+
 
   function MyAssetHistory() {
     var m = me();
