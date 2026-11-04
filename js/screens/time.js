@@ -2120,154 +2120,58 @@
 
   /* ================================================= Attendance configuration
      PRD 4.16: working hours, grace period, late and overtime rules. */
-  function ConfigAttendance() {
-    var shifts = store.collection('shifts');
-    return h(Grid, null,
-      h(Card, { span: 6, title: 'Working hours' },
-        h(ui.KeyValue, { rows: [
-          ['Hours per day', '9, including a 1 hour break'],
-          ['Standard window', '09:00 – 18:00'],
-          ['Work week', seed.org.workWeek.join(', ')],
-          ['Half day threshold', '4 worked hours'],
-          ['Full day threshold', '8 worked hours'],
-          ['Time zone', seed.org.timezone]
-        ]}),
-        h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.clock,
-          onClick: function () { router.go('hr/attendance/policies'); } }, 'Attendance policies')),
-
-      h(Card, { span: 6, title: 'Late, overtime and corrections' },
-        h(ui.KeyValue, { rows: [
-          ['Grace period', 'Per shift, 10 to 60 minutes'],
-          ['Late marking', 'Automatic past the grace period'],
-          ['Three lates', 'Counted as a half day'],
-          ['Overtime threshold', 'Beyond 9.5 worked hours'],
-          ['Overtime treatment', 'Compensatory off, or paid for shift staff'],
-          ['Correction window', 'The last 30 days (PRD 14.3)']
-        ]})),
-
-      h(Card, { span: 12, title: 'Grace period by shift', description: 'Late is measured against the shift start plus this value.' },
-        h(ui.DataTable, {
-          exportName: 'config-attendance-grace', label: 'Grace period by shift', rows: shifts, pageSize: 10,
-          search: function (s) { return s.name + ' ' + s.code; }, searchPlaceholder: 'Search shifts',
-          columns: [
-            { key: 'name', header: 'Shift', sortable: true },
-            { key: 'start', header: 'Starts', cell: function (s) { return h('span', { className: 'mono' }, s.start); } },
-            { key: 'grace', header: 'Grace', numeric: true, align: 'right', sortable: true, cell: function (s) { return s.grace + ' min'; } },
-            { key: 'lateAfter', header: 'Marked late after',
-              csv: function (s) { return s.grace + ' min past ' + s.start; },
-              cell: function (s) {
-                var mins = Number(s.start.slice(0, 2)) * 60 + Number(s.start.slice(3)) + s.grace;
-                var at = String(Math.floor(mins / 60) % 24).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0');
-                return h('span', { className: 'mono' }, at);
-              } },
-            { key: 'hours', header: 'Working hours', numeric: true, align: 'right',
-              csv: function (s) { return rules.shiftHours(s); },
-              cell: function (s) { return rules.shiftHours(s) + ' h'; } },
-            { key: 'night', header: 'Night shift', align: 'center', csv: function (s) { return s.night ? 'Yes' : 'No'; },
-              cell: function (s) {
-                return s.night
-                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, 'Yes')
-                  : h('span', { className: 'muted' }, 'No');
-              } }
-          ],
-          emptyIcon: I.hourglass, emptyTitle: 'No shifts configured',
-          emptyBody: 'Define a shift before the grace period can be applied.'
-        })),
-
-      h(Card, { span: 12, title: 'Options' },
-        h('div', { className: 'checks' },
-          [['Capture the punch source (biometric, web, mobile)', true],
-            ['Allow web check-in', true],
-            ['Allow mobile check-in with location', true],
-            ['Auto-mark absent with no punch by end of day', true],
-            ['Let employees see their own monthly grid', true],
-            ['Notify the manager on a missing punch', true]].map(function (row) {
-            return h('div', { className: 'checks__row', key: row[0] },
-              h(V.Switch, {
-                defaultChecked: row[1], 'aria-label': row[0],
-                onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); }
-              }),
-              h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-          }))));
-  }
-
-  /* ====================================================== Shift configuration
-     PRD 4.20: shift templates, rotation patterns and swap rules. */
-  var ROTATIONS = [
-    { id: 'rot-week', name: 'Weekly rotation', pattern: 'Morning → Evening → Night, changing every Monday', cycle: '3 weeks', appliesTo: 'Operations' },
-    { id: 'rot-fort', name: 'Fortnightly rotation', pattern: 'Morning → Evening, changing on alternate Mondays', cycle: '2 weeks', appliesTo: 'Support' },
-    { id: 'rot-fixed', name: 'Fixed general shift', pattern: 'General shift, Monday to Friday', cycle: 'None', appliesTo: 'Everyone else' }
+  /* ================================================== Attendance configuration
+     Settings you switch on or off, the way permissions read. What was here before was
+     mostly a read-only recital — working hours, grace periods, late and overtime rules
+     restated as text and a table — none of which could be changed from the screen that
+     claimed to configure them. The rules that are genuinely policy are toggles now; the
+     per-shift timings live with the shift, which is where they are edited. */
+  var ATTENDANCE_SETTINGS = [
+    { group: 'Capturing time', items: [
+      ['Allow web check-in', true, 'Check in and out from the browser'],
+      ['Allow mobile check-in with location', true, 'The punch records where it was made'],
+      ['Capture the punch source', true, 'Biometric, web or mobile, kept on the record'],
+      ['Auto-mark absent with no punch by end of day', true, 'Rather than leaving the day blank']
+    ]},
+    { group: 'Lateness', items: [
+      ['Mark late automatically past the grace period', true, 'Each shift carries its own grace period'],
+      ['Count three lates in a month as a half day', true, 'Deducted from the leave balance'],
+      ['Exempt a late arrival on an approved work-from-home day', false, 'No late mark when the day was agreed'],
+      ['Notify the employee when a late is recorded', true, 'So the first they hear of it is not payroll']
+    ]},
+    { group: 'Overtime', items: [
+      ['Track overtime beyond the daily threshold', true, 'Counted past 9.5 worked hours'],
+      ['Require manager approval before overtime is payable', true, 'Unapproved hours are recorded, not paid'],
+      ['Offer compensatory off instead of payment', true, 'Shift staff are paid; everyone else accrues time']
+    ]},
+    { group: 'Corrections', items: [
+      ['Allow employees to raise a correction', true, 'Within the last 30 days (PRD 14.3)'],
+      ['Require manager approval for a correction', true, 'A correction changes a paid day'],
+      ['Allow HR to correct a day directly', true, 'Without the manager step']
+    ]},
+    { group: 'Visibility', items: [
+      ['Let employees see their own monthly grid', true, 'Their attendance, not the team’s'],
+      ['Let managers see their team’s attendance', true, 'Direct reports only'],
+      ['Notify the manager on a missing punch', true, 'On the day it happens']
+    ]}
   ];
 
-  function ConfigShifts() {
-    var shifts = store.collection('shifts');
-    return h(Grid, null,
-      h(Card, {
-        span: 12, title: 'Shift templates',
-        description: 'Working hours are computed from the timing and break, so an overnight shift needs no special case (PRD 14.4).',
-        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
-          onClick: function () { router.go('hr/shifts/templates'); } }, 'Manage shifts')
-      },
-        h(ui.DataTable, {
-          exportName: 'config-shifts', label: 'Shift configuration', rows: shifts, pageSize: 10,
-          search: function (s) { return s.name + ' ' + s.code + ' ' + s.days; }, searchPlaceholder: 'Search shifts',
-          columns: [
-            { key: 'name', header: 'Shift', sortable: true },
-            { key: 'code', header: 'Code', cell: function (s) { return h('span', { className: 'mono' }, s.code); } },
-            { key: 'start', header: 'Timing', csv: function (s) { return s.start + '-' + s.end; },
-              cell: function (s) { return h('span', { className: 'mono' }, s.start + ' – ' + s.end); } },
-            { key: 'hours', header: 'Working hours', numeric: true, align: 'right',
-              csv: function (s) { return rules.shiftHours(s); },
-              cell: function (s) { return rules.shiftHours(s) + ' h'; } },
-            { key: 'breakMins', header: 'Break', numeric: true, align: 'right', cell: function (s) { return s.breakMins + ' min'; } },
-            { key: 'days', header: 'Days' },
-            { key: 'night', header: 'Night', align: 'center', csv: function (s) { return s.night ? 'Yes' : 'No'; },
-              cell: function (s) {
-                return s.night
-                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, 'Night')
-                  : h('span', { className: 'muted' }, '—');
-              } },
-            { key: 'status', header: 'Status', cell: function (s) { return h(ui.StatusChip, { status: s.status || 'Active' }); } }
-          ],
-          emptyIcon: I.hourglass, emptyTitle: 'No shifts configured',
-          emptyBody: 'Create a shift template to start rostering.'
-        })),
-
-      h(Card, { span: 7, title: 'Rotation patterns', description: 'How a rostered group moves between shifts (PRD 4.21).' },
-        h('div', { className: 'list' }, ROTATIONS.map(function (rt) {
-          return h('div', { className: 'list__row', key: rt.id },
-            h('div', { className: 'list__main' },
-              h('span', { className: 'list__title' }, rt.name),
-              h('span', { className: 'list__meta' }, rt.pattern)),
-            h(V.Chip, { size: 'sm', shape: 'tag' }, rt.cycle),
-            h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, rt.appliesTo));
-        })),
-        h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.gantt,
-          onClick: function () { router.go('hr/shifts/roster'); } }, 'Open the roster')),
-
-      h(Card, { span: 5, title: 'Swap rules' },
-        h(ui.KeyValue, { rows: [
-          ['Who may request', 'Any rostered employee'],
-          ['Notice', 'The swap date must be in the future'],
-          ['Counterparty', 'Must agree before approval (PRD 4.22)'],
-          ['Approver', 'The reporting manager'],
-          ['On approval', 'Both roster rows are rewritten'],
-          ['Conflicts', 'An existing shift on the date is replaced']
-        ]}),
-        h('div', { className: 'checks' },
-          [['Require the counterparty to agree first', true],
-            ['Allow swaps between different shifts', true],
-            ['Publish the roster to employees', true]].map(function (row) {
-            return h('div', { className: 'checks__row', key: row[0] },
-              h(V.Switch, {
-                defaultChecked: row[1], 'aria-label': row[0],
-                onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); }
-              }),
-              h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-          }))));
+  function ConfigAttendance() {
+    return h(Grid, null, ATTENDANCE_SETTINGS.map(function (section, i) {
+      return h(Card, { key: section.group, span: i === 0 ? 12 : 6, title: section.group },
+        h('div', { className: 'checks' }, section.items.map(function (row) {
+          return h('div', { className: 'checks__row', key: row[0] },
+            h(V.Switch, {
+              defaultChecked: row[1], 'aria-label': row[0],
+              onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); }
+            }),
+            h('div', { className: 'checks__main' },
+              h('span', { className: 'checks__name' }, row[0]),
+              h('span', { className: 'checks__meta' }, row[2])));
+        })));
+    }));
   }
 
-  /* ---------------------------------------------------------------- Register */
   HRMS.screens.register({
     'hr/attendance/dashboard': AttendanceDashboard,
     'hr/attendance/daily': AttendanceDaily,
@@ -2289,7 +2193,6 @@
     'hr/holidays': Holidays,
 
     'hr/config/leave': ConfigLeave,
-    'hr/config/attendance': ConfigAttendance,
-    'hr/config/shifts': ConfigShifts
+    'hr/config/attendance': ConfigAttendance
   });
 })();
