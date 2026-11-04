@@ -661,12 +661,18 @@
        console configured for nobody; everyone else goes straight to their workspace. */
     function enter(how) {
       busySt[1](how);
-      store.setPref('role', roleSt[0]);
+      /* Organisation setup is what follows signing in, until it is done. It is an admin
+         wizard, so it opens in the Admin workspace whatever workspace was last used;
+         finishing it lands you there.
+
+         This used to be gated on the signed-in role being admin, which stopped working
+         the moment the prototype's workspace tiles left the sign-in page: the stored
+         role defaults to HR, so the admin-only branch could no longer be reached and
+         setup never ran. Switching workspace later does not ask again, because that is
+         looking around rather than signing up. */
+      var toSetup = store.pref('setupComplete') === false;
+      store.setPref('role', toSetup ? 'admin' : roleSt[0]);
       store.setPref('signedIn', true);
-      /* The one place organisation setup is offered: an admin signing in to an
-         organisation that has not been set up yet. Switching workspace later does not
-         ask again, because that is looking around rather than signing up. */
-      var toSetup = roleSt[0] === 'admin' && store.pref('setupComplete') === false;
       setTimeout(function () { router.go(toSetup ? 'global/setup' : activeRole.home); }, 420);
     }
 
@@ -923,7 +929,9 @@
 
   /* ------------------------------------------------------------- Registry */
   var REGISTRY = {
-    'admin/dashboard': AdminDashboard,
+    /* The admin dashboard is the aptaHR build, in js/screens/dashboard.js. The old one
+       is kept below only as the source of the alert list the setup wizard still reads;
+       it is no longer routed to. */
     'hr/dashboard': HrDashboard,
     'me/dashboard': MeDashboard,
     'hr/approvals': ApprovalInbox,
