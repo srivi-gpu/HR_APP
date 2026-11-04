@@ -287,6 +287,9 @@
     if (!form.lastWorkingDay) errors.lastWorkingDay = REQUIRED;
     else if (form.lastWorkingDay <= HRMS.seed.todayIso) errors.lastWorkingDay = 'The last working day must be in the future';
     if (!form.reason) errors.reason = REQUIRED;
+    /* Whether the role has to be backfilled is the first thing the manager is asked, so
+       it is answered when the request is raised rather than chased afterwards. */
+    if (!form.replacement) errors.replacement = REQUIRED;
     return errors;
   }
   /* Onboarding runs before the joiner arrives, so the joining date has to leave room for

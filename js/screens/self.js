@@ -1447,69 +1447,219 @@
     })[0];
   }
 
-  function Resignation() {
-    var m = me();
-    var form = ui.useForm({}, function (v) { return rules.validResignation(v); });
-    var existing = myCase();
+  /* ====================================================== Exit request (PRD 4.49)
+     Before a resignation exists this screen is one question and one button. Once it
+     does, the same route becomes the case: what was submitted, where it is, who has to
+     agree, and what has to be cleared. The deeper tabs beside it — notice, handover,
+     assets, formalities — stay as they are; this is the front page of the exit. */
+  function ExitArt() {
+    return h('svg', { viewBox: '0 0 240 200', fill: 'none', role: 'img', 'aria-label': 'A letter being written' },
+      h('rect', { x: 38, y: 44, width: 132, height: 128, rx: 10, fill: 'var(--bg-muted)', stroke: 'var(--border-strong)', strokeWidth: 2 }),
+      [72, 94, 116, 138].map(function (y, i) {
+        return h('rect', { key: y, x: 60, y: y, width: i === 3 ? 48 : 88, height: 7, rx: 3.5, fill: 'var(--border-default, #d5d7de)' });
+      }),
+      /* The pencil, laid across the page. */
+      h('g', { transform: 'rotate(38 168 70)' },
+        h('rect', { x: 152, y: 18, width: 26, height: 104, rx: 7, fill: 'var(--brand-solid)' }),
+        h('rect', { x: 152, y: 34, width: 26, height: 9, fill: 'var(--brand-on-solid)', opacity: 0.45 }),
+        h('path', { d: 'M152 122h26l-13 22z', fill: 'var(--text-primary)' }),
+        h('path', { d: 'M160 136h10l-5 8z', fill: 'var(--bg-surface)' })),
+      h('circle', { cx: 196, cy: 150, r: 6, fill: 'var(--brand-softer)', stroke: 'var(--brand-border)', strokeWidth: 2 }),
+      h('circle', { cx: 32, cy: 60, r: 4, fill: 'var(--brand-softer)', stroke: 'var(--brand-border)', strokeWidth: 2 }));
+  }
+
+  /* The dialog of the design: who, when, why, and whether the role gets backfilled. */
+  function ResignationModal(p) {
+    var m = p.employee;
+    var fileRef = React.useRef(null);
+    var fileSt = React.useState('');
+    var form = ui.useForm({ replacement: '' }, function (v) { return rules.validResignation(v); });
+    var shortfall = form.values.lastWorkingDay
+      ? rules.noticeShortfall(form.values.lastWorkingDay, 60) : null;
 
     function save() {
-      form.submit(function (v) { return ui.report(act.submitResignation(m.id, v)); });
+      var res = form.submit(function (v) {
+        return ui.report(act.submitResignation(m.id, {
+          lastWorkingDay: v.lastWorkingDay, reason: v.reason, replacement: v.replacement,
+          comments: v.comments, attachment: fileSt[0] || null
+        }));
+      });
+      if (res && res.ok) p.onClose();
     }
 
-    if (existing) {
-      return h(Grid, null,
-        h(Card, { span: 7, title: 'Resignation submitted' },
+    return h(ui.Modal, {
+      title: 'Submit Resignation Request', wide: true,
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, 'Submit'))
+    },
+      h(ui.FieldRow, { cols: 2 },
+        /* Your own resignation, so this is who you are rather than a choice. */
+        h(V.TextField, { label: 'Employee', required: true, value: m.name + ' · ' + m.id, readOnly: true }),
+        h(V.DateField, Object.assign({
+          label: 'Last working date', required: true, min: seed.todayIso
+        }, form.field('lastWorkingDay')))),
+      shortfall
+        ? h('p', { style: { fontSize: 12, color: 'var(--warning-fg)', margin: '-6px 0 10px' } },
+          shortfall + '. HR may ask you to serve the full period or settle the shortfall.')
+        : null,
+      h(ui.FieldRow, { cols: 2 },
+        h(V.Select, Object.assign({
+          label: 'Reason', required: true, placeholder: 'Select', options: seed.exitReasons
+        }, form.select('reason'))),
+        h(V.Select, Object.assign({
+          label: 'Replacement required', required: true, placeholder: 'Select',
+          options: ['Yes', 'No', 'To be decided']
+        }, form.select('replacement')))),
+      h(V.TextArea, Object.assign({
+        label: 'Explanation (if any)', rows: 3, placeholder: 'Anything you would like HR to know'
+      }, form.field('comments'))),
+      h('div', { className: 'stack gap-2' },
+        h('span', { className: 'vi-field__label' }, 'Attachment'),
+        h('div', { className: 'row gap-2', style: { alignItems: 'center' } },
+          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.clip,
+            onClick: function () { if (fileRef.current) fileRef.current.click(); } }, 'Upload file'),
+          h('span', { className: 'muted', style: { fontSize: 12 } },
+            fileSt[0] || 'A resignation letter, if you have one'),
+          fileSt[0]
+            ? h(V.IconButton, { icon: I.close, 'aria-label': 'Remove the attachment',
+              onClick: function () { fileSt[1](''); } })
+            : null),
+        h('input', {
+          ref: fileRef, type: 'file', className: 'visually-hidden', 'aria-label': 'Choose a file',
+          onChange: function (e) {
+            var f = e.target.files && e.target.files[0];
+            if (f) fileSt[1](f.name);
+            e.target.value = '';
+          }
+        })),
+      form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, form.errors._) : null);
+  }
+
+  function Resignation() {
+    var m = me();
+    var askSt = React.useState(false);
+    var c = myCase();
+
+    /* ---- Nothing submitted: the question, and the one button that answers it ---- */
+    if (!c) {
+      return h(React.Fragment, null,
+        h('div', { className: 'exitgate' },
+          h('div', { className: 'exitgate__copy' },
+            h('p', { className: 'exitgate__text' },
+              'Before you proceed, are you certain you want to submit your resignation? '
+              + 'We value your contributions and would love to discuss any concerns or '
+              + 'potential solutions with you.'),
+            h(V.Button, { variant: 'primary', onClick: function () { askSt[1](true); } },
+              'Submit Resignation Request'),
+            h('p', { className: 'exitgate__note' },
+              'Your manager and HR both review this. Nothing changes until it is approved, '
+              + 'and you keep full access until your last working day.')),
+          h('div', { className: 'exitgate__art' }, h(ExitArt))),
+        askSt[0] ? h(ResignationModal, {
+          employee: m, onClose: function () { askSt[1](false); }
+        }) : null);
+    }
+
+    /* ---- Submitted: the case ---- */
+    var approvals = store.collection('approvals').filter(function (a) {
+      return a.module === 'offboarding' && a.employee === m.id;
+    });
+    var daysLeft = Math.max(0, Math.round((new Date(c.lastWorkingDay + 'T00:00') - seed.today) / 86400000));
+    var accepted = c.status === 'Approved';
+    var tasks = c.tasks || [];
+    var done = tasks.filter(function (t) { return t.done; }).length;
+
+    return h(React.Fragment, null,
+      h(ui.PageHead, {
+        eyebrow: c.id, title: 'Exit request',
+        description: 'Submitted ' + ui.dateLabel(c.resignedOn) + ' · last working day ' + c.lastWorkingDayLabel + '.',
+        actions: [
+          h(V.Button, { key: 'n', variant: 'outline', iconStart: I.calendar,
+            onClick: function () { router.go('me/exit/notice'); } }, 'Notice period'),
+          h(V.Button, { key: 'f', variant: 'outline', iconStart: I.checklist,
+            onClick: function () { router.go('me/exit/formalities'); } }, 'Exit formalities')
+        ]
+      }),
+
+      h(Stats, { cols: 4 },
+        h(Stat, { label: 'Stage', value: c.stage, sub: accepted ? 'Resignation accepted' : 'Awaiting a decision',
+          tone: accepted ? 'good' : 'warn' }),
+        h(Stat, { label: 'Last working day', value: ui.shortDate(c.lastWorkingDay), sub: c.lastWorkingDayLabel }),
+        h(Stat, { label: 'Days remaining', value: daysLeft, sub: 'Of a ' + c.noticeDays + '-day notice',
+          tone: daysLeft < 15 ? 'warn' : null }),
+        h(Stat, { label: 'Clearance', value: c.clearance, unit: '%', sub: done + ' of ' + tasks.length + ' tasks done' })),
+
+      h(Grid, null,
+        h(Card, { span: 7, title: 'Resignation details' },
           h(ui.KeyValue, { rows: [
-            ['Case', h('span', { className: 'mono' }, existing.id)],
-            ['Submitted on', ui.dateLabel(existing.resignedOn)],
-            ['Proposed last working day', existing.lastWorkingDayLabel],
-            ['Notice period', existing.noticeDays + ' days'],
-            ['Reason', existing.reason],
-            ['Stage', h(ui.StatusChip, { status: existing.stage })],
-            ['Approval', h(ui.StatusChip, { status: existing.status })]
+            ['Request', h('span', { className: 'mono' }, c.id)],
+            ['Employee', m.name + ' · ' + m.id],
+            ['Submitted on', ui.dateLabel(c.resignedOn)],
+            ['Last working day', c.lastWorkingDayLabel],
+            ['Notice period', c.noticeDays + ' days'],
+            ['Reason', c.reason],
+            ['Replacement required', c.replacement || 'Not stated'],
+            ['Attachment', c.attachment
+              ? h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
+                h('span', { className: 'mono' }, c.attachment),
+                h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.download,
+                  onClick: function () { ui.toast(c.attachment + ' download started', 'success'); } }, 'Download'))
+              : null],
+            ['Approval', h(ui.StatusChip, { status: c.status })]
           ]}),
-          existing.comments
-            ? h('p', { style: { fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' } }, existing.comments)
-            : null,
-          h(V.Button, { variant: 'outline', onClick: function () { router.go('me/exit/notice'); } }, 'View my notice period')),
-        h(Card, { span: 5, title: 'What happens next' },
-          h(ui.Timeline, { items: [
-            { title: 'Resignation submitted', when: ui.dateLabel(existing.resignedOn), tone: 'success' },
-            { title: 'Manager and HR review', when: existing.status === 'Pending Approval' ? 'In progress' : 'Done',
-              tone: existing.status === 'Pending Approval' ? 'warning' : 'success' },
-            { title: 'Notice period begins', when: existing.stage === 'Notice Period' ? 'Started' : 'After approval',
-              tone: existing.stage === 'Notice Period' ? 'success' : 'neutral' },
-            { title: 'Knowledge transfer and clearance', when: 'During notice', tone: 'neutral' },
-            { title: 'Final settlement and exit documents', when: 'On your last working day', tone: 'neutral' }
-          ]})));
-    }
+          c.comments
+            ? h(ui.FormSection, { title: 'Explanation' },
+              h('p', { style: { fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)', margin: 0 } }, c.comments))
+            : null),
 
-    var shortfall = form.values.lastWorkingDay ? rules.noticeShortfall(form.values.lastWorkingDay, 60) : null;
-    return h(Grid, null,
-      h(Card, { span: 7, title: 'Submit a resignation',
-        description: 'Your manager and HR both review this. Your notice period is 60 days.' },
-        h(ui.FieldRow, null,
-          h(V.DateField, { label: 'Resignation date', value: seed.todayIso, readOnly: true }),
-          h(V.DateField, Object.assign({ label: 'Proposed last working day', required: true, min: seed.todayIso }, form.field('lastWorkingDay')))),
-        shortfall ? h('p', { style: { fontSize: 12, color: 'var(--warning-fg)' } }, shortfall + '. HR may ask you to serve the full period or settle the shortfall.') : null,
-        h(V.Select, Object.assign({ label: 'Reason', required: true, placeholder: 'Choose a reason',
-          options: seed.exitReasons }, form.select('reason'))),
-        h(V.TextArea, Object.assign({ label: 'Additional comments', rows: 4,
-          placeholder: 'Anything you would like HR to know.' }, form.field('comments'))),
-        form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null,
-        h(V.Button, { variant: 'primary', className: 'vi-btn--danger', onClick: save }, 'Submit resignation')),
-      h(Card, { span: 5, title: 'Before you submit' },
-        h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6 } },
-          'Submitting starts the offboarding process in PRD 4.50. You keep full access until your last working day.'),
-        (function () {
-          var outstanding = rules.outstandingClearance(m.id);
-          return outstanding.length
-            ? h(React.Fragment, null,
-                h('span', { className: 'eyebrow' }, 'You currently hold'),
-                h('ul', { className: 'bullets' }, outstanding.map(function (x) { return h('li', { key: x }, x); })),
-                h('p', { className: 'muted', style: { fontSize: 12 } }, 'These must be cleared before your final settlement.'))
-            : h('p', { className: 'muted', style: { fontSize: 13 } }, 'You have nothing outstanding to clear.');
-        })()));
+        h(Card, { span: 5, title: 'Timeline' },
+          h(ui.Timeline, { items: [
+            { title: 'Resignation submitted', body: 'By you', when: ui.dateLabel(c.resignedOn), tone: 'success' },
+            { title: 'Manager and HR review',
+              body: accepted ? 'Accepted' : 'With your approvers',
+              when: accepted ? (c.approvedOn ? ui.dateLabel(c.approvedOn) : 'Done') : 'In progress',
+              tone: accepted ? 'success' : 'warning' },
+            { title: 'Notice period',
+              body: c.noticeDays + ' days, ending ' + c.lastWorkingDayLabel,
+              when: c.stage === 'Notice Period' ? daysLeft + ' days left' : 'After approval',
+              tone: c.stage === 'Notice Period' ? 'success' : 'neutral' },
+            { title: 'Handover and clearance',
+              body: done + ' of ' + tasks.length + ' tasks done',
+              when: 'During notice', tone: done ? 'warning' : 'neutral' },
+            { title: 'Final settlement and exit documents',
+              body: 'Settlement ' + String(c.settlement).toLowerCase(),
+              when: 'On your last working day', tone: 'neutral' }
+          ]})),
+
+        h(Card, { span: 5, title: 'Approvals', description: 'Who has to agree before your notice starts.' },
+          approvals.length
+            ? h('div', { className: 'list' }, approvals.map(function (a) {
+              var who = emp(a.approver);
+              return h('div', { className: 'list__row', key: a.id },
+                h(V.Avatar, { name: who ? who.name : 'HR', size: 'sm' }),
+                h('div', { className: 'list__main' },
+                  h('span', { className: 'list__title' }, who ? who.name : 'HR'),
+                  h('span', { className: 'list__meta' }, a.kind + ' · raised ' + ui.dateLabel(a.submitted))),
+                h(ui.StatusChip, { status: a.status }));
+            }))
+            : h(ui.Empty, { icon: I.ok, title: 'No approval outstanding' })),
+
+        h(Card, { span: 7, title: 'Clearance',
+          description: 'Everything that has to be signed off before your settlement is released.',
+          aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
+            onClick: function () { router.go('me/exit/formalities'); } }, 'All formalities') },
+          h(V.ProgressBar, { label: 'Clearance', value: c.clearance, showValue: true,
+            tone: c.clearance >= 100 ? 'success' : 'primary' }),
+          h('div', { className: 'checks', style: { marginTop: 10 } }, tasks.map(function (t) {
+            return h('div', { className: 'checks__row' + (t.done ? ' is-done' : ''), key: t.name },
+              h('span', { className: 'steps__tick' + (t.done ? ' is-done' : '') }, I.check),
+              h('div', { className: 'checks__main' },
+                h('span', { className: 'checks__name' }, t.name),
+                h('span', { className: 'checks__meta' },
+                  t.done ? 'Completed' : (t.owner && emp(t.owner) ? 'With ' + emp(t.owner).name : 'Pending'))));
+          })))));
   }
 
   function NoticePeriod() {

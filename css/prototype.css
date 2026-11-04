@@ -124,6 +124,10 @@
 .steps__tick svg { width: 12px; height: 12px; }
 .steps__row.is-done .steps__tick { background: var(--success-fg); border-color: var(--success-fg); color: var(--bg-surface); }
 .steps__row.is-done span { color: var(--text-secondary); }
+/* The exit screens put a steps tick inside a checks row, where the rule above could
+   never reach it, so a completed task showed an empty circle. */
+.checks__row.is-done .steps__tick,
+.steps__tick.is-done { background: var(--success-fg); border-color: var(--success-fg); color: var(--bg-surface); }
 
 /* ---------- Simple horizontal bar chart for distributions ---------- */
 .bars { display: flex; flex-direction: column; gap: 10px; }
@@ -371,6 +375,22 @@
 .checks__name { font-size: 14px; }
 .checks__row.is-done .checks__name { color: var(--text-secondary); text-decoration: line-through; text-decoration-color: var(--border-strong); }
 .checks__meta { font-size: 12px; color: var(--text-secondary); }
+
+/* ---------- Exit request landing ---------- */
+.exitgate {
+  display: flex; align-items: center; justify-content: center; gap: 56px; flex-wrap: wrap-reverse;
+  padding: 56px 40px; min-height: 420px;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px;
+}
+.exitgate__copy { max-width: 42ch; display: flex; flex-direction: column; gap: 20px; align-items: flex-start; }
+.exitgate__text { margin: 0; font: 400 19px/1.55 var(--font-flex); color: var(--text-primary); }
+.exitgate__note { margin: 0; font-size: 13px; color: var(--text-secondary); }
+.exitgate__art { flex: none; width: 260px; max-width: 60vw; }
+.exitgate__art svg { width: 100%; height: auto; }
+@media (max-width: 760px) {
+  .exitgate { padding: 36px 20px; gap: 28px; }
+  .exitgate__art { width: 180px; }
+}
 
 /* ---------- Leave balance strip (the employee leave screen) ---------- */
 .lbal {
