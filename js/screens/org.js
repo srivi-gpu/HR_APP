@@ -11,59 +11,115 @@
   function org() { return Object.assign({}, seed.org, (store.find('orgProfile', 'org') || {})); }
 
   /* ====================================================== Organization profile */
+  /* Tracklivo's Company page: who the company is, then the address that goes on
+     anything official. The registered address is the head office's unless it is given
+     one of its own, which is the usual case and saves typing the same lines twice. */
   function CompanyProfile() {
     var o = org();
     var editSt = React.useState(false);
+    var addrSt = React.useState(false);
+    var head = headOffice();
+    var reg = store.pref('regAddress') || {};
+
     var form = ui.useForm(o, function (v) {
       return HRMS.rules.required([{ key: 'name', label: 'Organization name' }, { key: 'industry', label: 'Industry' }], v);
+    });
+    var addr = ui.useForm({
+      line1: reg.line1 || (head ? head.address : ''),
+      country: reg.country || 'India',
+      gst: reg.gst || seed.entities[0].reg
     });
 
     function save() {
       form.submit(function (v) {
         return ui.report(act.updateOrganization({
-          name: v.name, industry: v.industry, website: v.website, size: v.size, founded: v.founded
+          name: v.name, industry: v.industry, website: v.website, size: v.size, founded: v.founded, email: v.email
         }));
       });
       editSt[1](false);
     }
+    function saveAddr() {
+      addr.submit(function (v) {
+        store.setPref('regAddress', v);
+        store.log('updated the registered address', 'Organization');
+        return { ok: true, message: 'Registered address saved' };
+      });
+      addrSt[1](false);
+    }
+    function useHead() {
+      if (!head) return;
+      addr.setMany({ line1: head.address });
+      ui.toast('Copied the ' + head.name + ' office address', 'success');
+    }
+
+    var sameAsHead = head && (reg.line1 || head.address) === head.address;
 
     return h(React.Fragment, null,
-      h(Grid, null,
-        h(Card, { span: 7, title: 'Company profile',
-          aside: h(V.Button, { variant: editSt[0] ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.pencil,
-            onClick: function () { form.reset(org()); editSt[1](!editSt[0]); } }, editSt[0] ? 'Cancel' : 'Edit') },
-          editSt[0]
-            ? h('div', { className: 'stack gap-4' },
-                h(ui.FieldRow, null,
-                  h(V.TextField, Object.assign({ label: 'Organization name', required: true }, form.field('name'))),
-                  h(V.TextField, Object.assign({ label: 'Industry', required: true }, form.field('industry')))),
-                h(ui.FieldRow, null,
-                  h(V.TextField, Object.assign({ label: 'Website' }, form.field('website'))),
-                  h(V.TextField, Object.assign({ label: 'Company size' }, form.field('size')))),
-                h('div', { className: 'row gap-2' },
-                  h(V.Button, { variant: 'primary', onClick: save }, 'Save changes'),
-                  h(V.Button, { variant: 'outline', onClick: function () { editSt[1](false); } }, 'Cancel')))
-            : h(ui.KeyValue, { rows: [
-                ['Organization name', o.name],
-                ['Industry', o.industry],
-                ['Company size', o.size],
-                ['Website', o.website],
-                ['Founded', o.founded],
-                ['Registration', seed.entities[0].reg],
-                ['Primary entity', seed.entities[0].name]
-              ]})),
-        h(Card, { span: 5, title: 'At a glance' },
-          h(ui.KeyValue, { rows: [
-            ['Employees', store.stats().headcount],
-            ['Legal entities', seed.entities.length],
-            ['Locations', seed.locations.length],
-            ['Departments', store.collection('departments').length],
-            ['Designations', store.collection('designations').length],
-            ['Subscription', seed.subscription.plan]
-          ]}),
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.sitemap,
-            onClick: function () { router.goAs('hr/config/structure'); } }, 'Organization structure'))));
+      h(Card, {
+        title: 'Company',
+        description: 'Who you are. This shows on offer letters, payslips and anything the product sends out.',
+        aside: h(V.Button, {
+          variant: editSt[0] ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.pencil,
+          onClick: function () { form.reset(org()); editSt[1](!editSt[0]); }
+        }, editSt[0] ? 'Cancel' : 'Edit')
+      },
+        editSt[0]
+          ? h('div', { className: 'stack gap-4' },
+              h(ui.FieldRow, null,
+                h(V.TextField, Object.assign({ label: 'Company name', required: true }, form.field('name'))),
+                h(V.TextField, Object.assign({ label: 'Industry', required: true }, form.field('industry')))),
+              h(ui.FieldRow, null,
+                h(V.TextField, Object.assign({ label: 'Website' }, form.field('website'))),
+                h(V.TextField, Object.assign({ label: 'Company email', type: 'email' }, form.field('email')))),
+              h(ui.FieldRow, null,
+                h(V.TextField, Object.assign({ label: 'Company size' }, form.field('size'))),
+                h(V.TextField, Object.assign({ label: 'Founded' }, form.field('founded')))),
+              h('div', { className: 'row gap-2' },
+                h(V.Button, { variant: 'primary', onClick: save }, 'Save changes'),
+                h(V.Button, { variant: 'outline', onClick: function () { editSt[1](false); } }, 'Cancel')))
+          : h(ui.KeyValue, { rows: [
+              ['Company name', o.name],
+              ['Industry', o.industry],
+              ['Website', o.website],
+              ['Company email', o.email || ('hello@' + String(o.website || 'example.com').replace(/^https?:\/\//, ''))],
+              ['Company size', o.size],
+              ['Founded', o.founded]
+            ]})),
+
+      h(Card, {
+        title: 'Registered address',
+        aside: h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
+          h('span', { className: 'muted' }, 'Used on invoices and contracts'),
+          h(V.Button, {
+            variant: addrSt[0] ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.pencil,
+            onClick: function () { addrSt[1](!addrSt[0]); }
+          }, addrSt[0] ? 'Cancel' : 'Edit'))
+      },
+        addrSt[0]
+          ? h('div', { className: 'stack gap-4' },
+              head && !sameAsHead
+                ? h(Nudge, {
+                    title: 'Use the ' + head.name + ' office address',
+                    why: 'It is already filled in under Locations, as the head office.',
+                    label: 'Copy it', apply: useHead
+                  })
+                : null,
+              h(V.TextArea, Object.assign({ label: 'Address', rows: 3 }, addr.field('line1'))),
+              h(ui.FieldRow, null,
+                h(V.TextField, Object.assign({ label: 'Country' }, addr.field('country'))),
+                h(V.TextField, Object.assign({ label: 'Tax or GST number' }, addr.field('gst')))),
+              h('div', { className: 'row gap-2' },
+                h(V.Button, { variant: 'primary', onClick: saveAddr }, 'Save address'),
+                h(V.Button, { variant: 'outline', onClick: function () { addrSt[1](false); } }, 'Cancel')))
+          : h(ui.KeyValue, { rows: [
+              ['Address', reg.line1 || (head ? head.address : '—')],
+              ['Country', reg.country || 'India'],
+              ['Tax or GST number', reg.gst || seed.entities[0].reg],
+              ['Registered entity', seed.entities[0].name],
+              ['Offices', offices().length + (offices().length === 1 ? ' office' : ' offices')]
+            ]})));
   }
+
 
   function OrganizationDetails() {
     var o = org();
@@ -104,40 +160,78 @@
       }));
   }
 
+
+  /* ---------------------------------------------- offices, hours and holidays
+     Tracklivo's shape: an office owns its time zone, its working week and its holiday
+     calendar, and Working hours is read one office at a time. Adding a location adds
+     its tab there, which is the whole point of keeping the two pages in step.
+
+     An office that is not the head office starts by following the head office's week.
+     The switch is what gives it one of its own; until it is thrown there is nothing
+     per-office to store, so `days` stays unset and the head office's week is read
+     through. */
+  var DAYS7 = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  var HOURS = ['07:00', '08:00', '08:30', '09:00', '09:30', '10:00', '17:00', '17:30', '18:00', '18:30', '19:00', '20:00'];
+  var TZ_LIST = ['Asia/Kolkata', 'Asia/Dubai', 'Europe/London', 'Europe/Berlin', 'Asia/Singapore', 'America/New_York'];
+
+  function offices() { return store.collection('locations'); }
+  function headOffice() {
+    var all = offices();
+    return all.filter(function (l) { return l.hq; })[0] || all[0] || null;
+  }
+  /* The seeded calendar is the organisation's and every office inherits it; anything
+     added here carries the offices it belongs to. */
+  function holidaysFor(locId) {
+    return store.collection('holidays').filter(function (x) {
+      return !x.locs || x.locs === 'all' || x.locs.indexOf(locId) >= 0;
+    });
+  }
+  function orgWeek() {
+    var o = org();
+    return (o.workWeek && o.workWeek.length ? o.workWeek : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
+  }
+  function weekOf(l) { return (l && l.days && l.days.length) ? l.days : orgWeek(); }
+  function dayStart(l) { return (l && l.start) || org().dayStart || '09:00'; }
+  function dayEnd(l) { return (l && l.end) || org().dayEnd || '18:00'; }
+
   function Locations() {
-    var openSt = React.useState(false);
+    var openSt = React.useState(null);
     var form = ui.useForm({ entity: seed.entities[0].id, tz: seed.org.timezone });
-    var rows = store.collection('locations');
+    var rows = offices();
 
     function save() {
       var res = form.submit(function (v) { return ui.report(act.createLocation(v)); });
-      if (res && res.ok) { openSt[1](false); form.reset({ entity: seed.entities[0].id, tz: seed.org.timezone }); }
+      if (res && res.ok) { openSt[1](null); form.reset({ entity: seed.entities[0].id, tz: seed.org.timezone }); }
     }
 
     return h(React.Fragment, null,
-      h(Card, { title: 'Locations & branches',
-        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Add location') },
-        h(ui.DataTable, {
-          exportName: 'locations', label: 'Locations', rows: rows, pageSize: 10, search: function (l) { return l.name + ' ' + l.address; },
-          searchPlaceholder: 'Search locations',
-          columns: [
-            { key: 'name', header: 'Location', sortable: true,
-              cell: function (l) { return h('span', { className: 'row gap-2' }, l.name, l.hq ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, 'HQ') : null); } },
-            { key: 'address', header: 'Address' },
-            { key: 'tz', header: 'Time zone' },
-            { key: 'headcount', header: 'Headcount', numeric: true, align: 'right', sortable: true },
-            { key: 'actions', header: '', align: 'right',
-              cell: function (l) {
-                return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm',
-                  onClick: function () { router.goAs('hr/people/all'); } }, 'View people');
-              } }
-          ]
-        })),
+      h(Card, { title: 'Offices',
+        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1]('new'); } }, 'Add location') },
+        h('p', { className: 'muted', style: { margin: 0 } },
+          'Each office keeps its own time zone, working week and holiday calendar. Adding one gives it a tab in Working hours.'),
+        h('div', { className: 'ad-locs' }, rows.map(function (l) {
+          var n = holidaysFor(l.id).length;
+          return h('div', { className: 'ad-loc', key: l.id },
+            h('div', { className: 'stack gap-1 grow', style: { minWidth: 0 } },
+              h('strong', { className: 'row gap-2', style: { alignItems: 'center' } }, l.name,
+                l.hq ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, 'Head office') : null),
+              h('span', { className: 'muted' }, l.address),
+              h('span', { className: 'muted' }, l.tz, ' · ', l.headcount || 0,
+                (l.headcount === 1 ? ' person' : ' people'), ' · ',
+                h('span', { className: n ? '' : 'is-warn' }, n ? n + (n === 1 ? ' holiday' : ' holidays') + ' in 2026' : 'No holidays yet'),
+                ' · ', l.days && l.days.length ? l.days.length + '-day week' : 'Head-office week')),
+            h('div', { className: 'ad-row2__c' },
+              h(V.Button, { variant: 'ghost', className: 'vi-btn--sm',
+                onClick: function () { store.setPref('orgLoc', l.id); router.go('admin/org/workweek'); } }, 'Hours and holidays'),
+              h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
+                onClick: function () { router.goAs('hr/people/all'); } }, 'View people')));
+        }))),
+
       openSt[0] ? h(ui.Modal, {
-        title: 'Add location', description: 'A branch or office under a legal entity.',
-        onClose: function () { openSt[1](false); },
+        title: 'Add location', description: 'A branch or office under a legal entity. It starts on the head office’s week.',
+        onClose: function () { openSt[1](null); },
         footer: h(React.Fragment, null,
-          h(V.Button, { variant: 'outline', onClick: function () { openSt[1](false); } }, 'Cancel'),
+          h(V.Button, { variant: 'outline', onClick: function () { openSt[1](null); } }, 'Cancel'),
           h(V.Button, { variant: 'primary', onClick: save }, 'Add location'))
       },
         h(V.TextField, Object.assign({ label: 'Location name', required: true, placeholder: 'e.g. Chennai' }, form.field('name'))),
@@ -145,52 +239,11 @@
         h(ui.FieldRow, null,
           h(V.Select, Object.assign({ label: 'Legal entity',
             options: seed.entities.map(function (e) { return { value: e.id, label: e.name }; }) }, form.select('entity'))),
-          h(V.TextField, Object.assign({ label: 'Time zone' }, form.field('tz'))))) : null);
+          h(V.Select, Object.assign({ label: 'Time zone', options: TZ_LIST }, form.select('tz'))))) : null);
   }
 
-  function WorkWeek() {
-    var DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-    var working = seed.org.workWeek;
-    return h(Grid, null,
-      h(Card, { span: 7, title: 'Work week', description: 'Organization-wide default. Locations and shifts may override it.' },
-        h('div', { className: 'checks' }, DAYS.map(function (d) {
-          var on = working.indexOf(d.slice(0, 3)) >= 0;
-          return h('div', { className: 'checks__row', key: d },
-            h(V.Switch, { defaultChecked: on, 'aria-label': d }),
-            h('div', { className: 'checks__main' },
-              h('span', { className: 'checks__name' }, d),
-              h('span', { className: 'checks__meta' }, on ? 'Working day' : 'Weekly off')));
-        }))),
-      h(Card, { span: 5, title: 'Default working hours' },
-        h(ui.KeyValue, { rows: [
-          ['Hours per day', '9 (including 1 hour break)'],
-          ['Standard shift', '09:00 – 18:00'],
-          ['Grace period', '15 minutes'],
-          ['Half day threshold', '4 hours'],
-          ['Full day threshold', '8 hours']
-        ]}),
-        h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
-          onClick: function () { router.goAs('hr/shifts/templates'); } }, 'Shift templates')));
-  }
 
-  function OrgHolidays() {
-    var rows = store.collection('holidays').slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-    return h(Card, { title: 'Organization holidays', description: 'The global default calendar. Locations inherit it unless overridden.' },
-      h(ui.DataTable, {
-        exportName: 'holidays', label: 'Holidays', rows: rows.map(function (hd, i) { return Object.assign({ id: hd.date + i }, hd); }),
-        pageSize: 15, onExport: true, search: function (hd) { return hd.name; }, searchPlaceholder: 'Search holidays',
-        columns: [
-          { key: 'date', header: 'Date', sortable: true, cell: function (hd) { return ui.dateLabel(hd.date); } },
-          { key: 'day', header: 'Day', cell: function (hd) {
-              return ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][new Date(hd.date + 'T00:00').getDay()];
-            } },
-          { key: 'name', header: 'Holiday', sortable: true },
-          { key: 'type', header: 'Type', cell: function (hd) { return h(V.Chip, { size: 'sm', shape: 'tag', variant: hd.type === 'Optional' ? 'outline' : 'soft', tone: hd.type === 'Optional' ? 'neutral' : 'info' }, hd.type); } },
-          { key: 'passed', header: '', align: 'right',
-            cell: function (hd) { return hd.date < seed.todayIso ? h('span', { className: 'muted', style: { fontSize: 12 } }, 'Passed') : ''; } }
-        ]
-      }));
-  }
+
 
   function OrgSettings() {
     return h(Grid, null,
@@ -273,7 +326,10 @@
           aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { inviteSt[1](true); } }, 'Invite user')
         },
           h(ui.DataTable, {
-            exportName: 'users', label: 'Users', rows: rows, pageSize: 10,
+            /* `columns` was built above and then never passed, so the table drew its
+               toolbar and its “showing 1-10 of 248” footer around nothing: no header
+               row, no people. The column set is the one that was always meant for it. */
+            exportName: 'users', label: 'Users', rows: rows, pageSize: 10, columns: columns,
             search: function (u) { var e = emp(u.employee); return (e ? e.name : '') + ' ' + u.email + ' ' + u.role; },
             searchPlaceholder: 'Search by name, email or role',
             filters: h(ui.Filter, {
@@ -455,24 +511,8 @@
   /* A dismissable prompt above the tab's cards. It is the one place either tab makes a
      recommendation, and it always carries the number behind it — an admin should be
      able to disagree with it from the banner alone. */
-  function Nudge(p) {
-    var goneSt = React.useState(false);
-    if (goneSt[0]) return null;
-    return h('div', { className: 'ai-note' },
-      h('span', { className: 'ai-note__mark' }, I.leo),
-      h('div', { className: 'ai-note__body' },
-        h('span', { className: 'ai-note__eyebrow' }, 'Assistant'),
-        h('strong', { style: { fontSize: 15 } }, p.title),
-        h('p', { className: 'ai-note__text' }, p.why),
-        h('div', { className: 'ai-note__acts' },
-          h(V.Button, {
-            variant: 'primary', className: 'vi-btn--sm',
-            onClick: function () { p.apply(); goneSt[1](true); }
-          }, p.label),
-          h(V.Button, {
-            variant: 'ghost', className: 'vi-btn--sm', onClick: function () { goneSt[1](true); }
-          }, 'Dismiss'))));
-  }
+  /* Nudge now lives in ui, because the holiday calendar wants the same thing. */
+  var Nudge = ui.Nudge;
 
   /* A minus/value/plus control. A plain number field invites a typo that becomes a
      charge, so the only way to change the quantity is one step at a time. */
@@ -1855,8 +1895,103 @@
      question — when does this organisation work — and a weekly off on one tab with the
      public holidays on another made that question take two screens to answer. */
   function WorkingHours() {
-    return h(React.Fragment, null, h(WorkWeek), h(OrgHolidays));
+    var all = offices();
+    var head = headOffice();
+    var prefLoc = store.pref('orgLoc');
+    var pickSt = React.useState(all.some(function (l) { return l.id === prefLoc; }) ? prefLoc : (head ? head.id : null));
+
+    var L = all.filter(function (l) { return l.id === pickSt[0]; })[0] || head || all[0];
+    if (!L) return h(ui.Empty, { icon: I.world, title: 'No offices yet', body: 'Add one under Locations and it gets a tab here.' });
+
+    var multi = all.length > 1;
+    var own = !!(L.days && L.days.length);
+    var isHead = !!L.hq;
+    var inherit = multi && !isHead && !own;
+    var days = weekOf(L), start = dayStart(L), end = dayEnd(L);
+    var list = holidaysFor(L.id);
+
+    function pick(id) { pickSt[1](id); store.setPref('orgLoc', id); }
+    function setLoc(fields) { store.setOverride('locations', L.id, fields); }
+    function setOrgWeek(next) { act.updateOrganization({ workWeek: next }); }
+    function setDays(next) { if (isHead && !own) setOrgWeek(next); else setLoc({ days: next }); }
+    function setTime(fields) {
+      if (isHead && !own) act.updateOrganization(fields); else setLoc(fields);
+    }
+    function toggle(d) {
+      var next = days.indexOf(d) >= 0
+        ? days.filter(function (x) { return x !== d; })
+        : DAYS7.filter(function (x) { return days.indexOf(x) >= 0 || x === d; });
+      if (!next.length) { ui.toast('An office needs at least one working day', 'error'); return; }
+      setDays(next);
+    }
+
+    return h(React.Fragment, null,
+      /* One tab per office. Adding a location adds its tab here. */
+      multi ? h('div', { className: 'ad-locbar' },
+        h('span', { className: 'ad-locbar__l' }, 'Office'),
+        h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'Office' }, all.map(function (l) {
+          return h('button', {
+            key: l.id, type: 'button', role: 'tab',
+            'aria-selected': l.id === L.id ? 'true' : 'false',
+            className: 'ad-seg__b' + (l.id === L.id ? ' is-on' : ''),
+            onClick: function () { pick(l.id); }
+          }, h('span', null, l.name), h('span', { className: 'ad-seg__n' }, holidaysFor(l.id).length));
+        }))) : null,
+
+      h(Card, {
+        title: 'Working week' + (multi ? ' · ' + L.name : ''),
+        aside: multi && !isHead ? h(V.Switch, {
+          label: 'Same as head office', checked: !own,
+          onChange: function (e) {
+            if (e.target.checked) setLoc({ days: null, start: null, end: null });
+            else setLoc({ days: orgWeek(), start: dayStart(null), end: dayEnd(null) });
+          }
+        }) : null
+      },
+        h('div', { className: 'stack gap-2' },
+          h('span', { className: 'field-label' }, 'Working days'),
+          h('div', { className: 'ad-days' }, DAYS7.map(function (d) {
+            return h('button', {
+              key: d, type: 'button', disabled: inherit, 'aria-pressed': days.indexOf(d) >= 0 ? 'true' : 'false',
+              className: 'ad-day' + (days.indexOf(d) >= 0 ? ' is-on' : ''),
+              onClick: function () { toggle(d); }
+            }, d);
+          }))),
+        h(ui.FieldRow, null,
+          h(V.Select, { label: 'Day starts', value: start, options: HOURS, disabled: inherit,
+            onChange: function (v) { setTime({ start: v && v.target ? v.target.value : v }); } }),
+          h(V.Select, { label: 'Day ends', value: end, options: HOURS, disabled: inherit,
+            onChange: function (v) { setTime({ end: v && v.target ? v.target.value : v }); } })),
+        h(ui.FieldRow, null,
+          h(V.Select, { label: 'Time zone', value: L.tz, options: TZ_LIST,
+            onChange: function (v) { setLoc({ tz: v && v.target ? v.target.value : v }); } }),
+          h('div', null)),
+        h('p', { className: 'muted', style: { margin: 0 } },
+          days.length + ' days a week, ' + start + ' to ' + end + ', ' + L.tz + '.'
+            + (inherit ? ' Same as the head office.' : '')
+            + ' Attendance, leave and payroll cut-offs skip everything else.')),
+
+      /* The calendar itself is HR's: they own leave, and a holiday is a day that does
+         not come out of a balance. This says what this office observes and sends you
+         there to change it, rather than keeping a second place to edit it from. */
+      h(Card, {
+        title: 'Holidays' + (multi ? ' · ' + L.name : ''),
+        description: 'Set by HR, on the holiday calendar. ' + L.name + ' observes '
+          + list.length + (list.length === 1 ? ' day' : ' days') + ' in 2026.',
+        aside: h(V.Button, {
+          variant: 'outline', className: 'vi-btn--sm', iconStart: I.calendar,
+          onClick: function () { router.goAs('hr/holidays'); }
+        }, 'Open the holiday calendar')
+      },
+        h('div', { className: 'row gap-2 wrap' },
+          list.slice(0, 8).map(function (hd) {
+            return h(V.Chip, { key: hd.date + hd.name, size: 'sm', shape: 'tag', variant: 'soft' },
+              ui.dateLabel(hd.date) + ' · ' + hd.name);
+          }),
+          list.length > 8 ? h('span', { className: 'muted' }, '+' + (list.length - 8) + ' more') : null)));
   }
+
+
 
   /* ====================================================== Security
      Tracklivo's Security page: the rules that govern signing in, who is locked out of
@@ -2047,7 +2182,7 @@
        settings are off the Tracklivo shape and have no tab, so they are not registered:
        a route the nav does not declare reaches the not-found screen however it is
        registered here, and an entry that can never be routed to is dead weight. The
-       holiday calendar is inside Working hours; OrgHolidays is rendered there. */
+       holiday calendar is per office, inside Working hours. */
 
     'admin/users/all': usersScreen(null, 'Users', 'Every user account with role, status and last sign-in.'),
 
