@@ -1,0 +1,46 @@
+/* Prototype helper, after Tracklivo's: a dark pill parked at the bottom right that opens a
+   panel for switching the signed-in role. It is a prototype affordance, not product UI, so it
+   sits in its own file and can be dropped from a real build. */
+@layer tl {
+
+.proto { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 70; }
+
+.proto__toggle {
+  all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 10px;
+  height: 44px; padding: 0 8px 0 16px; border-radius: var(--tl-round);
+  background: #1c1c1c; color: #ffffff; box-shadow: 0 8px 28px #110c2238;
+  font-family: var(--font-sans); font-size: 15px; font-weight: 500;
+}
+.proto__toggle:hover { background: #000000; }
+.proto__toggle:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.proto__toggle svg { width: 20px; height: 20px; flex: none; }
+.proto__toggle--bare { padding: 0 16px; }
+.proto__badge { display: inline-flex; align-items: center; height: 28px; padding: 0 12px; border-radius: var(--tl-round); background: #ffffff26; color: #ffffff; font-size: 14px; font-weight: 500; }
+
+.proto__panel {
+  position: absolute; right: 0; bottom: 56px; width: min(380px, calc(100vw - 32px));
+  background: var(--bg-surface); border-radius: var(--tl-radius-card); box-shadow: 0 18px 48px #110c2233, 0 4px 12px #110c221f;
+  padding: 20px; display: flex; flex-direction: column; gap: 14px; max-height: min(70vh, 560px); overflow-y: auto;
+}
+.proto__eyebrow { font-size: 13px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.proto__title { margin: 0; font-family: var(--font-flex); font-size: 20px; line-height: 1.25; font-weight: 600; color: var(--text-primary); }
+.proto__where { font-size: 15px; color: var(--text-secondary); }
+.proto__head { display: flex; flex-direction: column; gap: 4px; }
+
+.proto__list { display: flex; flex-direction: column; gap: 10px; }
+.proto__role {
+  all: unset; box-sizing: border-box; cursor: pointer; display: flex; flex-direction: column; gap: 2px;
+  padding: 12px 18px; border-radius: 18px; border: 1px solid var(--border-default); background: var(--bg-surface);
+  font-family: var(--font-sans); color: var(--text-primary);
+}
+.proto__role:hover { background: var(--bg-hover); border-color: var(--border-strong); }
+.proto__role:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 1px; }
+.proto__role.is-on { background: var(--brand-softer); border-color: var(--brand-solid); cursor: default; }
+.proto__rolerow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.proto__rolename { font-size: 17px; font-weight: 500; }
+.proto__role.is-on .proto__rolename { color: var(--text-brand); }
+.proto__rolemail { font-size: 15px; color: var(--text-secondary); overflow-wrap: anywhere; }
+.proto__current { display: inline-flex; align-items: center; height: 26px; padding: 0 12px; border-radius: var(--tl-round); background: var(--brand-solid); color: var(--brand-on-solid); font-size: 13px; font-weight: 600; }
+
+@media (max-width: 520px) { .proto { right: 12px; bottom: 12px; } }
+}

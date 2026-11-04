@@ -1,0 +1,47 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Preview: Actions tab > Deploy to GitHub Pages > Run workflow > pick any branch.
+  # Note: Pages has one site, so a preview replaces the live site until main redeploys.
+  workflow_dispatch:
+
+# Needed so the workflow can enable Pages and publish to it.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; never cancel a run that is mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out the prototype
+        uses: actions/checkout@v4
+
+      # enablement: true turns Pages on for this repository if it is still off,
+      # so no manual settings change is needed for the first deploy.
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      # The prototype is already static: the repository root is the site.
+      # The action excludes .git and .github from the artifact.
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

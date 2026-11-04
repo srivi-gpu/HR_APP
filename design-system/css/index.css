@@ -1,0 +1,17 @@
+/* Tracklivo design system for the HRMS. Link this one file.
+   Layer order: base (Violet components) < tl (Tracklivo restyle + app patterns). */
+@layer base, tl;
+@import url('fonts.css');
+@import url('violet-tokens.css');
+@import url('violet-components.css');
+@import url('tracklivo-tokens.css');
+@import url('tracklivo-components.css');
+@import url('app.css');
+@import url('auth.css');
+@import url('auth-b.css');
+@import url('dashboard.css');
+@import url('ai-beam.css');
+@import url('admin.css');
+@import url('wizard.css');
+@import url('admin-ui.css');
+@import url('prototype.css');

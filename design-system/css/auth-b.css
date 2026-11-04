@@ -1,0 +1,110 @@
+/* Sign-in, option B: a lavender page with soft waves and one centred card that holds the
+   pitch on the left and the form on the right. Shares the field, button and tab rules with
+   option A (auth.css); only the frame around them differs. */
+@layer tl {
+
+:root {
+  --authb-wash: #f1edfb; --authb-wash-2: #e9e3f8;
+  --authb-card: #ffffff; --authb-aside: #faf8fe;
+}
+:root[data-theme="dark"], :root:not([data-theme="light"]) {
+  color-scheme: light only;
+}
+
+.authb {
+  /* Exactly the viewport, never more: the sign-in page fills the screen and the document
+     itself does not scroll. `min-height` grew the element past the viewport instead, which
+     is what put a scrollbar on the page — and with `overflow: hidden` here, a taller
+     element could only ever have been clipped or scrolled the document.
+     The middle row is `minmax(0, 1fr)` so it may shrink below the card's content height;
+     a plain `1fr` floors at min-content and pushes the page open again. Vertical rhythm is
+     viewport-relative so the card keeps fitting as the screen gets shorter. */
+  position: relative; isolation: isolate; height: 100vh; height: 100dvh;
+  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: clamp(10px, 2vh, 24px);
+  padding: clamp(14px, 2.6vh, 28px) clamp(20px, 4vw, 48px) clamp(12px, 2.2vh, 24px);
+  overflow: hidden;
+  /* Washes rather than shapes: no edge can show where a gradient fades out */
+  background:
+    radial-gradient(1100px 620px at 102% -8%, #dfd4f8 0%, #e7e0fa 38%, transparent 68%),
+    radial-gradient(1000px 560px at 108% 106%, #d9ccf6 0%, #e6dff9 40%, transparent 70%),
+    radial-gradient(760px 520px at -8% 96%, #eae4fb 0%, transparent 62%),
+    var(--authb-wash);
+}
+/* Two ribbons over the wash, stroked only, so they read as curves and never as blocks */
+.authb__waves { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.authb__waves svg { position: absolute; width: 150%; height: auto; stroke: #ffffff; fill: none; opacity: .75; }
+.authb__waves svg:first-child { top: -6%; right: -30%; }
+.authb__waves svg:last-child { bottom: -8%; right: -24%; opacity: .6; }
+
+.authb__top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.authb__foot { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
+.authb__foot a { color: inherit; text-decoration: none; }
+.authb__foot a:hover { color: var(--text-primary); }
+
+/* The card */
+.authb__card {
+  place-self: center; width: min(1060px, 100%); max-height: 100%;
+  display: grid; grid-template-columns: minmax(0, 0.84fr) minmax(0, 1fr);
+  background: var(--authb-card); border-radius: 28px; overflow: hidden;
+  box-shadow: 0 2px 6px #2a1a5e0f, 0 24px 60px -12px #2a1a5e24;
+}
+
+/* Left: the pitch, a glass illustration, and what people do here. It is an inset panel,
+   so the white card frames it on three sides. */
+.authb__aside {
+  position: relative; overflow: hidden; display: flex; flex-direction: column; gap: clamp(10px, 2vh, 20px);
+  min-height: 0; margin: clamp(8px, 1.4vh, 14px); border-radius: 22px;
+  padding: clamp(20px, 3.6vh, 34px) clamp(22px, 2.4vw, 32px) clamp(16px, 2.8vh, 26px);
+  background: var(--authb-aside);
+}
+.authb__aside::after {
+  content: ""; position: absolute; inset: auto 0 0 0; height: 56%; pointer-events: none;
+  background: radial-gradient(120% 90% at 25% 100%, #d9cefa66, transparent 72%);
+}
+.authb__h { font-family: var(--font-flex); font-size: clamp(27px, 2.5vw, 33px); line-height: 1.22; font-weight: 600; color: var(--text-primary); }
+.authb__h em { font-style: normal; color: var(--brand-solid); }
+.authb__p { font-size: 15px; line-height: 1.6; color: var(--text-secondary); max-width: 34ch; }
+/* The illustration is the one thing here that can give up height without losing meaning,
+   so it yields first as the screen gets shorter. */
+.authb__art { position: relative; align-self: center; width: 100%; max-width: 300px; margin: 2px 0 6px;
+  min-height: 0; flex: 0 1 auto; }
+.authb__art svg { width: 100%; height: 100%; max-height: 26vh; display: block; object-fit: contain; }
+
+.authb__uses { position: relative; margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
+.authb__use { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px 0; text-align: center; font-size: 13px; line-height: 1.35; color: var(--text-secondary); }
+.authb__use + .authb__use { border-left: 1px solid var(--border-subtle); }
+.authb__use svg { width: 20px; height: 20px; color: var(--text-primary); }
+
+/* Right: the form */
+/* `overflow-y: auto` is the safety valve, not the plan: the clamps below keep the form
+   inside the card down to roughly a 700px-tall viewport, and only something shorter than
+   its own controls can start the pane scrolling. The page never scrolls either way. */
+.authb__form { display: flex; flex-direction: column; justify-content: center;
+  gap: clamp(9px, 1.6vh, 18px); padding: clamp(18px, 3.0vh, 44px) clamp(28px, 3.4vw, 48px);
+  min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.authb__title { font-family: var(--font-flex); font-size: clamp(24px, 3.4vh, 34px); line-height: 1.15; font-weight: 600; color: var(--text-primary); }
+.authb__lede { font-size: 15px; color: var(--text-secondary); margin-top: 4px; }
+/* The one filled button on the page carries a soft violet gradient */
+.authb__form .vi-btn--primary {
+  height: clamp(44px, 5.6vh, 52px); font-size: 16px;
+  background: linear-gradient(100deg, #6b46d6 0%, #5733c1 52%, #7b5ce0 100%);
+  border-color: transparent; box-shadow: 0 1px 2px #5733c21f, 0 10px 22px -6px #5733c259;
+}
+.authb__form .vi-btn--primary:hover { background: linear-gradient(100deg, #5f3ccb 0%, #4e2cb0 52%, #6e4dd8 100%); }
+
+@media (max-width: 920px) {
+  .authb__card { grid-template-columns: minmax(0, 1fr); }
+  .authb__aside { display: none; }
+  .authb__form { padding: 36px 24px; }
+}
+@media (max-height: 820px) {
+  .authb { padding-block: 18px 16px; gap: 16px; }
+  .authb__aside, .authb__form { padding-block: 32px; }
+  .authb__art { max-width: 250px; }
+}
+}
+
+/* The form's own rhythm, tied to the viewport for the same reason as the frame. */
+.authb__form .auth-fields { gap: clamp(9px, 1.6vh, var(--space-4)); }
+.authb__form .auth-sso__btn { height: clamp(40px, 5.2vh, 48px); }
+.authb__form .authb__lede { margin-top: clamp(2px, .6vh, 4px); }

@@ -1,0 +1,116 @@
+/* Tracklivo design system tokens (Figma 2hk7JfuvcLaVj3fW62ik8d), the final theme of the
+   Tracklivo prototype. Light is the default; dark follows the OS unless <html data-theme="light|dark">.
+   Section 2 points every Violet token at its Tracklivo equivalent, so Violet components recolour
+   automatically. New HRMS code should use the Tracklivo names (--bg-*, --text-*, --brand-*, ...).
+   Names that clash with Violet (shadows, radii, control sizes) carry a --tl- prefix. */
+@layer tl {
+/* ---------- 1. Tracklivo tokens: Light ---------- */
+:root {
+  --bg-page:#fafafa; --bg-surface:#ffffff; --bg-subtle:#f6f6f6; --bg-muted:#f2f2f2; --bg-inverse:#1c1c1c;
+  --bg-overlay:#1c1c1c; --bg-hover:#f6f6f6; --bg-selected:#f4effb;
+  --border-subtle:#eeeeee; --border-default:#dedede; --border-strong:#b8b8b8;
+  --text-primary:#111111; --text-secondary:#555555; --text-muted:#8a8a8a; --text-inverse:#ffffff; --text-brand:#5733c1;
+  --brand-solid:#5733c1; --brand-hover:#512fb2; --brand-soft:#f4effb; --brand-softer:#f6f2ff; --brand-border:#dccff7; --brand-on-solid:#ffffff;
+  --avatar-bg:#856ec9;
+  --success-fg:#22823a; --success-bg:#effbf2; --success-hover:#22823a;
+  --danger-fg:#ff2d55;  --danger-bg:#ffeef1;  --danger-hover:#ff2d55;
+  --warning-fg:#d97706; --warning-bg:#fff6e5; --warning-hover:#d97706;
+  --info-fg:#0075f5;    --info-bg:#eaf3ff;    --info-hover:#0075f5;
+  --priority-high:#f97316;
+
+  /* Tracklivo shadows, radii and sizes (prefixed: names clash with Violet) */
+  --tl-elevation-1: 0 2px 4px #0000000a, 0 8px 16px #0000000a;
+  --tl-elevation-2: 0 4px 12px #0000000f, 0 12px 24px #0000000f;
+  --tl-elevation-3: 0 8px 24px #00000014, 0 24px 48px #0000000f;
+  --tl-elevation-4: 0 8px 24px #00000024, 0 24px 48px #0000001f;
+  --tl-button-primary-glow: inset 0 4px 4px #ffffff40, 0 1px 2px #5733c21a, 0 5px 5px #5733c217, 0 12px 7px #5733c20d;
+  --tl-button-danger-glow:  inset 0 4px 4px #ffffff40, 0 1px 2px #ff2d551a, 0 5px 5px #ff2d5517, 0 12px 7px #ff2d550d;
+  --tl-focus-ring: 0 0 0 4px #5733c21a;
+  --tl-radius-card: 20px; --tl-radius-control: 8px; --tl-radius-pill: 100px;
+  --tl-control-sm: 36px; --tl-control-md: 40px; --tl-control-lg: 52px;
+  --font-flex: "Google Sans Flex", "Google Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-tl-sans: "Google Sans Flex", "Google Sans", system-ui, -apple-system, "Segoe UI", sans-serif;   /* Figma text styles: every style is Google Sans Flex */
+}
+
+/* ---------- 1b. Tracklivo tokens: Dark (system preference, then the explicit toggle) ---------- */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg-page:#141316; --bg-surface:#1c1b20; --bg-subtle:#25242a; --bg-muted:#2b2a31; --bg-inverse:#f2f1f5;
+    --bg-overlay:#141316; --bg-hover:#25242a; --bg-selected:#2a2340;
+    --border-subtle:#25242a; --border-default:#2b2a31; --border-strong:#8c8996;
+    --text-primary:#f2f1f5; --text-secondary:#b9b6c2; --text-muted:#8c8996; --text-inverse:#141316; --text-brand:#a993f0;
+    --brand-solid:#a993f0; --brand-hover:#b9a3e8; --brand-soft:#2a2340; --brand-softer:#1f1a30; --brand-border:#43268f; --brand-on-solid:#141316;
+    --avatar-bg:#856ec9;
+    --success-fg:#5cc97a; --success-bg:#17291d; --success-hover:#5cc97a;
+    --danger-fg:#ff6b87;  --danger-bg:#2e1620;  --danger-hover:#ff6b87;
+    --warning-fg:#f0b45a; --warning-bg:#2e2414; --warning-hover:#f0b45a;
+    --info-fg:#5aa9ff;    --info-bg:#12243a;    --info-hover:#5aa9ff;
+    --priority-high:#f59e6b;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg-page:#141316; --bg-surface:#1c1b20; --bg-subtle:#25242a; --bg-muted:#2b2a31; --bg-inverse:#f2f1f5;
+  --bg-overlay:#141316; --bg-hover:#25242a; --bg-selected:#2a2340;
+  --border-subtle:#25242a; --border-default:#2b2a31; --border-strong:#8c8996;
+  --text-primary:#f2f1f5; --text-secondary:#b9b6c2; --text-muted:#8c8996; --text-inverse:#141316; --text-brand:#a993f0;
+  --brand-solid:#a993f0; --brand-hover:#b9a3e8; --brand-soft:#2a2340; --brand-softer:#1f1a30; --brand-border:#43268f; --brand-on-solid:#141316;
+  --avatar-bg:#856ec9;
+  --success-fg:#5cc97a; --success-bg:#17291d; --success-hover:#5cc97a;
+  --danger-fg:#ff6b87;  --danger-bg:#2e1620;  --danger-hover:#ff6b87;
+  --warning-fg:#f0b45a; --warning-bg:#2e2414; --warning-hover:#f0b45a;
+  --info-fg:#5aa9ff;    --info-bg:#12243a;    --info-hover:#5aa9ff;
+  --priority-high:#f59e6b;
+  color-scheme: dark;
+}
+
+/* ---------- 2. Violet → Tracklivo token map (resolves per theme automatically) ---------- */
+:root {
+  --primary: var(--brand-solid);            --on-primary: var(--brand-on-solid);
+  --primary-container: var(--brand-soft);   --on-primary-container: var(--text-brand);
+  --hover-primary: var(--brand-hover);
+  --error: var(--danger-fg);                --on-error: var(--brand-on-solid);
+  --error-container: var(--danger-bg);      --on-error-container: var(--danger-fg);   --hover-error: var(--danger-hover);
+  --success: var(--success-fg);             --on-success: var(--brand-on-solid);
+  --success-container: var(--success-bg);   --on-success-container: var(--success-fg); --hover-success: var(--success-hover);
+  --warning: var(--warning-fg);             --on-warning: var(--brand-on-solid);
+  --warning-container: var(--warning-bg);   --on-warning-container: var(--warning-fg); --hover-warning: var(--warning-hover);
+  --info: var(--info-fg);                   --on-info: var(--brand-on-solid);
+  --info-container: var(--info-bg);         --on-info-container: var(--info-fg);       --hover-info: var(--info-hover);
+  --background: var(--bg-page);
+  --alternate: var(--bg-surface);
+  --elevation-1: var(--bg-surface);
+  --elevation-2: var(--bg-page);
+  --elevation-3: var(--bg-muted);
+  --elevation-4: var(--border-subtle);
+  --elevation-5: var(--border-default);
+  --elevation-6: var(--border-default);
+  --elevation-7: var(--border-strong);
+  --border-main: var(--border-strong);
+  --border-secondary: var(--border-subtle);
+  --text-main: var(--text-primary);
+  --inverse: var(--bg-inverse);
+  --primary-tint-5: var(--brand-softer);  --primary-tint-10: var(--brand-soft);  --primary-tint-20: var(--brand-border);
+  --primary-tint-30: var(--brand-border); --primary-tint-40: var(--avatar-bg);   --primary-tint-50: var(--avatar-bg);
+  --primary-tint-60: var(--avatar-bg);    --primary-tint-70: var(--brand-hover); --primary-tint-80: var(--brand-hover);
+  --primary-tint-95: var(--brand-solid);
+  --shadow-sm: var(--tl-elevation-1);
+  --shadow-md: var(--tl-elevation-2);
+  --radius-sm: 4px; --radius-md: 8px; --radius-lg: 20px; --radius-full: 100px;
+  --font-display: var(--font-flex);
+  --font-sans: var(--font-tl-sans);
+  --font-mono: var(--font-tl-sans);   /* Tracklivo has no mono face: IDs and codes are Google Sans */
+}
+
+html body { background: var(--bg-page); color: var(--text-primary); font-family: var(--font-sans); }
+html .mono, html [class*="mono"] { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+html :focus-visible { outline-color: var(--brand-solid); }
+
+/* App-shell sizes */
+:root { --tl-nav: 240px; --tl-nav-collapsed: 76px; --tl-round: 999px; --tl-radius-field: 12px; }
+
+/* ---------- Avatar tones: soft tint, coloured initials ---------- */
+html { --av-violet-bg:#ece5fc; --av-violet-fg:#5733c1; --av-blue-bg:#e3eeff; --av-blue-fg:#1f5fd1; --av-green-bg:#e2f5e7; --av-green-fg:#1f7a36; --av-peach-bg:#fde9d9; --av-peach-fg:#b9560a; --av-grey-bg:#eeedf0; --av-grey-fg:#3b3a40; }
+@media (prefers-color-scheme: dark) { html:not([data-theme="light"]) { --av-violet-bg:#2e2550; --av-violet-fg:#c4b2ff; --av-blue-bg:#16294a; --av-blue-fg:#8dbaff; --av-green-bg:#173323; --av-green-fg:#7fd99a; --av-peach-bg:#3a2617; --av-peach-fg:#f5b27a; --av-grey-bg:#2c2b31; --av-grey-fg:#d9d8de; } }
+html[data-theme="dark"] { --av-violet-bg:#2e2550; --av-violet-fg:#c4b2ff; --av-blue-bg:#16294a; --av-blue-fg:#8dbaff; --av-green-bg:#173323; --av-green-fg:#7fd99a; --av-peach-bg:#3a2617; --av-peach-fg:#f5b27a; --av-grey-bg:#2c2b31; --av-grey-fg:#d9d8de; }
+}

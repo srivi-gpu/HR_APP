@@ -1,0 +1,123 @@
+/* Tracklivo restyle of the Violet components: the final state of the Tracklivo prototype
+   (v108 full-round pass + rounds 3-7), folded into one set of rules.
+   The rules that matter most:
+   - Buttons, icon buttons, chips, segmented controls and nav rows are full pills.
+   - Every input, select and textarea is a 12px box. Only the global search (top bar, spotlight) is a pill.
+   - Selection is tinted (brand-soft + text-brand), never black.
+   - Module tabs keep the Violet underline, drawn in brand colour.
+   - Tables keep the Violet table style, recoloured by the tokens.
+   - Cards: 20px radius, subtle border, elevation-1. Scrollbars hidden; everything still scrolls.
+   Everything sits in @layer tl, so it beats the Violet base layer without specificity tricks. */
+@layer tl {
+
+/* ---------- Buttons: pills ---------- */
+.vi-btn {
+  border-radius: var(--tl-round); height: var(--tl-control-md); padding: 0 20px; gap: 6px;
+  font-family: var(--font-sans); font-size: 14px; line-height: 1.45; font-weight: 500;
+}
+.vi-btn[class*="--sm"] { height: var(--tl-control-sm); padding: 0 16px; }
+.vi-btn[class*="--lg"] { height: var(--tl-control-lg); padding: 0 24px; }
+.vi-btn:disabled { opacity: .4; }
+.vi-btn--primary { box-shadow: var(--tl-button-primary-glow); }
+.vi-btn--primary:disabled { box-shadow: none; }
+.vi-btn--outline { background: var(--bg-surface); border-color: var(--border-default); color: var(--text-primary); }
+.vi-btn--outline:hover, .vi-btn--outline:active { background: var(--bg-hover); }
+.vi-btn--ghost { color: var(--text-brand); }
+.vi-btn--ghost:hover, .vi-btn--ghost:active { background: var(--brand-softer); }
+.vi-btn--secondary:hover, .vi-btn--secondary:active { background: var(--brand-border); }
+.vi-btn:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+
+/* Icon buttons: circles, outline by default */
+.vi-icon-btn { border-radius: var(--tl-round); background: var(--bg-surface); border-color: var(--border-default); color: var(--text-secondary); }
+.vi-icon-btn:hover, .vi-icon-btn:active { background: var(--bg-hover); color: var(--text-primary); }
+
+/* Split button (e.g. "Create" + dropdown): one attached pill with a thin divider */
+.tsplit { display: inline-flex; gap: 0; border-radius: var(--tl-round); box-shadow: var(--tl-button-primary-glow); }
+.tsplit__main { border-radius: var(--tl-round) 0 0 var(--tl-round); box-shadow: none; padding: 0 16px 0 18px; }
+.tsplit__more { border-radius: 0 var(--tl-round) var(--tl-round) 0; box-shadow: none; width: 38px; border-left: 1px solid color-mix(in srgb, var(--brand-on-solid) 35%, transparent); }
+
+/* ---------- Fields: 12px boxes ---------- */
+.vi-field__label { font-size: 12px; line-height: 1.28; font-weight: 400; color: var(--text-secondary); }
+.vi-field__box { border-radius: var(--tl-radius-field); padding: 0 14px; gap: 10px; border-color: var(--border-default); background: var(--bg-surface); }
+.vi-field__action { border-radius: var(--tl-radius-field); }
+.vi-field__input { font-size: 14px; line-height: 1.45; }
+.vi-field:not(.is-disabled):not(.is-readonly) .vi-field__box:hover { background: var(--bg-surface); border-color: var(--border-strong); }
+.vi-field:not(.is-readonly):not(.vi-field--error):not(.vi-field--success) .vi-field__box:focus-within {
+  border-color: var(--brand-solid); box-shadow: inset 0 0 0 .5px var(--brand-solid), var(--tl-focus-ring); background: var(--bg-surface);
+}
+.vi-field:focus-within .vi-field__label { color: var(--text-brand); }
+.vi-field--error .vi-field__box { border-color: var(--danger-fg); box-shadow: inset 0 0 0 .5px var(--danger-fg); }
+.vi-field--error .vi-field__label { color: var(--danger-fg); }
+.vi-field.is-disabled { opacity: .6; }
+.vi-field.is-disabled .vi-field__box { background: var(--bg-subtle); }
+.vi-field.is-readonly .vi-field__box { background: var(--bg-subtle); border-color: var(--border-subtle); }
+:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea):not(.vi-field__input) { border-radius: var(--tl-radius-field); }
+
+/* Menus and popovers: 12px radius, dropdown shadow */
+.vi-menu { border-radius: 12px; border: 1px solid var(--border-subtle); background: var(--bg-surface); box-shadow: var(--tl-elevation-2); padding: 6px; }
+
+/* ---------- Checkbox, switch, radio ---------- */
+.vi-check__control { width: 16px; height: 16px; margin-top: 2px; }
+.vi-check__box { width: 16px; height: 16px; border-radius: 4px; border-width: 1.5px; border-color: var(--border-default); }
+.vi-check__mark, .vi-check__dash { width: 12px; height: 12px; }
+/* Scoped to the off state — an unscoped track colour wins the layer and kills "on" */
+.vi-switch__input:not(:checked) + .vi-switch__track { background: var(--border-default); }
+.vi-switch__input:checked + .vi-switch__track { background: var(--brand-solid); }
+.vi-switch__thumb { background: var(--bg-surface); box-shadow: 0 1px 2px #00000033; }
+
+/* ---------- Chips, tags, status pills: full pills ---------- */
+.vi-chip { border-radius: var(--tl-round); }
+.vi-chip--tone-neutral { --c-fill: var(--bg-muted); --c-on-fill: var(--text-secondary); --c-line: var(--border-default); --c-ink: var(--text-primary); }
+.vi-chip--tag.vi-chip--sm { height: 22px; min-height: 22px; padding: 0 8px; font: 700 11px/1.25 var(--font-sans); }
+.vi-chip--tag.vi-chip--sm:not(.vi-chip--tone-neutral) { height: 24px; padding: 0 10px 0 8px; }
+.vi-chip--md { height: 30px; min-height: 30px; }
+.vi-chip:not(.vi-chip--tag).vi-chip--md { padding: 0 10px 0 12px; font-weight: 500; }
+.vi-chip.is-selected { background: var(--brand-soft); border-color: var(--brand-border); color: var(--text-brand); }
+/* Neutral tags are label chips: muted fill, no border. Toned solid tags become soft status pills. */
+.vi-chip--tag.vi-chip--tone-neutral { background: var(--bg-muted); border-color: transparent; color: var(--text-secondary); }
+.vi-chip--tag.vi-chip--solid:not(.vi-chip--tone-neutral) { background: var(--c-fill); color: var(--c-on-fill); }
+
+/* ---------- Avatars: soft tinted tones per person ---------- */
+.vi-avatar { border-radius: var(--tl-round); font-family: var(--font-sans); }
+.vi-avatar:not(.vi-avatar--image) .vi-avatar__face { font-weight: 600; }
+.vi-avatar--tone-primary .vi-avatar__face { background: var(--av-violet-bg); color: var(--av-violet-fg); }
+.vi-avatar--tone-info .vi-avatar__face { background: var(--av-blue-bg); color: var(--av-blue-fg); }
+.vi-avatar--tone-success .vi-avatar__face { background: var(--av-green-bg); color: var(--av-green-fg); }
+.vi-avatar--tone-warning .vi-avatar__face { background: var(--av-peach-bg); color: var(--av-peach-fg); }
+.vi-avatar--tone-neutral .vi-avatar__face { background: var(--av-grey-bg); color: var(--av-grey-fg); }
+
+/* ---------- Tabs: Violet underline, brand coloured ---------- */
+.vi-tab { font-size: 14px; font-weight: 500; line-height: 1.45; color: var(--text-secondary); }
+.vi-tab:not(:disabled):not(.is-selected):hover { color: var(--text-primary); }
+.vi-tab.is-selected { color: var(--text-primary); }
+.vi-tab--underline.is-selected::after { background: var(--brand-solid); height: 2px; border-radius: 100px; }
+.vi-tab--pill { border-radius: var(--tl-round); }
+.vi-tab--pill.is-selected { background: var(--brand-soft); color: var(--text-brand); }
+
+/* ---------- Segmented control: pill track, pill thumb ---------- */
+.vi-seg { background: var(--bg-subtle); border-radius: var(--tl-round); padding: 3px; }
+.vi-seg__item { border-radius: var(--tl-round); font-weight: 500; color: var(--text-secondary); }
+.vi-seg--md .vi-seg__item { height: 32px; }
+.vi-seg--sm .vi-seg__item { height: 26px; }
+.vi-seg__item.is-selected, .vi-seg__item[aria-checked="true"], .vi-seg__item[aria-pressed="true"] {
+  background: var(--bg-surface); color: var(--text-primary); box-shadow: var(--tl-elevation-1);
+}
+
+/* ---------- List items (side navigation rows) ---------- */
+.vi-list-item { border-radius: var(--tl-round); }
+
+/* ---------- Tables: Violet style; only the hover tint changes ---------- */
+.vi-table tbody tr:hover .vi-td { background: var(--bg-hover); }
+
+/* ---------- Progress ---------- */
+.vi-progress__track { height: 6px; border-radius: 100px; background: var(--bg-muted); }
+.vi-progress__fill { border-radius: 100px; }
+
+/* ---------- No visible scrollbars; everything still scrolls ---------- */
+html, html * { scrollbar-width: none; -ms-overflow-style: none; }
+html::-webkit-scrollbar, html *::-webkit-scrollbar { display: none; width: 0; height: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  .vi-btn, .vi-switch__thumb { transition: none; }
+}
+}

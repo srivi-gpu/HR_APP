@@ -1,0 +1,72 @@
+/* AI beam: an animated edge that marks a surface the assistant is working on, plus the
+   shimmer and glow that go with it. Rules it follows, so the motion stays meaningful:
+   one beam per view, never the only signal (text and aria-busy carry the state), a static
+   border underneath, and nothing moves under prefers-reduced-motion. */
+@layer tl {
+
+@property --beam-a { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+
+.beam { position: relative; }
+.beam > * { position: relative; z-index: 1; }
+/* The travelling edge is painted in the gap between two masks, so it rides the border only */
+.beam::before {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit; padding: 1.5px;
+  background: conic-gradient(from var(--beam-a),
+    transparent 0 62%, color-mix(in srgb, var(--brand-solid) 35%, transparent) 74%,
+    var(--brand-solid) 86%, #a78bfa 93%, transparent 100%);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  opacity: 0; transition: opacity .5s ease; pointer-events: none; z-index: 0;
+}
+.beam.is-on::before { opacity: 1; animation: beam-spin 2.4s linear infinite; }
+@keyframes beam-spin { to { --beam-a: 360deg; } }
+
+/* A quiet halo under the surface while it works */
+.beam.is-on { box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand-solid) 8%, transparent); transition: box-shadow .4s ease; }
+
+/* One travelling highlight along the bottom edge: for an input or a prompt bar */
+.beam-line { position: relative; overflow: hidden; }
+.beam-line::after {
+  content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, transparent, var(--brand-solid), #a78bfa, transparent);
+  transform: translateX(-100%); opacity: 0; pointer-events: none;
+}
+.beam-line.is-on::after { opacity: 1; animation: beam-sweep 1.6s ease-in-out infinite; }
+@keyframes beam-sweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+
+/* Placeholder rows while the assistant is reading */
+.shimmer { position: relative; overflow: hidden; background: var(--bg-subtle); border-radius: 8px; }
+.shimmer::after {
+  content: ""; position: absolute; inset: 0; transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--brand-solid) 10%, transparent), transparent);
+  animation: beam-sweep 1.3s ease-in-out infinite;
+}
+
+/* A row that has just been acted on, so the change is visible where it happened */
+.flash { animation: flash-in .9s ease-out both; }
+@keyframes flash-in {
+  0% { background: color-mix(in srgb, var(--success-fg) 16%, transparent); }
+  100% { background: transparent; }
+}
+/* Findings arrive in order rather than all at once */
+.rise { animation: rise-in .32s ease-out both; }
+@keyframes rise-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* The mark beside anything the assistant says */
+.spark { position: relative; }
+.spark.is-on::after {
+  content: ""; position: absolute; inset: -5px; border-radius: inherit; pointer-events: none;
+  background: radial-gradient(circle, color-mix(in srgb, var(--brand-solid) 34%, transparent), transparent 70%);
+  animation: spark-breathe 2.2s ease-in-out infinite;
+}
+@keyframes spark-breathe { 0%, 100% { opacity: .35; transform: scale(1); } 50% { opacity: .9; transform: scale(1.12); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .beam.is-on::before, .beam-line.is-on::after, .shimmer::after, .spark.is-on::after, .flash, .rise { animation: none; }
+  /* The state still has to read, so the edge stays lit, it just stops moving */
+  .beam.is-on::before { opacity: 1; background: var(--brand-solid); }
+  .beam-line.is-on::after { transform: none; }
+  .rise, .flash { opacity: 1; }
+}
+}

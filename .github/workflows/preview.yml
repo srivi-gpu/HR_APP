@@ -1,0 +1,69 @@
+# Publish any branch to GitHub Pages, as a preview.
+#
+# Why this exists rather than running pages.yml on the branch itself: the
+# github-pages environment only accepts deployments whose ref is `main`, and with
+# no deployment-branch rules configured Pages falls back to exactly that. A run
+# started on a feature branch is refused by the Pages API ("Invalid deployment
+# branch ... Deployments are only allowed from main"), after it has already
+# checked out and uploaded the site.
+#
+# So this workflow runs on `main`, which satisfies the rule, and checks out the
+# branch you name. The deployment is created from `main`; the site served is the
+# branch's. No repository setting has to change.
+#
+# Use it from Actions > Preview a branch > Run workflow: leave the workflow's own
+# branch as main, and type the branch to publish.
+name: Preview a branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: The branch to publish (e.g. feature/no-h-scroll)
+        required: true
+        default: main
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Shares the group with pages.yml: one deployment at a time, and never cancel a
+# run that is mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      # ref is the branch being previewed; the run itself stays on main.
+      - name: Check out the branch to preview
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.branch }}
+
+      - name: Say what is being published
+        run: |
+          echo "### Preview of \`${{ inputs.branch }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit \`$(git rev-parse --short HEAD)\` — $(git log -1 --pretty=%s)" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Pages serves one site per repository, so this replaces whatever was live." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      # The prototype is already static: the repository root is the site.
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4
