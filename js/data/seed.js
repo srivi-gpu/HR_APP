@@ -569,17 +569,23 @@
   });
 
   /* ------------------------------------------------------------------ Holidays */
+  /* `locs` is 'all' or a list of location ids, which is what holidaysFor() in the org
+     screens already reads. `id` is here so a holiday can be edited and deleted like any
+     other record. `type` stays: leave counting keys off 'Optional' (PRD 14.2). */
   var HOLIDAYS = [
-    { date: '2026-01-01', name: "New Year's Day", type: 'Public' },
-    { date: '2026-01-26', name: 'Republic Day', type: 'National' },
-    { date: '2026-03-04', name: 'Holi', type: 'Public' },
-    { date: '2026-04-14', name: 'Ambedkar Jayanti', type: 'Public' },
-    { date: '2026-05-01', name: 'May Day', type: 'Public' },
-    { date: '2026-08-15', name: 'Independence Day', type: 'National' },
-    { date: '2026-10-02', name: 'Gandhi Jayanti', type: 'National' },
-    { date: '2026-11-08', name: 'Diwali', type: 'Public' },
-    { date: '2026-11-09', name: 'Diwali (second day)', type: 'Optional' },
-    { date: '2026-12-25', name: 'Christmas Day', type: 'Public' }
+    { id: 'hol-1', date: '2026-01-01', name: "New Year's Day", type: 'Public', locs: 'all' },
+    { id: 'hol-2', date: '2026-01-26', name: 'Republic Day', type: 'National', locs: 'all' },
+    { id: 'hol-3', date: '2026-03-04', name: 'Holi', type: 'Public', locs: 'all' },
+    { id: 'hol-4', date: '2026-04-14', name: 'Ambedkar Jayanti', type: 'Public', locs: 'all' },
+    { id: 'hol-5', date: '2026-05-01', name: 'May Day', type: 'Public', locs: 'all' },
+    { id: 'hol-6', date: '2026-08-15', name: 'Independence Day', type: 'National', locs: 'all' },
+    { id: 'hol-7', date: '2026-10-02', name: 'Gandhi Jayanti', type: 'National', locs: 'all' },
+    { id: 'hol-8', date: '2026-11-08', name: 'Diwali', type: 'Public', locs: 'all' },
+    { id: 'hol-9', date: '2026-11-09', name: 'Diwali (second day)', type: 'Optional', locs: 'all' },
+    { id: 'hol-10', date: '2026-12-25', name: 'Christmas Day', type: 'Public', locs: 'all' },
+    /* Two that are not org-wide, so the location filter has something to filter. */
+    { id: 'hol-11', date: '2026-11-01', name: 'Kannada Rajyotsava', type: 'Public', locs: ['loc-blr'] },
+    { id: 'hol-12', date: '2026-09-19', name: 'Ganesh Chaturthi', type: 'Optional', locs: ['loc-pun', 'loc-hyd'] }
   ];
 
   /* -------------------------------------------------------------------- Assets */

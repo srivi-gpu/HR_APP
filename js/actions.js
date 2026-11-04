@@ -602,6 +602,76 @@
     return done(doc.name + ' ' + decision.toLowerCase());
   }
 
+  /* ------------------------------------------------------------ Holiday calendar
+     PRD 4.11. `locs` is 'all' or a list of location ids; `type` carries Optional,
+     which is what leave counting keys off (PRD 14.2). */
+  function holidayType(optional) { return optional ? 'Optional' : 'Public'; }
+
+  function addHoliday(form) {
+    var errors = rules.validHoliday(form);
+    if (rules.hasErrors(errors)) return fail(errors);
+    var id = store.nextId('holidays', 'hol-');
+    var name = String(form.name).trim();
+    store.add('holidays', {
+      id: id, date: form.date, name: name,
+      type: form.type || holidayType(form.optional),
+      locs: form.locs || 'all'
+    });
+    store.log('added the holiday "' + name + '" on ' + form.date, 'Configuration');
+    return done(name + ' added to the calendar', { id: id });
+  }
+  function updateHoliday(id, form) {
+    var hd = store.find('holidays', id);
+    if (!hd) return fail({ _: 'That holiday no longer exists' });
+    var errors = rules.validHoliday(form, id);
+    if (rules.hasErrors(errors)) return fail(errors);
+    var name = String(form.name).trim();
+    store.setOverride('holidays', id, {
+      date: form.date, name: name,
+      type: form.type || holidayType(form.optional),
+      locs: form.locs || 'all'
+    });
+    store.log('updated the holiday "' + name + '"', 'Configuration');
+    return done(name + ' updated');
+  }
+  function deleteHoliday(id) {
+    var hd = store.find('holidays', id);
+    if (!hd) return fail({ _: 'That holiday no longer exists' });
+    store.remove('holidays', id);
+    store.log('deleted the holiday "' + hd.name + '"', 'Configuration');
+    return done(hd.name + ' removed from the calendar');
+  }
+  /* Bulk add from an imported sheet. Rows that fail validation are reported rather
+     than dropped silently, so a bad spreadsheet is visible instead of half-applied. */
+  function importHolidays(rows) {
+    var added = [], skipped = [];
+    [].concat(rows || []).forEach(function (row, i) {
+      var candidate = {
+        name: row.name, date: row.date,
+        type: row.type || holidayType(row.optional),
+        locs: row.locs || 'all'
+      };
+      var errors = rules.validHoliday(candidate);
+      if (rules.hasErrors(errors)) {
+        skipped.push({ row: i + 1, name: row.name || '(no name)', why: errors.name || errors.date });
+        return;
+      }
+      var id = store.nextId('holidays', 'hol-');
+      store.add('holidays', {
+        id: id, date: candidate.date, name: String(candidate.name).trim(),
+        type: candidate.type, locs: candidate.locs
+      });
+      added.push(id);
+    });
+    store.log('imported ' + added.length + ' holiday(s)', 'Configuration');
+    if (!added.length) {
+      return fail({ _: 'Nothing imported — every row was rejected' + (skipped.length ? ': ' + skipped[0].why : '') });
+    }
+    return done(added.length + ' holiday' + (added.length === 1 ? '' : 's') + ' imported'
+      + (skipped.length ? ', ' + skipped.length + ' skipped' : ''),
+      { added: added.length, skipped: skipped });
+  }
+
   /* ------------------------------------------- Company library (documents & folders)
      Renaming and deleting are HR's, so the library can be kept tidy rather than only
      added to. A delete is a tombstone in the store, so a seeded row goes too. */
@@ -1329,6 +1399,8 @@
     /* Documents */
     uploadDocument: uploadDocument, verifyDocument: verifyDocument,
     publishPolicy: publishPolicy, acknowledgePolicy: acknowledgePolicy,
+    addHoliday: addHoliday, updateHoliday: updateHoliday, deleteHoliday: deleteHoliday,
+    importHolidays: importHolidays,
     renameDocument: renameDocument, deleteDocument: deleteDocument,
     renameFolder: renameFolder, deleteFolder: deleteFolder,
     /* Assets */
