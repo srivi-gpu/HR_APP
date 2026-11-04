@@ -22,6 +22,7 @@
     var tabSt = React.useState('overview');
     var editSt = React.useState(false);
     var statusSt = React.useState(false);
+    var uploadSt = React.useState(false);
     if (!e) return null;
 
     var history = store.collection('employmentHistory').filter(function (x) { return x.employee === e.id; });
@@ -167,16 +168,64 @@
               : h(ui.Empty, { icon: I.calendar, title: 'No leave requests' })));
       }
       if (tabSt[0] === 'documents') {
-        return docs.length
-          ? h('div', { className: 'list' }, docs.map(function (d) {
-              return h('div', { className: 'list__row', key: d.id },
-                h('div', { className: 'list__main' },
-                  h('span', { className: 'list__title' }, d.category),
-                  h('span', { className: 'list__meta' }, d.name + ' · ' + d.size + ' · uploaded ' + ui.dateLabel(d.uploaded)
-                    + (d.expiry ? ' · expires ' + ui.dateLabel(d.expiry) : ''))),
-                h(ui.StatusChip, { status: d.status }));
-            }))
-          : h(ui.Empty, { icon: I.file, title: 'No documents uploaded' });
+        /* This is where an employee's documents live (PRD 4.24). They used to be listed
+           in the company library too, which meant one person's identity proof sat beside
+           the handbook; the library is for company documents now, and a person's own
+           papers belong to their record. Upload, verification and expiry are all here. */
+        var REQUIRED_DOCS = ['Identity Proof', 'Address Proof', 'Education Certificate', 'Employment Agreement'];
+        var held = {};
+        docs.forEach(function (d) { held[d.category] = d; });
+        var missing = REQUIRED_DOCS.filter(function (cat) { return !held[cat]; });
+        var pending = docs.filter(function (d) { return d.status === 'Pending Verification'; }).length;
+
+        return h(React.Fragment, null,
+          h('div', { className: 'row gap-2 wrap', style: { marginBottom: 12 } },
+            h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, docs.length + ' on file'),
+            pending
+              ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, pending + ' pending verification')
+              : null,
+            missing.length
+              ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'error', dot: true }, missing.length + ' required missing')
+              : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Required set complete'),
+            h(V.Button, {
+              variant: 'primary', className: 'vi-btn--sm', iconStart: I.up,
+              onClick: function () { uploadSt[1](true); }
+            }, 'Upload')),
+
+          missing.length
+            ? h('p', { className: 'muted', style: { fontSize: 12, margin: '0 0 10px' } },
+              'Still needed: ' + missing.join(', ') + '.')
+            : null,
+
+          docs.length
+            ? h('div', { className: 'checks' }, docs.map(function (d) {
+                var days = d.expiry ? Math.round((new Date(d.expiry + 'T00:00') - seed.today) / 86400000) : null;
+                return h('div', { className: 'checks__row', key: d.id },
+                  h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, I.file),
+                  h('div', { className: 'checks__main' },
+                    h('span', { className: 'checks__name' }, d.category),
+                    h('span', { className: 'checks__meta' },
+                      d.name + ' · ' + d.size + ' · uploaded ' + ui.dateLabel(d.uploaded)
+                      + (d.verifiedBy ? ' · verified by ' + (emp(d.verifiedBy) || {}).name : ''))),
+                  days != null
+                    ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', dot: true,
+                        tone: days < 0 ? 'error' : days <= 30 ? 'error' : days <= 90 ? 'warning' : 'info' },
+                        days < 0 ? 'Expired' : 'Expires ' + ui.dateLabel(d.expiry))
+                    : null,
+                  d.status === 'Pending Verification'
+                    ? h('span', { className: 'row gap-2' },
+                        h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
+                          onClick: function () { ui.report(act.verifyDocument(d.id, 'Rejected')); } }, 'Reject'),
+                        h(V.Button, { variant: 'primary', className: 'vi-btn--sm',
+                          onClick: function () { ui.report(act.verifyDocument(d.id, 'Verified')); } }, 'Verify'))
+                    : h(ui.StatusChip, { status: d.status }));
+              }))
+            : h(ui.Empty, {
+                icon: I.file, title: 'No documents uploaded',
+                body: 'Identity, address, education and employment documents for ' + e.name + ' are kept here.',
+                actions: h(V.Button, { variant: 'primary', iconStart: I.up,
+                  onClick: function () { uploadSt[1](true); } }, 'Upload a document')
+              }));
       }
       if (tabSt[0] === 'assets') {
         return assets.length
@@ -282,7 +331,39 @@
               h(V.Select, Object.assign({ label: 'New status', required: true,
                 options: rules.allowedStatuses(e.status) }, statusForm.select('status'))),
               h(V.TextArea, Object.assign({ label: 'Reason', rows: 2, placeholder: 'Recorded in the employment history' }, statusForm.field('reason'))))
-          : h(ui.Empty, { icon: I.lock, title: 'No transitions available', body: 'An ' + e.status.toLowerCase() + ' record cannot change status.' })) : null);
+          : h(ui.Empty, { icon: I.lock, title: 'No transitions available', body: 'An ' + e.status.toLowerCase() + ' record cannot change status.' })) : null,
+
+      uploadSt[0] ? h(UploadEmployeeDocModal, {
+        employee: e, onClose: function () { uploadSt[1](false); }
+      }) : null);
+  }
+
+  /* Uploading a document onto a person's record (PRD 4.24). It lands as Pending
+     Verification, which is the same path an employee's own upload takes. */
+  function UploadEmployeeDocModal(p) {
+    var form = ui.useForm({ category: seed.documentCategories[0], name: '', size: '', expiry: '' });
+    function save() {
+      var res = form.submit(function (v) {
+        return ui.report(act.uploadDocument(p.employee.id, {
+          category: v.category, name: v.name, size: v.size || '— KB', expiry: v.expiry || null
+        }));
+      });
+      if (res && res.ok) p.onClose();
+    }
+    return h(ui.Modal, {
+      title: 'Upload a document',
+      description: 'Onto ' + p.employee.name + '\u2019s record. It is held as pending until HR verifies it.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', iconStart: I.up, onClick: save }, 'Upload'))
+    },
+      h(V.Select, Object.assign({ label: 'Category', required: true, options: seed.documentCategories }, form.select('category'))),
+      h(V.TextField, Object.assign({ label: 'File name', required: true, placeholder: 'e.g. Aadhaar_Front.pdf' }, form.field('name'))),
+      h(ui.FieldRow, { cols: 2 },
+        h(V.TextField, Object.assign({ label: 'Size', placeholder: 'e.g. 1.2 MB' }, form.field('size'))),
+        h(V.DateField, Object.assign({ label: 'Expires on' },
+          form.field('expiry', { hint: 'Leave empty if it does not lapse' })))));
   }
 
   /* ======================================================== Add employee form */

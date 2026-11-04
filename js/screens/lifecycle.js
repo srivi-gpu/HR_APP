@@ -1223,324 +1223,411 @@
       h(V.TextArea, Object.assign({ label: 'Summary', rows: 3, placeholder: 'What changed in this version' }, form.field('body'))));
   }
 
-  function CompanyDocuments() {
-    var policies = store.collection('policies');
-    var catSt = React.useState('');
-    var rows = catSt[0] ? policies.filter(function (x) { return x.category === catSt[0]; }) : policies;
-
-    return h(React.Fragment, null,
-      h(Stats, null,
-        h(Stat, { key: 1, label: 'Company documents', value: policies.length, sub: 'Published to employees' }),
-        h(Stat, { key: 2, label: 'Needing acknowledgement', value: policies.filter(function (x) { return x.ack; }).length, sub: 'Tracked per person' }),
-        h(Stat, { key: 3, label: 'Published this quarter', value: policies.filter(function (x) { return x.published >= dayOffset(-90); }).length,
-          sub: 'Since ' + ui.dateLabel(dayOffset(-90)) }),
-        h(Stat, { key: 4, label: 'Categories', value: Object.keys(policies.reduce(function (m, x) { m[x.category] = 1; return m; }, {})).length,
-          sub: 'Handbook, compliance, IT and more' })),
-
-      h(Card, {
-        title: 'Company documents',
-        description: 'PRD 4.24: the handbook, code of conduct and every other organization-wide document, newest version first.'
-      },
-        h(ui.DataTable, {
-          exportName: 'company-documents', label: 'Company documents', rows: rows, pageSize: 10,
-          search: function (x) { return x.name + ' ' + x.category + ' ' + x.version; },
-          searchPlaceholder: 'Search documents',
-          filters: h(ui.Filter, { label: 'Category', value: catSt[0], onChange: catSt[1],
-            options: Object.keys(policies.reduce(function (m, x) { m[x.category] = 1; return m; }, {})) }),
-          columns: [
-            { key: 'name', header: 'Document', sortable: true,
-              cell: function (x) { return h('span', { className: 'row gap-2' }, x.name, h(V.Chip, { size: 'sm', shape: 'tag' }, x.version)); } },
-            { key: 'category', header: 'Category', sortable: true },
-            { key: 'audience', header: 'Audience' },
-            { key: 'published', header: 'Published', sortable: true, cell: function (x) { return ui.dateLabel(x.published); } },
-            { key: 'ack', header: 'Acknowledgement', csv: function (x) { return x.ack ? 'Required' : 'Not required'; },
-              cell: function (x) {
-                return x.ack
-                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info', dot: true }, 'Required')
-                  : h('span', { className: 'muted' }, 'Not required');
-              } },
-            { key: 'actions', header: '', align: 'right',
-              cell: function (x) {
-                return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.download,
-                  onClick: function () { ui.toast(x.name + ' ' + x.version + ' download started', 'success'); } }, 'Download');
-              } }
-          ],
-          emptyIcon: I.folder, emptyTitle: 'No company documents',
-          emptyBody: 'Documents published from the policy library appear here.'
-        })));
+  /* ------------------------------------------------------- Documents & policies
+     One screen, no tabs. What used to be Company documents, Policy library,
+     Acknowledgements and Expiring is a folder tree over one library: a file's version,
+     audience, who has signed it and when it lapses are all on its own panel, instead of
+     being four screens apart. Employee documents are not here at all — they belong to
+     the person, and live on their profile. */
+  function docFolders() { return store.collection('docFolders'); }
+  function docFiles() { return store.collection('policies'); }
+  function childFolders(parent) {
+    return docFolders().filter(function (f) { return (f.parent || null) === (parent || null); });
+  }
+  function filesIn(folder) {
+    return docFiles().filter(function (d) { return (d.folder || null) === (folder || null); });
+  }
+  /* Everything under a folder, including its subfolders, for the counts on a folder row. */
+  function descendantIds(id) {
+    var out = [id];
+    childFolders(id).forEach(function (f) { out = out.concat(descendantIds(f.id)); });
+    return out;
+  }
+  function filesUnder(id) {
+    var ids = descendantIds(id);
+    return docFiles().filter(function (d) { return ids.indexOf(d.folder) >= 0; });
+  }
+  function folderPath(id) {
+    var all = docFolders(), path = [], guard = 0;
+    var cur = all.filter(function (f) { return f.id === id; })[0];
+    while (cur && guard++ < 20) {
+      path.unshift(cur);
+      cur = cur.parent ? all.filter(function (f) { return f.id === cur.parent; })[0] : null;
+    }
+    return path;
+  }
+  var DOC_KINDS = ['Policy', 'Insurance', 'Handbook', 'Reference', 'Form', 'Template', 'Contract', 'Other'];
+  function kindIcon(kind) {
+    if (kind === 'Policy') return I.shield;
+    if (kind === 'Insurance') return I.card;
+    if (kind === 'Form' || kind === 'Template') return I.forms;
+    return I.file;
   }
 
-  function EmployeeDocuments() {
-    var decideSt = React.useState(null);
-    var catSt = React.useState(''), statusSt = React.useState(''), deptSt = React.useState('');
-
-    var all = store.collection('employeeDocuments');
-    var rows = all;
-    if (catSt[0]) rows = rows.filter(function (d) { return d.category === catSt[0]; });
-    if (statusSt[0]) rows = rows.filter(function (d) { return d.status === statusSt[0]; });
-    if (deptSt[0]) rows = rows.filter(function (d) { var e = emp(d.employee); return e && e.department === deptSt[0]; });
-
-    /* PRD 4.24: the required set per person, so a gap is visible rather than implied. */
-    var holders = {};
-    all.forEach(function (d) { holders[d.employee] = holders[d.employee] || {}; holders[d.employee][d.category] = d.status; });
-    var REQUIRED = ['Identity Proof', 'Address Proof', 'Education Certificate', 'Employment Agreement'];
-    var withGaps = store.collection('employees').filter(function (e) {
-      if (e.status === 'Exited' || e.status === 'Invited') return false;
-      var mine = holders[e.id] || {};
-      return REQUIRED.some(function (cat) { return !mine[cat]; });
-    }).length;
-
-    return h(React.Fragment, null,
-      h(Stats, null,
-        h(Stat, { key: 1, label: 'Documents on file', value: all.length.toLocaleString(), sub: 'Across every employee' }),
-        h(Stat, { key: 2, label: 'Verified', value: all.filter(function (d) { return d.status === 'Verified'; }).length.toLocaleString(),
-          sub: ui.pct(all.filter(function (d) { return d.status === 'Verified'; }).length, all.length) + '% of the library', tone: 'good' }),
-        h(Stat, { key: 3, label: 'Pending verification', value: all.filter(function (d) { return d.status === 'Pending Verification'; }).length,
-          sub: 'Awaiting HR review', tone: 'warn' }),
-        h(Stat, { key: 4, label: 'Employees with a gap', value: withGaps,
-          sub: 'Missing one of the four required documents', tone: withGaps ? 'warn' : 'good' })),
-
-      h(Card, {
-        title: 'Employee documents',
-        description: 'PRD 4.24: identity, address, education and employment documents per person. Filter by category and verification status; the table pages through the whole library.'
-      },
-        h(ui.DataTable, {
-          exportName: 'employee-documents', label: 'Employee documents', rows: rows, pageSize: 25, density: 'compact',
-          search: function (d) { return empName(d.employee) + ' ' + d.employee + ' ' + d.category + ' ' + d.name; },
-          searchPlaceholder: 'Search by employee, ID, category or file',
-          filters: h(React.Fragment, null,
-            h(ui.Filter, { label: 'Category', value: catSt[0], onChange: catSt[1], options: seed.documentCategories }),
-            h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1],
-              options: ['Verified', 'Pending Verification', 'Rejected'] }),
-            h(ui.Filter, { label: 'Department', value: deptSt[0], onChange: deptSt[1], options: deptOptions() })),
-          columns: verifyColumns(decideSt[1]),
-          emptyIcon: I.file, emptyTitle: 'No documents match those filters',
-          emptyBody: 'Clear a filter, or ask the employee to upload the document from their workspace.'
-        })),
-
-      decideSt[0] ? h(VerifyModal, {
-        doc: decideSt[0].doc, decision: decideSt[0].decision,
-        onClose: function () { decideSt[1](null); }
-      }) : null);
+  /* Create-folder dialog. */
+  function NewFolderModal(p) {
+    var form = ui.useForm({ name: '', description: '' }, function (v) {
+      var errs = {};
+      if (!String(v.name || '').trim()) errs.name = 'Give the folder a name';
+      else if (childFolders(p.parent).some(function (f) { return f.name.toLowerCase() === String(v.name).trim().toLowerCase(); })) {
+        errs.name = 'A folder with that name is already here';
+      }
+      return errs;
+    });
+    function save() {
+      var res = form.submit(function (v) {
+        var name = String(v.name).trim();
+        store.add('docFolders', {
+          id: 'fld-' + Date.now().toString(36), name: name,
+          parent: p.parent || null, description: String(v.description || '').trim()
+        });
+        store.log('created the folder "' + name + '"', 'User activity');
+        ui.toast('Folder "' + name + '" created', 'success');
+        return { ok: true };
+      });
+      if (res && res.ok) p.onClose();
+    }
+    return h(ui.Modal, {
+      title: 'New folder',
+      description: p.parentName ? 'Inside ' + p.parentName : 'At the top of the library',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, 'Create folder'))
+    },
+      h(V.TextField, Object.assign({ label: 'Folder name', placeholder: 'e.g. Insurance & Benefits' }, form.field('name'))),
+      h(V.TextArea, Object.assign({ label: 'Description', rows: 2, placeholder: 'What belongs in here' }, form.field('description'))));
   }
 
-  function PolicyLibrary() {
-    var publishSt = React.useState(false);
-    var catSt = React.useState('');
-    var policies = store.collection('policies').slice().sort(function (a, b) { return a.published < b.published ? 1 : -1; });
-    var rows = catSt[0] ? policies.filter(function (x) { return x.category === catSt[0]; }) : policies;
+  /* Upload. `mode` is 'file' or 'folder': a folder upload creates the folder and files
+     it in one step, which is what dropping a folder in from a desktop would do. */
+  function UploadModal(p) {
+    var multi = p.mode === 'folder';
+    var form = ui.useForm({
+      name: '', folderName: '', kind: 'Policy', version: 'v1.0',
+      audience: 'All employees', ack: false, expiry: ''
+    }, function (v) {
+      var errs = {};
+      if (multi && !String(v.folderName || '').trim()) errs.folderName = 'Name the folder being uploaded';
+      if (!String(v.name || '').trim()) errs.name = multi ? 'List at least one file' : 'Give the document a name';
+      return errs;
+    });
 
-    return h(React.Fragment, null,
-      h(Card, {
-        title: 'Policy library',
-        description: 'PRD 4.25: published policies with version, audience and acknowledgement coverage.',
-        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
-          onClick: function () { publishSt[1](true); } }, 'Publish policy')
-      },
-        h(ui.DataTable, {
-          exportName: 'policies', label: 'Policy library', rows: rows, pageSize: 10,
-          search: function (x) { return x.name + ' ' + x.category + ' ' + x.version + ' ' + x.audience; },
-          searchPlaceholder: 'Search by name, category or audience',
-          filters: h(ui.Filter, { label: 'Category', value: catSt[0], onChange: catSt[1],
-            options: Object.keys(policies.reduce(function (m, x) { m[x.category] = 1; return m; }, {})) }),
-          columns: [
-            { key: 'name', header: 'Policy', sortable: true },
-            { key: 'version', header: 'Version', cell: function (x) { return h('span', { className: 'mono' }, x.version); } },
-            { key: 'category', header: 'Category', sortable: true },
-            { key: 'audience', header: 'Audience' },
-            { key: 'published', header: 'Published', sortable: true, cell: function (x) { return ui.dateLabel(x.published); } },
-            { key: 'due', header: 'Ack due', csv: function (x) { return x.due || ''; },
-              cell: function (x) {
-                if (!x.ack) return h('span', { className: 'muted' }, 'No ack needed');
-                if (!x.due) return h('span', { className: 'muted' }, 'No deadline');
-                var d = daysAway(x.due);
-                return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: d != null && d < 0 ? 'error' : 'warning', dot: true },
-                  ui.dateLabel(x.due));
-              } },
-            { key: 'coverage', header: 'Acknowledged', sortable: true,
-              sortValue: function (x) { return x.ack ? coverage(x).pct : -1; },
-              csv: function (x) { if (!x.ack) return ''; var c = coverage(x); return c.done + ' of ' + c.total; },
-              cell: function (x) {
-                if (!x.ack) return h('span', { className: 'muted' }, '—');
-                var c = coverage(x);
-                return h('span', { className: 'stack gap-1', style: { minWidth: 110 } },
-                  h(V.ProgressBar, { value: c.pct, size: 'sm', tone: c.pct >= 95 ? 'success' : c.pct >= 70 ? 'primary' : 'warning', 'aria-label': 'Acknowledged' }),
-                  h('span', { className: 'list__meta' }, c.done + ' of ' + c.total + ' · ' + c.pct + '%'));
-              } },
-            { key: 'actions', header: '', align: 'right',
-              cell: function (x) {
-                return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm',
-                  onClick: function () { router.goAs('hr/documents/acknowledgements'); } }, 'Tracker');
-              } }
-          ],
-          emptyIcon: I.shield, emptyTitle: 'No policies published',
-          emptyBody: 'Publish the handbook and the code of conduct first; employees see them in their own workspace.',
-          emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus, onClick: function () { publishSt[1](true); } }, 'Publish policy')
-        })),
-      publishSt[0] ? h(PublishPolicyModal, { onClose: function () { publishSt[1](false); } }) : null);
-  }
-
-  function Acknowledgements() {
-    var policies = store.collection('policies').filter(function (x) { return x.ack; });
-    var pickSt = React.useState(policies.length ? policies[policies.length - 1].id : '');
-    var stateSt = React.useState('');
-
-    var policy = policies.filter(function (x) { return x.id === pickSt[0]; })[0] || policies[0];
-    if (!policy) {
-      return h(Card, { title: 'Acknowledgements', description: 'PRD 4.26: who has acknowledged each policy, and who is outstanding.' },
-        h(ui.Empty, {
-          icon: I.shield, title: 'No policy needs acknowledgement',
-          body: 'Publish a policy with acknowledgement required and the tracker appears here.',
-          actions: h(V.Button, { variant: 'primary', onClick: function () { router.goAs('hr/documents/policies'); } }, 'Policy library')
-        }));
+    function save() {
+      var res = form.submit(function (v) {
+        var target = p.parent || null;
+        var folderLabel = p.parentName || 'the library';
+        if (multi) {
+          var fname = String(v.folderName).trim();
+          var created = store.add('docFolders', {
+            id: 'fld-' + Date.now().toString(36), name: fname,
+            parent: target, description: 'Uploaded folder'
+          });
+          target = created.id;
+          folderLabel = fname;
+        }
+        /* One file per line, so a folder upload reads like the listing it came from. */
+        var names = String(v.name).split('\n').map(function (x) { return x.trim(); })
+          .filter(function (x) { return x.length; });
+        names.forEach(function (name, i) {
+          store.add('policies', {
+            id: 'doc-' + Date.now().toString(36) + '-' + i,
+            name: name, version: v.version || 'v1.0', kind: v.kind,
+            category: p.parentName || 'Uncategorised', folder: target,
+            size: '—', ack: !!v.ack, published: today(),
+            audience: v.audience || 'All employees',
+            expiry: v.expiry || null, uploaded: true
+          });
+        });
+        store.log('uploaded ' + names.length + ' document' + (names.length === 1 ? '' : 's') + ' to ' + folderLabel, 'User activity');
+        ui.toast(names.length + ' file' + (names.length === 1 ? '' : 's') + ' uploaded to ' + folderLabel, 'success');
+        return { ok: true };
+      });
+      if (res && res.ok) p.onClose();
     }
 
-    var c = coverage(policy);
-    var rows = c.audience.map(function (e) {
-      return {
-        id: e.id, employee: e.id, name: e.name, department: e.department,
-        on: c.signed[e.id] || null, state: c.signed[e.id] ? 'Acknowledged' : 'Outstanding'
-      };
-    });
+    return h(ui.Modal, {
+      title: multi ? 'Upload a folder' : 'Upload a document',
+      description: multi
+        ? 'Creates the folder' + (p.parentName ? ' inside ' + p.parentName : '') + ' and files everything listed into it.'
+        : 'Into ' + (p.parentName || 'the top of the library') + '.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', iconStart: I.up, onClick: save }, multi ? 'Upload folder' : 'Upload'))
+    },
+      multi ? h(V.TextField, Object.assign({ label: 'Folder name', placeholder: 'e.g. Insurance 2027-28' }, form.field('folderName'))) : null,
+      multi
+        ? h(V.TextArea, Object.assign({
+          label: 'Files', rows: 4, placeholder: 'One file per line\nGroup Mediclaim 2027.pdf\nNetwork Hospitals.pdf'
+        }, form.field('name', { hint: form.errors.name || 'One file per line' })))
+        : h(V.TextField, Object.assign({ label: 'Document name', placeholder: 'e.g. Group Mediclaim — Policy Schedule' }, form.field('name'))),
+      h(ui.FieldRow, { cols: 3 },
+        h(V.Select, Object.assign({ label: 'Type', options: DOC_KINDS }, form.select('kind'))),
+        h(V.TextField, Object.assign({ label: 'Version' }, form.field('version'))),
+        h(V.TextField, Object.assign({ label: 'Audience' }, form.field('audience')))),
+      h('div', { className: 'checks' },
+        h('div', { className: 'checks__row' },
+          h(V.Switch, Object.assign({ 'aria-label': 'Acknowledgement required' }, form.check('ack'))),
+          h('div', { className: 'checks__main' },
+            h('span', { className: 'checks__name' }, 'Acknowledgement required'),
+            h('span', { className: 'checks__meta' }, 'Each person in the audience is tracked until they sign')))),
+      h(V.DateField, Object.assign({ label: 'Expires on' },
+        form.field('expiry', { hint: 'Leave empty if it does not lapse' }))));
+  }
+
+  /* A file's own panel: the version and audience, who has signed it, and when it lapses. */
+  function DocumentDrawer(p) {
+    var d = store.find('policies', p.id);
+    if (!d) return null;
+    var stateSt = React.useState('');
+    var c = d.ack ? coverage(d) : null;
+    var path = d.folder ? folderPath(d.folder) : [];
+    var days = d.expiry ? daysAway(d.expiry) : null;
+
+    var rows = c ? c.audience.map(function (e) {
+      return { id: e.id, employee: e.id, department: e.department,
+        on: c.signed[e.id] || null, state: c.signed[e.id] ? 'Acknowledged' : 'Outstanding' };
+    }) : [];
     if (stateSt[0]) rows = rows.filter(function (r) { return r.state === stateSt[0]; });
-    var overdue = policy.due && policy.due < today();
 
-    return h(React.Fragment, null,
-      h(Stats, null,
-        h(Stat, { key: 1, label: 'Acknowledged', value: c.done, sub: 'of ' + c.total + ' in the audience', tone: 'good' }),
-        h(Stat, { key: 2, label: 'Outstanding', value: c.total - c.done,
-          sub: overdue ? 'Past the ' + ui.dateLabel(policy.due) + ' deadline' : 'Still to sign',
-          tone: c.total - c.done ? 'warn' : 'good' }),
-        h(Stat, { key: 3, label: 'Completion', value: c.pct, unit: '%', sub: policy.name + ' ' + policy.version }),
-        h(Stat, { key: 4, label: 'Policies tracked', value: policies.length, sub: 'Requiring acknowledgement' })),
+    return h(ui.Drawer, {
+      eyebrow: (path.length ? path.map(function (f) { return f.name; }).join(' / ') : 'Library') + ' · ' + (d.kind || 'Document'),
+      title: d.name,
+      description: d.version + ' · published ' + ui.dateLabel(d.published),
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close'),
+        h(V.Button, { variant: 'primary', iconStart: I.download,
+          onClick: function () { ui.toast(d.name + ' ' + d.version + ' download started', 'success'); } }, 'Download'))
+    },
+      h('div', { className: 'row gap-3 wrap' },
+        h(V.Chip, { size: 'sm', shape: 'tag', icon: kindIcon(d.kind) }, d.kind || 'Document'),
+        h(V.Chip, { size: 'sm', shape: 'tag' }, d.version),
+        d.ack
+          ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info', dot: true }, 'Acknowledgement required')
+          : null,
+        days != null
+          ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: days < 0 ? 'error' : days <= 30 ? 'error' : days <= 90 ? 'warning' : 'info', dot: true },
+            days < 0 ? 'Expired' : 'Expires in ' + days + ' days')
+          : null),
 
-      h(Grid, null,
-        h(Card, { span: 5, title: 'Completion by policy',
-          description: 'PRD 4.26: acknowledgement coverage across every tracked policy.' },
-          h(ui.Bars, {
-            rows: policies.map(function (x) {
-              var k = coverage(x);
-              return [x.name, k.pct, k.pct >= 95 ? 'success' : k.pct >= 70 ? null : 'warning'];
-            }).sort(function (a, b) { return a[1] - b[1]; }),
-            emptyTitle: 'Nothing to chart'
-          })),
+      h(ui.KeyValue, { rows: [
+        ['Folder', path.length ? path.map(function (f) { return f.name; }).join(' / ') : 'Top level'],
+        ['Type', d.kind || 'Document'],
+        ['Audience', d.audience],
+        ['Published', ui.dateLabel(d.published)],
+        ['Size', d.size && d.size !== '—' ? d.size : null],
+        ['Expires', d.expiry ? ui.dateLabel(d.expiry) : null],
+        ['Acknowledgement due', d.due ? ui.dateLabel(d.due) : null]
+      ]}),
 
-        h(Card, { span: 7, title: policy.name + ' ' + policy.version,
-          description: 'Published ' + ui.dateLabel(policy.published) + ' to ' + policy.audience.toLowerCase()
-            + (policy.due ? ', acknowledgement due ' + ui.dateLabel(policy.due) : ''),
-          aside: h(V.Select, {
-            label: 'Policy', value: policy.id, onChange: function (v) { pickSt[1](v); },
-            options: policies.map(function (x) { return { value: x.id, label: x.name + ' ' + x.version }; })
-          }) },
-          h(V.ProgressBar, {
-            label: 'Acknowledged', value: c.pct, showValue: true,
-            tone: c.pct >= 95 ? 'success' : c.pct >= 70 ? 'primary' : 'warning',
-            hint: c.done + ' of ' + c.total + ' people in the audience have signed'
-          }),
-          overdue
-            ? h(Blockers, { title: 'Deadline passed', items: [(c.total - c.done) + ' people have not acknowledged ' + policy.name
-                + ', which was due ' + ui.dateLabel(policy.due) + '.'] })
-            : null)),
-
-      h(Card, {
-        title: 'Acknowledgement tracker',
-        description: 'Everyone in the audience for ' + policy.name + ', signed or not.'
+      c ? h(ui.FormSection, {
+        title: 'Acknowledgement', description: 'PRD 4.26: who has signed this version, and who has not.'
       },
+        h(V.ProgressBar, {
+          label: c.done + ' of ' + c.total + ' acknowledged', value: c.pct, showValue: true,
+          tone: c.pct >= 95 ? 'success' : c.pct >= 70 ? 'primary' : 'warning'
+        }),
+        h('div', { className: 'row gap-2', style: { marginTop: 10 } },
+          ['', 'Outstanding', 'Acknowledged'].map(function (k) {
+            return h(V.Chip, {
+              key: k || 'all', size: 'sm', selected: stateSt[0] === k,
+              onClick: function () { stateSt[1](k); }
+            }, k || 'Everyone');
+          })),
         h(ui.DataTable, {
-          exportName: 'acknowledgements-' + policy.id, label: 'Acknowledgement tracker', rows: rows, pageSize: 25, density: 'compact',
-          search: function (r) { return r.name + ' ' + r.employee + ' ' + deptName(r.department); },
-          searchPlaceholder: 'Search by name or ID',
-          filters: h(ui.Filter, { label: 'State', value: stateSt[0], onChange: stateSt[1], options: ['Acknowledged', 'Outstanding'] }),
+          exportName: 'acknowledgement-' + d.id, label: 'Acknowledgement', rows: rows, pageSize: 8,
+          search: function (r) { return empName(r.employee); }, searchPlaceholder: 'Search the audience',
           columns: [
-            { key: 'name', header: 'Employee', sortable: true,
-              csv: function (r) { return r.name; },
+            { key: 'employee', header: 'Employee', sortable: true,
+              sortValue: function (r) { return empName(r.employee); },
+              csv: function (r) { return empName(r.employee); },
               cell: function (r) { return person(r.employee); } },
-            { key: 'department', header: 'Department', sortable: true,
-              csv: function (r) { return deptName(r.department); },
-              cell: function (r) { return deptName(r.department); } },
-            { key: 'on', header: 'Acknowledged on', sortable: true,
-              csv: function (r) { return r.on || ''; },
-              cell: function (r) { return r.on ? ui.dateLabel(r.on) : h('span', { className: 'muted' }, 'Not yet'); } },
-            { key: 'state', header: 'State',
+            { key: 'state', header: 'State', sortable: true,
               cell: function (r) {
                 return r.state === 'Acknowledged'
                   ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Acknowledged')
                   : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, 'Outstanding');
               } },
+            { key: 'on', header: 'On', sortable: true,
+              csv: function (r) { return r.on || ''; },
+              cell: function (r) { return r.on ? ui.dateLabel(r.on) : h('span', { className: 'muted' }, '—'); } },
             { key: 'actions', header: '', align: 'right',
               cell: function (r) {
-                if (r.on) return h('span', { className: 'muted', style: { fontSize: 12 } }, ui.relTime(r.on));
+                if (r.state === 'Acknowledged') return null;
                 return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.mail,
-                  onClick: function () { ui.toast('Reminder sent to ' + r.name, 'success'); } }, 'Remind');
+                  onClick: function () { ui.toast('Reminder sent to ' + empName(r.employee), 'success'); } }, 'Remind');
               } }
           ],
-          emptyIcon: I.ok, emptyTitle: 'Nobody matches that filter',
-          emptyBody: 'Everyone in the audience has either signed or is outside this filter.'
-        })));
+          emptyIcon: I.ok, emptyTitle: 'Nobody matches that filter'
+        })) : null);
   }
 
-  function ExpiringDocuments() {
-    var WINDOW = 180;                                   // PRD 4.27
-    var limit = dayOffset(WINDOW);
-    var tracked = store.collection('employeeDocuments').filter(function (d) { return d.expiry; });
-    var rows = tracked.filter(function (d) { return d.expiry <= limit; })
-      .slice().sort(function (a, b) { return a.expiry < b.expiry ? -1 : 1; });
-    var soonest = tracked.slice().sort(function (a, b) { return a.expiry < b.expiry ? -1 : 1; }).slice(0, 10);
+  function DocumentsLibrary() {
+    var hereSt = React.useState(null);              // current folder id, null = top
+    var openSt = React.useState(null);              // open document
+    var newFolderSt = React.useState(false);
+    var uploadSt = React.useState(null);            // 'file' | 'folder'
+    var qSt = React.useState('');
 
-    function within(days) { var k = dayOffset(days); return tracked.filter(function (d) { return d.expiry >= today() && d.expiry <= k; }).length; }
+    var here = hereSt[0];
+    var path = here ? folderPath(here) : [];
+    var hereName = path.length ? path[path.length - 1].name : null;
+    var q = qSt[0].trim().toLowerCase();
 
-    var columns = [
-      { key: 'employee', header: 'Employee', sortable: true,
-        sortValue: function (d) { return empName(d.employee); },
-        csv: function (d) { return empName(d.employee); },
-        cell: function (d) { return person(d.employee); } },
-      { key: 'category', header: 'Category', sortable: true },
-      { key: 'name', header: 'File', cell: function (d) { return h('span', { className: 'mono' }, d.name); } },
-      { key: 'expiry', header: 'Expires', sortable: true, cell: function (d) { return ui.dateLabel(d.expiry); } },
-      { key: 'in', header: 'In', numeric: true, align: 'right', sortable: true,
-        sortValue: function (d) { return daysAway(d.expiry); },
-        csv: function (d) { return daysAway(d.expiry) + ' days'; },
-        cell: function (d) {
-          var n = daysAway(d.expiry);
-          if (n < 0) return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'error', dot: true }, 'Expired');
-          return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: n <= 30 ? 'error' : n <= 90 ? 'warning' : 'info' }, n + ' days');
-        } },
-      { key: 'status', header: 'Verification', cell: function (d) { return h(ui.StatusChip, { status: d.status }); } },
-      { key: 'actions', header: '', align: 'right',
-        cell: function (d) {
-          return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.mail,
-            onClick: function () { ui.toast('Renewal reminder sent to ' + empName(d.employee), 'success'); } }, 'Remind');
-        } }
-    ];
+    var all = docFiles();
+    var folders = childFolders(here);
+    /* A search looks through the whole library, not just the open folder — otherwise
+       finding a document means remembering where it was filed. */
+    var files = q
+      ? all.filter(function (d) {
+        return (d.name + ' ' + (d.kind || '') + ' ' + (d.audience || '') + ' ' + d.version).toLowerCase().indexOf(q) >= 0;
+      })
+      : filesIn(here);
+
+    var needsAck = all.filter(function (d) { return d.ack; });
+    var outstanding = needsAck.reduce(function (n, d) { var c = coverage(d); return n + (c.total - c.done); }, 0);
+    var expiring = all.filter(function (d) { return d.expiry && daysAway(d.expiry) != null && daysAway(d.expiry) <= 90; });
+
+    function go(id) { hereSt[1](id); qSt[1](''); }
 
     return h(React.Fragment, null,
       h(Stats, null,
-        h(Stat, { key: 1, label: 'Expiry tracked', value: tracked.length, sub: 'Documents that carry an expiry date' }),
-        h(Stat, { key: 2, label: 'Expiring in 30 days', value: within(30), sub: 'Needs a renewal now', tone: within(30) ? 'warn' : 'good' }),
-        h(Stat, { key: 3, label: 'Expiring in 180 days', value: within(WINDOW), sub: 'The reminder window in PRD 4.27' }),
-        h(Stat, { key: 4, label: 'Already expired', value: tracked.filter(function (d) { return d.expiry < today(); }).length,
-          sub: 'On file but no longer valid', tone: tracked.filter(function (d) { return d.expiry < today(); }).length ? 'warn' : 'good' })),
+        h(Stat, { key: 1, label: 'Documents', value: all.length, sub: 'Across ' + docFolders().length + ' folders' }),
+        h(Stat, { key: 2, label: 'Need acknowledgement', value: needsAck.length, sub: 'Tracked per person' }),
+        h(Stat, { key: 3, label: 'Signatures outstanding', value: outstanding,
+          sub: outstanding ? 'Across every tracked document' : 'Everyone is up to date',
+          tone: outstanding ? 'warn' : 'good' }),
+        h(Stat, { key: 4, label: 'Expiring in 90 days', value: expiring.length,
+          sub: expiring.length ? 'Needs renewing' : 'Nothing lapses soon',
+          tone: expiring.length ? 'warn' : 'good' })),
 
       h(Card, {
-        title: 'Expiring within ' + WINDOW + ' days',
-        description: 'PRD 4.27: documents whose expiry falls on or before ' + ui.dateLabel(limit) + ', expired ones first.'
+        title: 'Documents & policies',
+        description: 'PRD 4.24–4.27: the company library. Create folders, upload into them, and open a document for its audience, acknowledgement and expiry. Employee documents live on the employee’s profile.',
+        aside: h('span', { className: 'row gap-2' },
+          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.folder,
+            onClick: function () { newFolderSt[1](true); } }, 'New folder'),
+          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.up,
+            onClick: function () { uploadSt[1]('folder'); } }, 'Upload folder'),
+          h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+            onClick: function () { uploadSt[1]('file'); } }, 'Upload'))
       },
-        h(ui.DataTable, {
-          exportName: 'expiring-documents', label: 'Expiring documents', rows: rows, pageSize: 10,
-          search: function (d) { return empName(d.employee) + ' ' + d.category + ' ' + d.name; },
-          searchPlaceholder: 'Search by employee or category',
-          columns: columns,
-          emptyIcon: I.ok, emptyTitle: 'Nothing expires in the next ' + WINDOW + ' days',
-          emptyBody: 'The soonest expiry is '
-            + (soonest.length ? ui.dateLabel(soonest[0].expiry) + ', ' + daysAway(soonest[0].expiry) + ' days away.' : 'not set — no document carries an expiry date.')
-        })),
+        /* Breadcrumb */
+        h('div', { className: 'row gap-2', style: { flexWrap: 'wrap', marginBottom: 12 } },
+          h(V.Button, {
+            variant: here ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.home,
+            onClick: function () { go(null); }
+          }, 'Library'),
+          path.map(function (f, i) {
+            var last = i === path.length - 1;
+            return h('span', { key: f.id, className: 'row gap-2', style: { alignItems: 'center' } },
+              h('span', { className: 'muted', style: { fontSize: 13 } }, '/'),
+              h(V.Button, {
+                variant: last ? 'outline' : 'ghost', className: 'vi-btn--sm',
+                onClick: function () { go(f.id); }
+              }, f.name));
+          })),
 
-      h(Card, { title: 'Next to expire', description: 'The ten soonest expiries on file, whether or not they fall inside the window.' },
-        h(ui.DataTable, {
-          exportName: 'next-to-expire', label: 'Next to expire', rows: soonest, pageSize: 10, onExport: false,
-          columns: columns.slice(0, 5),
-          emptyIcon: I.file, emptyTitle: 'No document carries an expiry date'
-        })));
+        h(V.SearchField, {
+          label: 'Search the library', placeholder: 'Search every folder by name, type or audience',
+          value: qSt[0], onChange: function (e) { qSt[1](e.target.value); }
+        }),
+
+        q ? h('p', { className: 'muted', style: { fontSize: 12, margin: '8px 0 0' } },
+          files.length + ' match' + (files.length === 1 ? '' : 'es') + ' across the whole library') : null,
+
+        /* Folders in this location */
+        !q && folders.length ? h(ui.FormSection, { title: 'Folders' },
+          h('div', { className: 'checks' }, folders.map(function (f) {
+            var inside = filesUnder(f.id).length;
+            var subs = childFolders(f.id).length;
+            return h('div', { className: 'checks__row', key: f.id },
+              h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, I.folder),
+              h('div', { className: 'checks__main' },
+                h('button', {
+                  type: 'button', className: 'checks__name linklike',
+                  onClick: function () { go(f.id); }
+                }, f.name),
+                h('span', { className: 'checks__meta' },
+                  inside + ' document' + (inside === 1 ? '' : 's')
+                  + (subs ? ' · ' + subs + ' subfolder' + (subs === 1 ? '' : 's') : '')
+                  + (f.description ? ' · ' + f.description : ''))),
+              h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.arrow,
+                onClick: function () { go(f.id); } }, 'Open'));
+          }))) : null,
+
+        /* Files here (or search results). A location that is only folders does not show
+           an empty table under them — at the top level everything is filed, and a
+           full-height "this folder is empty" below the tree reads as a fault. */
+        !q && !files.length && folders.length ? null : h(ui.FormSection, {
+          title: q ? 'Search results' : (hereName ? 'Documents in ' + hereName : 'Documents at the top level'),
+          description: q ? null : 'Open a document for its version, audience, acknowledgement and expiry.'
+        },
+          h(ui.DataTable, {
+            exportName: 'company-documents', label: 'Documents', rows: files, pageSize: 10, onExport: true,
+            columns: [
+              { key: 'name', header: 'Document', sortable: true,
+                cell: function (d) {
+                  return h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
+                    h('span', { className: 'empty__mark', style: { width: 26, height: 26 } }, kindIcon(d.kind)),
+                    h('button', { type: 'button', className: 'linklike', onClick: function () { openSt[1](d.id); } }, d.name),
+                    h(V.Chip, { size: 'sm', shape: 'tag' }, d.version));
+                } },
+              { key: 'kind', header: 'Type', sortable: true, cell: function (d) { return d.kind || 'Document'; } },
+              q ? { key: 'folder', header: 'Folder',
+                csv: function (d) { return d.folder ? folderPath(d.folder).map(function (f) { return f.name; }).join(' / ') : ''; },
+                cell: function (d) {
+                  if (!d.folder) return h('span', { className: 'muted' }, 'Top level');
+                  return h('button', {
+                    type: 'button', className: 'linklike',
+                    onClick: function () { go(d.folder); }
+                  }, folderPath(d.folder).map(function (f) { return f.name; }).join(' / '));
+                } } : null,
+              { key: 'audience', header: 'Audience' },
+              { key: 'published', header: 'Published', sortable: true, cell: function (d) { return ui.dateLabel(d.published); } },
+              { key: 'ack', header: 'Acknowledged', sortable: true,
+                sortValue: function (d) { return d.ack ? coverage(d).pct : -1; },
+                csv: function (d) { if (!d.ack) return ''; var c = coverage(d); return c.done + ' of ' + c.total; },
+                cell: function (d) {
+                  if (!d.ack) return h('span', { className: 'muted' }, 'Not required');
+                  var c = coverage(d);
+                  return h('span', { className: 'stack gap-1', style: { minWidth: 110 } },
+                    h(V.ProgressBar, { value: c.pct, size: 'sm', tone: c.pct >= 95 ? 'success' : c.pct >= 70 ? 'primary' : 'warning', 'aria-label': 'Acknowledged' }),
+                    h('span', { className: 'list__meta' }, c.done + ' of ' + c.total + ' · ' + c.pct + '%'));
+                } },
+              { key: 'expiry', header: 'Expires', sortable: true,
+                csv: function (d) { return d.expiry || ''; },
+                cell: function (d) {
+                  if (!d.expiry) return h('span', { className: 'muted' }, '—');
+                  var n = daysAway(d.expiry);
+                  return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', dot: true,
+                    tone: n < 0 ? 'error' : n <= 30 ? 'error' : n <= 90 ? 'warning' : 'info' },
+                    n < 0 ? 'Expired' : ui.dateLabel(d.expiry));
+                } },
+              { key: 'actions', header: '', align: 'right',
+                cell: function (d) {
+                  return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm',
+                    onClick: function () { openSt[1](d.id); } }, 'Open');
+                } }
+            ].filter(Boolean),
+            emptyIcon: q ? I.search : I.folder,
+            emptyTitle: q ? 'Nothing matches "' + qSt[0].trim() + '"' : 'This folder is empty',
+            emptyBody: q
+              ? 'Try a shorter search, or clear it to browse the folders.'
+              : 'Upload a document here, or create a folder to organise this part of the library.',
+            emptyActions: q ? null : h(V.Button, { variant: 'primary', iconStart: I.plus,
+              onClick: function () { uploadSt[1]('file'); } }, 'Upload a document')
+          }))),
+
+      newFolderSt[0] ? h(NewFolderModal, {
+        parent: here, parentName: hereName, onClose: function () { newFolderSt[1](false); }
+      }) : null,
+      uploadSt[0] ? h(UploadModal, {
+        mode: uploadSt[0], parent: here, parentName: hereName, onClose: function () { uploadSt[1](null); }
+      }) : null,
+      openSt[0] ? h(DocumentDrawer, { id: openSt[0], onClose: function () { openSt[1](null); } }) : null);
   }
 
   /* ========================================================= Assets (PRD 4.29–4.33) */
@@ -2659,11 +2746,7 @@
     'hr/offboarding/clearance': Clearance,
     'hr/offboarding/settlement': Settlement,
 
-    'hr/documents/company': CompanyDocuments,
-    'hr/documents/employee': EmployeeDocuments,
-    'hr/documents/policies': PolicyLibrary,
-    'hr/documents/acknowledgements': Acknowledgements,
-    'hr/documents/expiring': ExpiringDocuments,
+    'hr/documents': DocumentsLibrary,
 
     'hr/assets/dashboard': AssetsDashboard,
     'hr/assets/inventory': Inventory,
