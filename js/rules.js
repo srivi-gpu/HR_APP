@@ -305,6 +305,24 @@
     }
     return errors;
   }
+  /* A holiday needs a name and a date, and two holidays cannot share a date in the
+     same place — a day is either off or it is not. */
+  function validHoliday(form, exceptId) {
+    var errors = {};
+    var name = String(form.name || '').trim();
+    var locs = form.locs || 'all';
+    if (!name) errors.name = REQUIRED;
+    if (!form.date) errors.date = REQUIRED;
+    else {
+      var clash = store.collection('holidays').filter(function (hd) {
+        if (hd.id === exceptId || hd.date !== form.date) return false;
+        if (hd.locs === 'all' || locs === 'all') return true;
+        return [].concat(hd.locs).some(function (l) { return [].concat(locs).indexOf(l) >= 0; });
+      })[0];
+      if (clash) errors.date = '"' + clash.name + '" is already on that date for this location';
+    }
+    return errors;
+  }
   function noticeShortfall(lastWorkingDay, noticeDays) {
     var given = Math.round((new Date(lastWorkingDay + 'T00:00') - HRMS.seed.today) / 86400000);
     var required = noticeDays || 60;
@@ -352,7 +370,7 @@
     payrollLocked: payrollLocked, payrollInputsReady: payrollInputsReady, validSalaryStructure: validSalaryStructure,
     canSubmitSelf: canSubmitSelf, canReview: canReview,
     validResignation: validResignation, noticeShortfall: noticeShortfall, outstandingClearance: outstandingClearance,
-    validOnboardingStart: validOnboardingStart,
+    validOnboardingStart: validOnboardingStart, validHoliday: validHoliday,
     required: required, uniqueIn: uniqueIn, hasErrors: hasErrors
   };
 })();

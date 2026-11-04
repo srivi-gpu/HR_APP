@@ -1625,173 +1625,423 @@
       + ('0' + d.getDate()).slice(-2);
   }
 
-  function leaveByDay() {
-    var holiday = {};
-    store.collection('holidays').forEach(function (hd) { holiday[hd.date] = true; });
+  /* ============================================================ Holiday calendar
+     PRD 4.11. One table and the two things you do to it: add a holiday, or import a
+     year's worth from a sheet. The stat row, the "next holidays" list, the by-month
+     chart and the explainer card are gone — every one of them restated what the table
+     already shows, and together they pushed the table itself off the first screen. */
+  var HOLIDAY_IMPORT_COLUMNS = 'name · date · location · optional';
 
-    var count = {}, names = {};
-    store.collection('leaveRequests').forEach(function (r) {
-      if (r.status !== 'Approved') return;
-      var d = new Date(r.from + 'T00:00'), end = new Date(r.to + 'T00:00');
-      while (d <= end) {
-        var key = isoLocal(d);
-        if (!holiday[key] && !rules.isWeekend(d)) {
-          count[key] = (count[key] || 0) + 1;
-          var who = store.employee(r.employee);
-          (names[key] = names[key] || []).push(who ? who.name : r.employee);
-        }
-        d = new Date(d.getTime() + 86400000);
-      }
-    });
-
-    var days = Object.keys(count).map(function (k) { return { date: k, n: count[k], who: names[k] }; });
-    if (!days.length) return { days: [], typical: 0, top: null };
-    var total = days.reduce(function (a, x) { return a + x.n; }, 0);
-    var typical = Math.max(1, Math.round(total / days.length));
-    days.sort(function (a, b) { return b.n - a.n || (a.date < b.date ? -1 : 1); });
-    /* "Stands out" is three times a normal day and at least five people: one team
-       booking the same Friday is a team, not a public holiday. */
-    var top = days.filter(function (x) { return x.n >= Math.max(5, typical * 3); })[0] || null;
-    return { days: days, typical: typical, top: top };
+  function holidayLocLabel(hd) {
+    if (!hd.locs || hd.locs === 'all') return 'All locations';
+    return [].concat(hd.locs).map(function (id) {
+      var l = store.location(id);
+      return l ? l.name : id;
+    }).join(', ');
+  }
+  function holidayAppliesTo(hd, locId) {
+    if (!locId) return true;
+    if (!hd.locs || hd.locs === 'all') return true;
+    return [].concat(hd.locs).indexOf(locId) >= 0;
+  }
+  function holidayLocOptions() {
+    return [{ value: 'all', label: 'All locations' }].concat(
+      store.collection('locations').map(function (l) { return { value: l.id, label: l.name }; }));
   }
 
-  function HolidayNudge(p) {
-    var hit = p.hit, typical = p.typical;
-    var when = new Date(hit.date + 'T00:00');
-    var label = DAY_NAMES[when.getDay()] + ' ' + ui.dateLabel(hit.date);
-    var sample = hit.who.slice(0, 3).join(', ') + (hit.who.length > 3 ? ' and ' + (hit.who.length - 3) + ' more' : '');
-
-    return h(ui.Nudge, {
-      title: hit.n + ' people already have leave approved on ' + label,
-      why: 'A normal working day costs ' + typical + '. This one is '
-        + Math.round(hit.n / typical) + ' times that — ' + sample
-        + ' — and it is not on the holiday calendar, so every one of those days comes out of '
-        + 'somebody’s balance. Making it a company holiday gives ' + hit.n
-        + ' leave ' + (hit.n === 1 ? 'day' : 'days') + ' back and stops the rest of the team booking it too.',
-      label: 'Make it a holiday',
-      apply: function () {
-        store.add('holidays', {
-          id: 'hol-' + hit.date, date: hit.date,
-          name: 'Company holiday', type: 'Public', locs: 'all'
-        });
-        store.log('made ' + hit.date + ' a company holiday, on ' + hit.n + ' approved leave requests', 'Leave');
-        ui.toast('Added to the calendar — ' + hit.n + ' leave ' + (hit.n === 1 ? 'day' : 'days') + ' credited back', 'success');
-      }
+  /* Add and edit are the same four questions, so they are the same dialog. */
+  function HolidayModal(p) {
+    var editing = !!p.holiday;
+    var hd = p.holiday || {};
+    var form = ui.useForm({
+      name: hd.name || '',
+      date: hd.date || '',
+      loc: !hd.locs || hd.locs === 'all' ? 'all' : [].concat(hd.locs)[0],
+      optional: hd.type === 'Optional'
     });
+
+    function save() {
+      var res = form.submit(function (v) {
+        var payload = {
+          name: v.name, date: v.date, optional: !!v.optional,
+          locs: v.loc === 'all' ? 'all' : [v.loc]
+        };
+        return ui.report(editing ? act.updateHoliday(hd.id, payload) : act.addHoliday(payload));
+      });
+      if (res && res.ok) p.onClose();
+    }
+
+    return h(ui.Modal, {
+      title: editing ? 'Edit holiday' : 'Add a holiday',
+      description: editing
+        ? 'Changing the date moves it in the calendar and in leave counting.'
+        : 'A holiday that is not optional is excluded when leave days are counted.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, editing ? 'Save holiday' : 'Add holiday'))
+    },
+      h(V.TextField, Object.assign({
+        label: 'Holiday name', required: true, placeholder: 'e.g. Pongal'
+      }, form.field('name'))),
+      h(ui.FieldRow, { cols: 2 },
+        h(V.DateField, Object.assign({ label: 'Date', required: true }, form.field('date'))),
+        h(V.Select, Object.assign({
+          label: 'Location', options: holidayLocOptions()
+        }, form.select('loc', { hint: 'Who observes it' })))),
+      h('div', { className: 'checks' },
+        h('div', { className: 'checks__row' },
+          h(V.Switch, Object.assign({ 'aria-label': 'Optional holiday' }, form.check('optional'))),
+          h('div', { className: 'checks__main' },
+            h('span', { className: 'checks__name' }, 'Optional holiday'),
+            h('span', { className: 'checks__meta' },
+              form.values.optional
+                ? 'Counted as a working day unless the employee takes it'
+                : 'Excluded when leave days are counted (PRD 14.2)')))));
+  }
+
+  /* ---------------------------------------------------------------- Sheet import
+     CSV is parsed here; .xlsx needs a reader, which is fetched only when someone
+     actually imports one, so the app does not carry it on every page load. */
+  function loadSheetReader(cb) {
+    if (window.XLSX) { cb(null, window.XLSX); return; }
+    var existing = document.getElementById('xlsx-reader');
+    if (existing) {
+      existing.addEventListener('load', function () { cb(window.XLSX ? null : new Error('reader failed'), window.XLSX); });
+      existing.addEventListener('error', function () { cb(new Error('reader failed')); });
+      return;
+    }
+    var el = document.createElement('script');
+    el.id = 'xlsx-reader';
+    el.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    el.onload = function () { cb(window.XLSX ? null : new Error('reader failed'), window.XLSX); };
+    el.onerror = function () { cb(new Error('reader failed')); };
+    document.head.appendChild(el);
+  }
+
+  /* A quoted-field-aware split, because a holiday name may contain a comma. */
+  function parseCsv(text) {
+    var rows = [], row = [], field = '', quoted = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (quoted) {
+        if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (c === '"') quoted = false;
+        else field += c;
+      } else if (c === '"') quoted = true;
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(field); field = '';
+        if (row.some(function (x) { return x.trim(); })) rows.push(row);
+        row = [];
+      } else field += c;
+    }
+    row.push(field);
+    if (row.some(function (x) { return x.trim(); })) rows.push(row);
+    return rows;
+  }
+
+  /* Excel hands dates back as a Date when asked; a CSV hands back whatever was typed.
+     Only unambiguous forms are accepted — a row we cannot read is reported, not guessed. */
+  function toIsoDate(value) {
+    if (!value && value !== 0) return null;
+    if (value instanceof Date && !isNaN(value)) return isoLocal(value);
+    var str = String(value).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+    var dmy = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+    if (dmy && Number(dmy[1]) > 12) {
+      return dmy[3] + '-' + ('0' + dmy[2]).slice(-2) + '-' + ('0' + dmy[1]).slice(-2);
+    }
+    var parsed = new Date(str);
+    if (!isNaN(parsed) && /\d{4}/.test(str)) return isoLocal(parsed);
+    return null;
+  }
+  function truthy(value) {
+    return /^(y|yes|true|1|optional)$/i.test(String(value == null ? '' : value).trim());
+  }
+  function matchLocation(value) {
+    var str = String(value == null ? '' : value).trim();
+    if (!str || /^all( locations)?$/i.test(str)) return 'all';
+    var hit = store.collection('locations').filter(function (l) {
+      return l.name.toLowerCase() === str.toLowerCase() || l.id === str;
+    })[0];
+    return hit ? [hit.id] : null;
+  }
+
+  /* Rows of cells -> holiday candidates, keyed off the header row by name so column
+     order does not matter. */
+  function rowsToHolidays(matrix) {
+    if (!matrix.length) return { rows: [], problems: ['The sheet is empty'] };
+    var header = matrix[0].map(function (c) { return String(c == null ? '' : c).trim().toLowerCase(); });
+    function col() {
+      for (var a = 0; a < arguments.length; a++) {
+        var at = header.indexOf(arguments[a]);
+        if (at >= 0) return at;
+      }
+      return -1;
+    }
+    var iName = col('name', 'holiday', 'holiday name', 'title');
+    var iDate = col('date', 'holiday date', 'day');
+    var iLoc = col('location', 'locations', 'office', 'branch');
+    var iOpt = col('optional', 'is optional', 'type');
+    if (iName < 0 || iDate < 0) {
+      return { rows: [], problems: ['The first row must name the columns: ' + HOLIDAY_IMPORT_COLUMNS] };
+    }
+    var out = [], problems = [];
+    matrix.slice(1).forEach(function (cells, n) {
+      var name = String(cells[iName] == null ? '' : cells[iName]).trim();
+      var date = toIsoDate(iDate >= 0 ? cells[iDate] : null);
+      if (!name && !date) return;                       // a blank row is not an error
+      var locs = iLoc >= 0 ? matchLocation(cells[iLoc]) : 'all';
+      if (!name) { problems.push('Row ' + (n + 2) + ': no holiday name'); return; }
+      if (!date) { problems.push('Row ' + (n + 2) + ' (' + name + '): the date could not be read'); return; }
+      if (locs === null) { problems.push('Row ' + (n + 2) + ' (' + name + '): unknown location "' + cells[iLoc] + '"'); return; }
+      out.push({ name: name, date: date, locs: locs, optional: iOpt >= 0 ? truthy(cells[iOpt]) : false });
+    });
+    return { rows: out, problems: problems };
+  }
+
+  function ImportHolidaysModal(p) {
+    var parsedSt = React.useState(null);               // { rows, problems, file }
+    var busySt = React.useState(false);
+    var errSt = React.useState(null);
+    var inputRef = React.useRef(null);
+
+    function handle(file) {
+      if (!file) return;
+      errSt[1](null); busySt[1](true);
+      var isCsv = /\.(csv|txt|tsv)$/i.test(file.name);
+      var reader = new FileReader();
+      reader.onerror = function () { busySt[1](false); errSt[1]('That file could not be read.'); };
+      reader.onload = function () {
+        if (isCsv) {
+          var matrix = parseCsv(String(reader.result));
+          var got = rowsToHolidays(matrix);
+          busySt[1](false);
+          parsedSt[1]({ rows: got.rows, problems: got.problems, file: file.name });
+          return;
+        }
+        loadSheetReader(function (err, XLSX) {
+          if (err || !XLSX) {
+            busySt[1](false);
+            errSt[1]('The spreadsheet reader could not be loaded, so .xlsx cannot be read here. '
+              + 'Save the sheet as CSV and import that.');
+            return;
+          }
+          try {
+            var wb = XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
+            var sheet = wb.Sheets[wb.SheetNames[0]];
+            var matrix2 = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false, raw: false, dateNF: 'yyyy-mm-dd' });
+            var got2 = rowsToHolidays(matrix2);
+            busySt[1](false);
+            parsedSt[1]({ rows: got2.rows, problems: got2.problems, file: file.name });
+          } catch (e) {
+            busySt[1](false);
+            errSt[1]('That file is not a spreadsheet this reader understands.');
+          }
+        });
+      };
+      if (isCsv) reader.readAsText(file); else reader.readAsArrayBuffer(file);
+    }
+
+    function confirm() {
+      var parsed = parsedSt[0];
+      if (!parsed || !parsed.rows.length) return;
+      var res = ui.report(act.importHolidays(parsed.rows));
+      if (res && res.ok) p.onClose();
+    }
+
+    var parsed = parsedSt[0];
+    return h(ui.Modal, {
+      title: 'Import holidays',
+      wide: true,
+      description: 'An .xlsx or .csv whose first row names the columns: ' + HOLIDAY_IMPORT_COLUMNS + '.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        parsed && parsed.rows.length
+          ? h('span', { className: 'muted', style: { fontSize: 12, marginRight: 'auto' } },
+            parsed.rows.length + ' holiday' + (parsed.rows.length === 1 ? '' : 's') + ' ready'
+            + (parsed.problems.length ? ' · ' + parsed.problems.length + ' row(s) skipped' : ''))
+          : null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, {
+          variant: 'primary', iconStart: I.up, disabled: !parsed || !parsed.rows.length,
+          onClick: confirm
+        }, parsed && parsed.rows.length ? 'Import ' + parsed.rows.length : 'Import'))
+    },
+      h('div', { className: 'dropzone', role: 'button', tabIndex: 0,
+        onClick: function () { if (inputRef.current) inputRef.current.click(); },
+        onKeyDown: function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); inputRef.current.click(); } },
+        onDragOver: function (e) { e.preventDefault(); },
+        onDrop: function (e) { e.preventDefault(); handle(e.dataTransfer && e.dataTransfer.files[0]); }
+      },
+        h('span', { className: 'dropzone__mark' }, I.file),
+        h('span', { className: 'dropzone__title' }, busySt[0] ? 'Reading the sheet…' : 'Drop the holiday list here'),
+        h('span', { className: 'dropzone__hint' }, 'or click to browse · .xlsx or .csv')),
+      h('input', {
+        ref: inputRef, type: 'file', className: 'visually-hidden',
+        accept: '.xlsx,.xls,.csv,.tsv,.txt', 'aria-label': 'Choose a holiday list',
+        onChange: function (e) { handle(e.target.files && e.target.files[0]); e.target.value = ''; }
+      }),
+
+      errSt[0] ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, errSt[0]) : null,
+
+      parsed ? h(ui.FormSection, {
+        title: 'From ' + parsed.file,
+        description: parsed.rows.length
+          ? 'Checked against the calendar you already have. Nothing is written until you import.'
+          : 'Nothing in this sheet could be read as a holiday.'
+      },
+        parsed.rows.length
+          ? h(ui.DataTable, {
+            exportName: 'holiday-import', label: 'Rows to import', rows: parsed.rows.map(function (r, i) {
+              return Object.assign({ id: 'row-' + i }, r);
+            }), pageSize: 8, onExport: false,
+            columns: [
+              { key: 'date', header: 'Date', sortable: true, cell: function (r) { return ui.dateLabel(r.date); } },
+              { key: 'name', header: 'Holiday' },
+              { key: 'locs', header: 'Location',
+                cell: function (r) { return holidayLocLabel({ locs: r.locs }); } },
+              { key: 'optional', header: 'Optional',
+                cell: function (r) {
+                  return r.optional
+                    ? h(V.Chip, { size: 'sm', shape: 'tag' }, 'Optional')
+                    : h('span', { className: 'muted' }, 'No');
+                } }
+            ]
+          })
+          : null,
+        parsed.problems.length
+          ? h('div', { style: { marginTop: 10 } },
+            h('span', { className: 'eyebrow' }, 'Skipped'),
+            parsed.problems.slice(0, 8).map(function (why, i) {
+              return h('p', { key: i, className: 'muted', style: { fontSize: 12, margin: '4px 0 0' } }, why);
+            }),
+            parsed.problems.length > 8
+              ? h('p', { className: 'muted', style: { fontSize: 12, margin: '4px 0 0' } },
+                'and ' + (parsed.problems.length - 8) + ' more')
+              : null)
+          : null) : null);
   }
 
   function Holidays() {
-    var typeSt = React.useState('');
+    var locSt = React.useState('');
+    var optSt = React.useState('');
+    var addSt = React.useState(false);
+    var editSt = React.useState(null);
+    var importSt = React.useState(false);
+    var deleteSt = React.useState(null);
     var today = seed.todayIso;
 
-    var all = store.collection('holidays').slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
-    var rows = all.map(function (hd, i) { return Object.assign({ id: hd.date + '-' + i }, hd); });
-    if (typeSt[0]) rows = rows.filter(function (hd) { return hd.type === typeSt[0]; });
+    var rows = store.collection('holidays').slice()
+      .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    if (locSt[0]) rows = rows.filter(function (hd) { return holidayAppliesTo(hd, locSt[0]); });
+    if (optSt[0]) {
+      var wantOptional = optSt[0] === 'Optional';
+      rows = rows.filter(function (hd) { return (hd.type === 'Optional') === wantOptional; });
+    }
 
-    var ahead = all.filter(function (hd) { return hd.date >= today; });
-    var next = ahead[0];
-    var optional = all.filter(function (hd) { return hd.type === 'Optional'; });
-    var weekendClash = all.filter(function (hd) { return rules.isWeekend(new Date(hd.date + 'T00:00')); });
-
-    var byMonth = {};
-    all.forEach(function (hd) {
-      var m = MONTHS[new Date(hd.date + 'T00:00').getMonth()];
-      byMonth[m] = (byMonth[m] || 0) + 1;
-    });
-
-    var lv = leaveByDay();
+    var target = deleteSt[0] ? store.find('holidays', deleteSt[0]) : null;
 
     return h(React.Fragment, null,
-      /* The holiday calendar is HR's, so the suggestion about it belongs here rather
-         than in the Admin workspace, which owns the working week and nothing else. */
-      lv.top ? h(HolidayNudge, { hit: lv.top, typical: lv.typical }) : null,
+      h(ui.PageHead, {
+        title: 'Holiday calendar',
+        description: 'The holidays this organization observes. A holiday that is not optional is excluded '
+          + 'when leave days are counted.',
+        actions: [
+          h(V.Button, {
+            key: 'i', variant: 'outline', iconStart: I.up,
+            onClick: function () { importSt[1](true); }
+          }, 'Import from sheet'),
+          h(V.Button, {
+            key: 'a', variant: 'primary', iconStart: I.plus,
+            onClick: function () { addSt[1](true); }
+          }, 'Add holiday')
+        ]
+      }),
 
-      h(Stats, null,
-        h(Stat, { label: 'Holidays this year', value: all.length, sub: optional.length + ' of them optional' }),
-        h(Stat, { label: 'Still ahead', value: ahead.length, sub: next ? 'Next: ' + next.name : 'None left this year' }),
-        h(Stat, {
-          label: 'Falling on a weekly off', value: weekendClash.length,
-          sub: 'Not deducted from leave either way', tone: weekendClash.length ? 'warn' : 'good'
-        }),
-        h(Stat, { label: 'Locations covered', value: store.collection('locations').length, sub: 'All inherit the org calendar' })),
-
-      h(Grid, null,
-        h(Card, {
-          span: 8, title: 'Holiday calendar',
-          description: 'A holiday is excluded when leave days are counted, per PRD 14.2. Optional holidays are not.',
-          aside: h('div', { className: 'row gap-2' },
-            h(ui.Filter, { label: 'Type', value: typeSt[0], onChange: typeSt[1], options: ['National', 'Public', 'Optional'] }),
-            h(V.Button, {
-              variant: 'outline', className: 'vi-btn--sm', iconStart: I.sitemap,
-              onClick: function () { router.goAs('admin/org/workweek'); }
-            }, 'Org default'))
-        },
-          h(ui.DataTable, {
-            exportName: 'hr-holidays', label: 'Holiday calendar', rows: rows, pageSize: 15,
-            search: function (hd) { return hd.name + ' ' + hd.type; }, searchPlaceholder: 'Search holidays',
-            columns: [
-              { key: 'date', header: 'Date', sortable: true, cell: function (hd) { return ui.dateLabel(hd.date); } },
-              { key: 'day', header: 'Day', csv: function (hd) { return DAY_NAMES[new Date(hd.date + 'T00:00').getDay()]; },
-                cell: function (hd) {
-                  var d = new Date(hd.date + 'T00:00');
-                  return rules.isWeekend(d)
-                    ? h('span', { className: 'muted' }, DAY_NAMES[d.getDay()] + ' · weekly off')
-                    : DAY_NAMES[d.getDay()];
-                } },
-              { key: 'name', header: 'Holiday', sortable: true },
-              { key: 'type', header: 'Type',
-                cell: function (hd) {
-                  return h(V.Chip, {
-                    size: 'sm', shape: 'tag',
-                    variant: hd.type === 'Optional' ? 'outline' : 'soft',
-                    tone: hd.type === 'Optional' ? 'neutral' : 'info'
-                  }, hd.type);
-                } },
-              { key: 'counted', header: 'Leave counting', csv: function (hd) { return hd.type === 'Optional' ? 'Counted' : 'Excluded'; },
-                cell: function (hd) {
-                  return hd.type === 'Optional'
-                    ? h('span', { className: 'muted' }, 'Counted as a working day')
-                    : h('span', null, 'Excluded from leave days');
-                } },
-              { key: 'passed', header: '', align: 'right',
-                cell: function (hd) {
-                  return hd.date < today
-                    ? h('span', { className: 'muted', style: { fontSize: 12 } }, 'Passed')
-                    : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, 'Upcoming');
-                } }
-            ],
-            emptyIcon: I.star, emptyTitle: 'No holidays match this filter',
-            emptyBody: 'Clear the type filter to see the whole calendar.'
+      h(ui.DataTable, {
+        exportName: 'hr-holidays', label: 'Holiday calendar', rows: rows, pageSize: 15,
+        search: function (hd) { return hd.name + ' ' + holidayLocLabel(hd); },
+        searchPlaceholder: 'Search holidays',
+        filters: h(React.Fragment, null,
+          h(ui.Filter, {
+            label: 'Location', value: locSt[0], onChange: locSt[1],
+            options: store.collection('locations').map(function (l) { return { value: l.id, label: l.name }; })
+          }),
+          h(ui.Filter, {
+            label: 'Optional', value: optSt[0], onChange: optSt[1],
+            options: [{ value: 'Optional', label: 'Optional only' }, { value: 'Fixed', label: 'Not optional' }]
           })),
+        columns: [
+          { key: 'date', header: 'Date', sortable: true, cell: function (hd) { return ui.dateLabel(hd.date); } },
+          { key: 'day', header: 'Day', csv: function (hd) { return DAY_NAMES[new Date(hd.date + 'T00:00').getDay()]; },
+            cell: function (hd) {
+              var d = new Date(hd.date + 'T00:00');
+              return rules.isWeekend(d)
+                ? h('span', { className: 'muted' }, DAY_NAMES[d.getDay()] + ' · weekly off')
+                : DAY_NAMES[d.getDay()];
+            } },
+          { key: 'name', header: 'Holiday', sortable: true },
+          { key: 'locs', header: 'Location', sortable: true,
+            sortValue: holidayLocLabel, csv: holidayLocLabel,
+            cell: function (hd) {
+              return !hd.locs || hd.locs === 'all'
+                ? h('span', { className: 'muted' }, 'All locations')
+                : h('span', null, holidayLocLabel(hd));
+            } },
+          { key: 'optional', header: 'Optional', sortable: true,
+            sortValue: function (hd) { return hd.type === 'Optional' ? 1 : 0; },
+            csv: function (hd) { return hd.type === 'Optional' ? 'Yes' : 'No'; },
+            cell: function (hd) {
+              return hd.type === 'Optional'
+                ? h(V.Chip, { size: 'sm', shape: 'tag' }, 'Optional')
+                : h('span', { className: 'muted' }, 'No');
+            } },
+          { key: 'status', header: '', align: 'right',
+            csv: function (hd) { return hd.date < today ? 'Passed' : 'Upcoming'; },
+            cell: function (hd) {
+              return hd.date < today
+                ? h('span', { className: 'muted', style: { fontSize: 12 } }, 'Passed')
+                : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, 'Upcoming');
+            } },
+          { key: 'actions', header: '', align: 'right',
+            cell: function (hd) {
+              return h('span', { className: 'row gap-1', style: { justifyContent: 'flex-end' } },
+                h(V.IconButton, {
+                  icon: I.pencil, 'aria-label': 'Edit ' + hd.name, title: 'Edit',
+                  onClick: function () { editSt[1](hd.id); }
+                }),
+                h(V.IconButton, {
+                  icon: I.trash, 'aria-label': 'Delete ' + hd.name, title: 'Delete',
+                  onClick: function () { deleteSt[1](hd.id); }
+                }));
+            } }
+        ],
+        emptyIcon: I.star,
+        emptyTitle: locSt[0] || optSt[0] ? 'No holidays match these filters' : 'No holidays yet',
+        emptyBody: locSt[0] || optSt[0]
+          ? 'Clear the location or optional filter to see the whole calendar.'
+          : 'Add them one at a time, or import a year from a sheet.',
+        emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
+          onClick: function () { addSt[1](true); } }, 'Add holiday')
+      }),
 
-        h(Card, { span: 4, title: 'Next holidays' },
-          ahead.length
-            ? h('div', { className: 'list' }, ahead.slice(0, 6).map(function (hd) {
-                var d = new Date(hd.date + 'T00:00');
-                return h('div', { className: 'list__row', key: hd.date },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' }, hd.name),
-                    h('span', { className: 'list__meta' }, pretty(d) + ' · ' + DAY_NAMES[d.getDay()])),
-                  h(V.Chip, {
-                    size: 'sm', shape: 'tag',
-                    variant: hd.type === 'Optional' ? 'outline' : 'soft',
-                    tone: hd.type === 'Optional' ? 'neutral' : 'info'
-                  }, hd.type));
-              }))
-            : h(ui.Empty, { icon: I.star, title: 'No holidays left this year' })),
-
-        h(Card, { span: 4, title: 'Holidays by month' },
-          h(ui.Bars, { rows: MONTHS.filter(function (m) { return byMonth[m]; }).map(function (m) { return [m, byMonth[m], 'info']; }) })),
-
-        h(Card, { span: 8, title: 'How the calendar is applied' },
-          h(ui.KeyValue, { columns: true, rows: [
-            ['Scope', 'Organization-wide, inherited by every location'],
-            ['Optional holidays', optional.length + ' a year, employee’s choice'],
-            ['Leave counting', 'National and public holidays are excluded (PRD 14.2)'],
-            ['Weekly offs', 'Saturday and Sunday'],
-            ['Attendance', 'A holiday is not marked absent'],
-            ['Payroll', 'Holidays are payable days']
-          ]}))));
+      addSt[0] ? h(HolidayModal, { onClose: function () { addSt[1](false); } }) : null,
+      editSt[0] ? h(HolidayModal, {
+        holiday: store.find('holidays', editSt[0]),
+        onClose: function () { editSt[1](null); }
+      }) : null,
+      importSt[0] ? h(ImportHolidaysModal, { onClose: function () { importSt[1](false); } }) : null,
+      target ? h(ui.Confirm, {
+        title: 'Delete "' + target.name + '"?',
+        body: ui.dateLabel(target.date) + ' goes back to being a working day, and leave taken across it '
+          + 'will count that day. This cannot be undone.',
+        confirmLabel: 'Delete', tone: 'danger',
+        onConfirm: function () { ui.report(act.deleteHoliday(target.id)); },
+        onClose: function () { deleteSt[1](null); }
+      }) : null);
   }
 
   /* ====================================================== Leave configuration
