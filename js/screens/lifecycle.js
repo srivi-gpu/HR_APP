@@ -1889,58 +1889,348 @@
   }
 
   /* ============================================== Configuration (PRD 4.7, 4.48, 4.25, 4.29) */
+
+  /* ---------------------------------------------------------- Onboarding form builder
+     PRD 4.7 gives a template per employee type and department. "New Onboarding" collects
+     the two identifying facts first (name, employee type), then opens a builder for the
+     form the joiner fills in *before* their start date.
+
+     The flow deliberately stops at Document verification: everything past it (IT setup,
+     asset allocation, orientation) happens after the joiner is on site, so it is not
+     something a pre-joining form can ask for. */
+  var ONB_FORM_STAGES = ['Personal information', 'Employment details', 'Document collection', 'Document verification'];
+
+  /* The sections a pre-joining form is built from. `kind` drives the default field type
+     and the icon, so a section reads as what it is without extra configuration. */
+  var ONB_SECTIONS = [
+    { id: 'personal', title: 'Personal information', icon: 'person', kind: 'text',
+      description: 'Identity and contact details the record needs before day one.' },
+    { id: 'education', title: 'Education', icon: 'reports', kind: 'text',
+      description: 'Qualifications and the certificates that evidence them.' },
+    { id: 'documents', title: 'Documents to sign', icon: 'file', kind: 'esign',
+      description: 'Anything the joiner signs or uploads ahead of verification.' },
+    { id: 'policies', title: 'Policies', icon: 'shield', kind: 'ack',
+      description: 'Policies the joiner reads and acknowledges.' }
+  ];
+
+  var ONB_FIELD_TYPES = [
+    { value: 'text', label: 'Short text' },
+    { value: 'long', label: 'Long text' },
+    { value: 'date', label: 'Date' },
+    { value: 'number', label: 'Number' },
+    { value: 'choice', label: 'Dropdown' },
+    { value: 'upload', label: 'File upload' },
+    { value: 'esign', label: 'E-signature' },
+    { value: 'ack', label: 'Acknowledgement' }
+  ];
+  function fieldTypeLabel(t) {
+    var found = ONB_FIELD_TYPES.filter(function (x) { return x.value === t; })[0];
+    return found ? found.label : t;
+  }
+  function sectionMeta(id) {
+    return ONB_SECTIONS.filter(function (s) { return s.id === id; })[0] || ONB_SECTIONS[0];
+  }
+
+  /* The catalog the AI draft is assembled from. Each entry is [section, label, type,
+     required, keywords]. Keywords are what a prompt is matched against; an entry with
+     `core` true is in every draft regardless of the prompt. */
+  var ONB_CATALOG = [
+    ['personal', 'Full name as per records', 'text', true, 'name personal identity', true],
+    ['personal', 'Date of birth', 'date', true, 'dob birth age personal', true],
+    ['personal', 'Personal email address', 'text', true, 'email contact personal', true],
+    ['personal', 'Mobile number', 'text', true, 'phone mobile contact personal', true],
+    ['personal', 'Current residential address', 'long', true, 'address residence personal', true],
+    ['personal', 'Emergency contact name and number', 'text', true, 'emergency contact', false],
+    ['personal', 'Blood group', 'choice', false, 'blood medical health', false],
+    ['personal', 'Nationality', 'choice', false, 'nationality passport visa', false],
+
+    ['education', 'Highest qualification', 'choice', true, 'education qualification degree', true],
+    ['education', 'Institution name', 'text', true, 'education institution college university', true],
+    ['education', 'Specialisation', 'text', false, 'education specialisation branch stream', true],
+    ['education', 'Year of passing', 'number', true, 'education year passing graduation', true],
+    ['education', 'Percentage or CGPA', 'number', false, 'education marks cgpa percentage grade', false],
+    ['education', 'Degree certificate', 'upload', true, 'education certificate degree document', true],
+    ['education', 'Consolidated marksheet', 'upload', false, 'education marksheet transcript document', false],
+    ['education', 'Professional certifications', 'long', false, 'education certification course training', false],
+
+    ['documents', 'Government photo ID', 'upload', true, 'id document kyc aadhaar passport', true],
+    ['documents', 'PAN card', 'upload', true, 'pan tax document kyc', true],
+    ['documents', 'Passport-size photograph', 'upload', true, 'photo photograph document', true],
+    ['documents', 'Previous employment relieving letter', 'upload', false, 'experience relieving previous employment document', false],
+    ['documents', 'Bank account proof for payroll', 'upload', true, 'bank payroll salary account document', true],
+    ['documents', 'Offer letter acceptance', 'esign', true, 'offer letter sign acceptance', true],
+    ['documents', 'Employment agreement', 'esign', true, 'agreement contract employment sign', true],
+    ['documents', 'Non-disclosure agreement', 'esign', true, 'nda confidentiality disclosure sign', true],
+    ['documents', 'Intellectual property assignment', 'esign', false, 'ip intellectual property sign', false],
+    ['documents', 'Background verification consent', 'esign', false, 'background verification bgv consent sign', false],
+
+    ['policies', 'Code of conduct', 'ack', true, 'policy conduct ethics', true],
+    ['policies', 'Information security policy', 'ack', true, 'policy security information data', true],
+    ['policies', 'Acceptable use of IT assets', 'ack', false, 'policy it asset acceptable use', false],
+    ['policies', 'Leave and attendance policy', 'ack', true, 'policy leave attendance', true],
+    ['policies', 'Anti-harassment and POSH policy', 'ack', true, 'policy harassment posh grievance', true],
+    ['policies', 'Travel and expense policy', 'ack', false, 'policy travel expense reimbursement', false],
+    ['policies', 'Work-from-home policy', 'ack', false, 'policy remote wfh hybrid', false]
+  ];
+
+  var onbFieldSeq = 0;
+  function onbField(section, label, type, required) {
+    onbFieldSeq += 1;
+    return { id: 'fld-' + onbFieldSeq, section: section, label: label, type: type, required: !!required };
+  }
+
+  /* A draft from the catalog. With no prompt this is the core set; with one, every entry
+     whose keywords the prompt mentions is pulled in on top. Deterministic on purpose —
+     the prototype has no model behind it, and a draft that changes under the same prompt
+     would read as a bug. */
+  function draftForm(prompt, employeeType) {
+    var words = String(prompt || '').toLowerCase().match(/[a-z]+/g) || [];
+    var intern = /intern|trainee/i.test(employeeType || '');
+    var contract = /contract|consultant|vendor/i.test(employeeType || '');
+    return ONB_CATALOG.filter(function (row) {
+      /* Interns have no prior employment to evidence; contractors sign rather than enrol. */
+      if (intern && /relieving/.test(row[1])) return false;
+      if (contract && /Leave and attendance/.test(row[1])) return false;
+      if (row[5]) return true;
+      if (!words.length) return false;
+      var keys = row[4].split(' ');
+      return words.some(function (w) { return keys.indexOf(w) >= 0; });
+    }).map(function (row) { return onbField(row[0], row[1], row[2], row[3]); });
+  }
+
+  /* Step 2 of the flow: the builder itself. Fields live in the parent so switching back
+     to step 1 and forward again does not lose the draft. */
+  function OnboardingFormBuilder(p) {
+    var fields = p.fields, setFields = p.setFields;
+    var promptSt = React.useState('');
+    var addSt = React.useState({ section: 'education', label: '', type: 'text' });
+    var add = addSt[0];
+
+    function generate() {
+      var next = draftForm(promptSt[0], p.employeeType);
+      setFields(next);
+      ui.toast('Drafted ' + next.length + ' fields across ' + ONB_SECTIONS.length + ' sections', 'success');
+    }
+    function addField() {
+      var label = add.label.trim();
+      if (!label) { ui.toast('Give the field a label first', 'error'); return; }
+      setFields(fields.concat([onbField(add.section, label, add.type, false)]));
+      addSt[1](Object.assign({}, add, { label: '' }));
+    }
+    function removeField(id) { setFields(fields.filter(function (f) { return f.id !== id; })); }
+    function toggleRequired(id) {
+      setFields(fields.map(function (f) { return f.id === id ? Object.assign({}, f, { required: !f.required }) : f; }));
+    }
+    /* Move within the section, so a field never silently changes which section it is in. */
+    function move(id, dir) {
+      var field = fields.filter(function (f) { return f.id === id; })[0];
+      if (!field) return;
+      var peers = fields.filter(function (f) { return f.section === field.section; });
+      var at = peers.indexOf(field);
+      var to = at + dir;
+      if (to < 0 || to >= peers.length) return;
+      var reordered = peers.slice();
+      reordered.splice(at, 1);
+      reordered.splice(to, 0, field);
+      var queue = reordered.slice();
+      setFields(fields.map(function (f) { return f.section === field.section ? queue.shift() : f; }));
+    }
+
+    return h('div', { className: 'stack gap-4' },
+      /* ---- AI draft ---- */
+      h('div', { className: 'ai-note' },
+        h('span', { className: 'ai-note__mark' }, I.robot),
+        h('div', { className: 'ai-note__body' },
+          h('span', { className: 'ai-note__eyebrow' }, 'Build with AI'),
+          h('p', { className: 'ai-note__text' },
+            'Describe what the joiner should be asked for and a draft form is assembled. '
+            + 'Everything it produces stays editable below, and you can skip it and build the form by hand.'),
+          h(V.TextArea, {
+            label: 'What should this onboarding collect?', rows: 2,
+            placeholder: 'e.g. degree certificates, NDA and IP agreement, security and POSH policies, bank proof for payroll',
+            value: promptSt[0], onChange: function (e) { promptSt[1](e.target.value); }
+          }),
+          h('div', { className: 'ai-note__acts' },
+            h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.bolt, onClick: generate },
+              fields.length ? 'Redraft form' : 'Generate form'),
+            h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.trash,
+              onClick: function () { setFields([]); } }, 'Clear all')))),
+
+      /* ---- Stage strip: what this form covers, and where it stops ---- */
+      h('div', { className: 'stack gap-2' },
+        h('span', { className: 'eyebrow' }, 'Pre-joining stages'),
+        h('div', { className: 'row gap-2', style: { flexWrap: 'wrap' } },
+          ONB_FORM_STAGES.map(function (stage, i) {
+            return h(V.Chip, { key: stage, size: 'sm', shape: 'tag',
+              variant: i === ONB_FORM_STAGES.length - 1 ? 'soft' : undefined,
+              tone: i === ONB_FORM_STAGES.length - 1 ? 'success' : undefined }, stage);
+          })),
+        h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6, margin: 0 } },
+          'The form runs up to document verification. Anything after it needs the joiner on site, '
+          + 'so it is handled on the onboarding case rather than asked for here.')),
+
+      /* ---- Sections ---- */
+      ONB_SECTIONS.map(function (section) {
+        var mine = fields.filter(function (f) { return f.section === section.id; });
+        return h(ui.FormSection, {
+          key: section.id,
+          title: section.title + ' · ' + mine.length + (mine.length === 1 ? ' field' : ' fields'),
+          description: section.description
+        },
+          mine.length
+            ? h('div', { className: 'checks' }, mine.map(function (f, i) {
+              return h('div', { className: 'checks__row', key: f.id },
+                h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, I[section.icon] || I.forms),
+                h('div', { className: 'checks__main' },
+                  h('span', { className: 'checks__name' }, f.label),
+                  h('span', { className: 'checks__meta' },
+                    fieldTypeLabel(f.type) + ' · ' + (f.required ? 'required' : 'optional'))),
+                h(V.Chip, {
+                  size: 'sm', shape: 'tag',
+                  variant: f.required ? 'soft' : undefined, tone: f.required ? 'warning' : undefined,
+                  onClick: function () { toggleRequired(f.id); }
+                }, f.required ? 'Required' : 'Optional'),
+                h(V.IconButton, { icon: I.up, 'aria-label': 'Move "' + f.label + '" up',
+                  disabled: i === 0, onClick: function () { move(f.id, -1); } }),
+                h(V.IconButton, { icon: I.down, 'aria-label': 'Move "' + f.label + '" down',
+                  disabled: i === mine.length - 1, onClick: function () { move(f.id, 1); } }),
+                h(V.IconButton, { icon: I.trash, 'aria-label': 'Remove "' + f.label + '"',
+                  onClick: function () { removeField(f.id); } }));
+            }))
+            : h('p', { className: 'muted', style: { fontSize: 13, margin: 0 } },
+              'Nothing asked for yet. Add a field below, or draft the form with AI.'));
+      }),
+
+      /* ---- Manual add ---- */
+      h(ui.FormSection, { title: 'Add a field by hand', description: 'Pick the section it belongs to and what kind of answer it takes.' },
+        h(ui.FieldRow, { cols: 3 },
+          h(V.Select, {
+            label: 'Section', value: add.section,
+            options: ONB_SECTIONS.map(function (s) { return { value: s.id, label: s.title }; }),
+            onChange: function (v) {
+              /* Follow the section's natural answer type, unless one was chosen already. */
+              addSt[1](Object.assign({}, add, { section: v, type: sectionMeta(v).kind }));
+            }
+          }),
+          h(V.TextField, {
+            label: 'Question or field label', placeholder: 'e.g. Highest qualification',
+            value: add.label,
+            onChange: function (e) { addSt[1](Object.assign({}, add, { label: e.target.value })); },
+            onKeyDown: function (e) { if (e.key === 'Enter') { e.preventDefault(); addField(); } }
+          }),
+          h(V.Select, {
+            label: 'Answer type', value: add.type, options: ONB_FIELD_TYPES,
+            onChange: function (v) { addSt[1](Object.assign({}, add, { type: v })); }
+          })),
+        h('div', { className: 'row gap-2' },
+          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus, onClick: addField }, 'Add field'))));
+  }
+
+  /* The two-step flow behind "New Onboarding". */
+  function NewOnboardingModal(p) {
+    var stepSt = React.useState(1);
+    var fieldsSt = React.useState([]);
+    var form = ui.useForm({ name: '', employeeType: 'Full-Time', department: 'All' }, function (v) {
+      var errs = {};
+      if (!String(v.name || '').trim()) errs.name = 'Give the onboarding a name';
+      if (!v.employeeType) errs.employeeType = 'Pick an employee type';
+      return errs;
+    });
+
+    function next() { form.submit(function () { stepSt[1](2); return { ok: true }; }); }
+    function save() {
+      var fields = fieldsSt[0];
+      if (!fields.length) { ui.toast('Add at least one field before saving', 'error'); return; }
+      var v = form.values;
+      store.add('onboardingTemplates', {
+        id: 'tpl-' + Date.now().toString(36),
+        name: String(v.name).trim(),
+        employeeType: v.employeeType,
+        department: v.department || 'All',
+        tasks: ONB_FORM_STAGES.length,
+        status: 'Draft',
+        form: fields
+      });
+      store.log('Created onboarding template "' + String(v.name).trim() + '" with ' + fields.length + ' form fields');
+      ui.toast('"' + String(v.name).trim() + '" saved as a draft template', 'success');
+      p.onClose();
+    }
+
+    var atBuilder = stepSt[0] === 2;
+    return h(ui.Modal, {
+      title: atBuilder ? 'Build the onboarding form' : 'New onboarding',
+      wide: atBuilder,
+      description: atBuilder
+        ? 'What "' + (String(form.values.name).trim() || 'this onboarding') + '" asks a '
+          + form.values.employeeType + ' joiner for before their start date.'
+        : 'Name it and pick who it applies to. The form builder opens next.',
+      onClose: p.onClose,
+      footer: atBuilder
+        ? h(React.Fragment, null,
+          h(V.Button, { variant: 'ghost', iconStart: I.back, onClick: function () { stepSt[1](1); } }, 'Back'),
+          h('span', { className: 'muted', style: { fontSize: 12, marginRight: 'auto' } },
+            fieldsSt[0].length + (fieldsSt[0].length === 1 ? ' field' : ' fields') + ' · '
+            + fieldsSt[0].filter(function (f) { return f.required; }).length + ' required'),
+          h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+          h(V.Button, { variant: 'primary', onClick: save }, 'Save onboarding'))
+        : h(React.Fragment, null,
+          h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+          h(V.Button, { variant: 'primary', iconStart: I.arrow, onClick: next }, 'Continue to form builder'))
+    },
+      atBuilder
+        ? h(OnboardingFormBuilder, {
+          fields: fieldsSt[0], setFields: fieldsSt[1], employeeType: form.values.employeeType
+        })
+        : h('div', { className: 'stack gap-3' },
+          h(V.TextField, Object.assign({
+            label: 'Onboarding name', placeholder: 'e.g. Graduate engineer onboarding'
+          }, form.field('name', { hint: 'Shown wherever the template is picked' }))),
+          h(ui.FieldRow, { cols: 2 },
+            h(V.Select, Object.assign({
+              label: 'Employee type',
+              options: ['Full-Time', 'Part-Time', 'Contract', 'Intern']
+            }, form.select('employeeType', { hint: 'Decides which joiners this form is offered to' }))),
+            h(V.Select, Object.assign({
+              label: 'Department',
+              options: [{ value: 'All', label: 'All departments' }].concat(
+                store.collection('departments').map(function (d) { return { value: d.name, label: d.name }; }))
+            }, form.select('department'))))));
+  }
+
   function OnboardingConfig() {
     var templates = store.collection('onboardingTemplates');
-    var names = seed.onboardingTaskNames;
-    return h(Grid, null,
-      h(Card, { span: 12, title: 'Onboarding templates',
-        description: 'PRD 4.7: a template per employee type and department. The template chosen when a record is created decides the checklist.' },
-        h(ui.DataTable, {
-          exportName: 'config-onboarding-templates', label: 'Onboarding templates', rows: templates, pageSize: 10,
-          search: function (t) { return t.name + ' ' + t.employeeType; }, searchPlaceholder: 'Search templates',
-          columns: [
-            { key: 'name', header: 'Template', sortable: true },
-            { key: 'employeeType', header: 'Employee type' },
-            { key: 'department', header: 'Department' },
-            { key: 'tasks', header: 'Tasks', numeric: true, align: 'right', sortable: true },
-            { key: 'status', header: 'Status', cell: function (t) { return h(ui.StatusChip, { status: t.status }); } }
-          ],
-          emptyIcon: I.template, emptyTitle: 'No templates configured',
-          emptyBody: 'Without a template a new record gets the standard task list.'
-        })),
-
-      h(Card, { span: 7, title: 'Task categories and assignees',
-        description: 'Who owns each task by default, and what it waits on.' },
-        h('div', { className: 'checks' }, names.map(function (name, i) {
-          return h('div', { className: 'checks__row', key: name },
-            h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, i < 8 ? I.lock : I.checklist),
-            h('div', { className: 'checks__main' },
-              h('span', { className: 'checks__name' }, name),
-              h('span', { className: 'checks__meta' },
-                (/IT|Asset/.test(name) ? 'IT Administrator' : /Manager|Department/.test(name) ? 'Reporting Manager' : 'HR Administrator')
-                + ' · due day ' + (i + 1) + (i ? ' · after "' + names[i - 1] + '"' : ' · starts first'))),
-            i < 8 ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning' }, 'Mandatory') : h(V.Chip, { size: 'sm', shape: 'tag' }, 'Optional'));
-        }))),
-
-      h(Card, { span: 5, title: 'Rules' },
-        h(ui.KeyValue, { rows: [
-          ['Checklist trigger', 'Employee record created as Invited or Onboarding (PRD 5.1)'],
-          ['Mandatory tasks', '8 of ' + names.length],
-          ['Activation', 'Refused while a mandatory task is open (PRD 14.1)'],
-          ['Task due dates', 'Joining date plus the task position'],
-          ['Document verification', 'HR Administrator, per document (PRD 4.8)'],
-          ['Stage transitions', 'Yet to Start → In Progress → Pending Verification → Completed']
-        ]}),
-        h('div', { className: 'checks' },
-          [['Email the new joiner when the checklist opens', true],
-            ['Remind the task owner the day before it is due', true],
-            ['Escalate an overdue mandatory task to HR', true],
-            ['Allow HR to tick a task owned by someone else', true]].map(function (row) {
-            return h('div', { className: 'checks__row', key: row[0] },
-              h(V.Switch, { defaultChecked: row[1], 'aria-label': row[0],
-                onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); } }),
-              h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-          }))));
+    var newSt = React.useState(false);
+    return h(React.Fragment, null,
+      h(Grid, null,
+        h(Card, { span: 12, title: 'Onboarding templates',
+          description: 'PRD 4.7: a template per employee type and department. The template chosen when a record is created decides the checklist.',
+          aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+            onClick: function () { newSt[1](true); } }, 'New Onboarding')
+        },
+          h(ui.DataTable, {
+            exportName: 'config-onboarding-templates', label: 'Onboarding templates', rows: templates, pageSize: 10,
+            search: function (t) { return t.name + ' ' + t.employeeType; }, searchPlaceholder: 'Search templates',
+            columns: [
+              { key: 'name', header: 'Template', sortable: true },
+              { key: 'employeeType', header: 'Employee type' },
+              { key: 'department', header: 'Department' },
+              { key: 'tasks', header: 'Tasks', numeric: true, align: 'right', sortable: true },
+              { key: 'form', header: 'Form fields', numeric: true, align: 'right', sortable: true,
+                sortValue: function (t) { return t.form ? t.form.length : -1; },
+                csv: function (t) { return t.form ? t.form.length : ''; },
+                cell: function (t) {
+                  return t.form
+                    ? h('span', null, t.form.length)
+                    : h('span', { className: 'muted' }, '—');
+                } },
+              { key: 'status', header: 'Status', cell: function (t) { return h(ui.StatusChip, { status: t.status }); } }
+            ],
+            emptyIcon: I.template, emptyTitle: 'No templates configured',
+            emptyBody: 'Without a template a new record gets the standard task list.',
+            emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
+              onClick: function () { newSt[1](true); } }, 'New Onboarding')
+          }))),
+      newSt[0] ? h(NewOnboardingModal, { onClose: function () { newSt[1](false); } }) : null);
   }
 
   function OffboardingConfig() {
