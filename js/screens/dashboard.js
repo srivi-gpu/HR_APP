@@ -9,12 +9,14 @@
 
    What each card holds is the admin's job, which is accounts and access:
 
-   - the square card is the handful of people who can change everything, and whether
-     their sign-in is protected;
+   - the first card has two tabs: MFA coverage by role, privileged roles first, because
+     an account that can change everyone else's is the one a password alone protects
+     worst; and the plan, seats and AI credits against what is paid for;
    - the wide card is how recently people actually sign in, with Ara's suggestions read
      off the same records and pinned to the bar they are about;
-   - the table is the access work queued against the admin — leavers to revoke, invites
-     nobody accepted, suspensions to decide, privileged accounts without MFA.
+   - the bottom row is charts: the access work queued against the admin as a donut by
+     kind (leavers to revoke, invites nobody accepted, suspensions, privileged accounts
+     without MFA), and the asset requests Tracklivo has sent, stacked by status.
 
    Every count is read from the store. The one fixed panel is the backup line in the
    alerts, because nothing in the prototype records a backup. */
@@ -60,46 +62,6 @@
       { ico: WIFI, t: 'Seats in use', s: 'Of ' + sub.seats + ' on ' + sub.plan,
         n: Math.round(sub.seatsUsed / sub.seats * 100), unit: '%' }
     ];
-  }
-
-  /* ---------- six months of joiners, counted from the directory ---------- */
-  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  function joinersBySix() {
-    var counts = {}, out = [];
-    store.collection('employees').forEach(function (e) {
-      if (e.joined) counts[e.joined.slice(0, 7)] = (counts[e.joined.slice(0, 7)] || 0) + 1;
-    });
-    var d = new Date(seed.todayIso + 'T00:00');
-    for (var i = 5; i >= 0; i--) {
-      var m = new Date(d.getFullYear(), d.getMonth() - i, 1);
-      var key = m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0');
-      out.push({ label: MON[m.getMonth()], n: counts[key] || 0 });
-    }
-    return out;
-  }
-
-  /* The card-stack illustration from the reference, redrawn in brand tints. */
-  function CardStack() {
-    return h('svg', { viewBox: '0 0 240 112', preserveAspectRatio: 'xMidYMid meet', 'aria-hidden': 'true' },
-      h('defs', null,
-        h('linearGradient', { id: 'admSt1', x1: 0, y1: 0, x2: 1, y2: 1 },
-          h('stop', { offset: 0, stopColor: 'var(--brand-solid)', stopOpacity: .18 }),
-          h('stop', { offset: 1, stopColor: 'var(--brand-solid)', stopOpacity: .04 })),
-        h('linearGradient', { id: 'admSt2', x1: 0, y1: 0, x2: 1, y2: 1 },
-          h('stop', { offset: 0, stopColor: 'var(--priority-high)', stopOpacity: .22 }),
-          h('stop', { offset: 1, stopColor: 'var(--priority-high)', stopOpacity: .04 }))),
-      h('rect', { x: 52, y: 18, width: 92, height: 66, rx: 12, fill: 'url(#admSt2)', stroke: 'var(--border-subtle)', transform: 'rotate(-11 98 51)' }),
-      h('rect', { x: 68, y: 12, width: 92, height: 66, rx: 12, fill: 'url(#admSt1)', stroke: 'var(--border-subtle)', transform: 'rotate(6 114 45)' }),
-      h('rect', { x: 78, y: 24, width: 92, height: 66, rx: 12, fill: 'var(--bg-surface)', stroke: 'var(--brand-border)' }),
-      h('circle', { cx: 97, cy: 43, r: 8, fill: 'var(--brand-soft)' }),
-      h('path', { d: 'M93 43l3 3 5-6', stroke: 'var(--brand-solid)', strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }),
-      [52, 62, 72].map(function (yy, i) {
-        return h('rect', { key: yy, x: 112, y: yy - 14, width: [44, 34, 26][i], height: 5, rx: 2.5, fill: 'var(--bg-muted)' });
-      }),
-      h('rect', { x: 92, y: 62, width: 62, height: 5, rx: 2.5, fill: 'var(--bg-muted)' }),
-      h('rect', { x: 92, y: 73, width: 40, height: 5, rx: 2.5, fill: 'var(--bg-muted)' }),
-      h('path', { d: 'M186 28l3.4 8.4 8.6 3.2-8.6 3.2L186 51l-3.4-8.2-8.6-3.2 8.6-3.2L186 28Z', fill: 'var(--brand-solid)', opacity: .55 }),
-      h('circle', { cx: 204, cy: 58, r: 3.4, fill: 'var(--priority-high)', opacity: .6 }));
   }
 
   /* ====================================================== privileged access
@@ -206,7 +168,7 @@
      head, and the marker opens that suggestion. */
   function SigninChart(p) {
     var b = p.buckets, max = Math.max.apply(null, b.map(function (x) { return x.n; }).concat([1]));
-    var W = 640, H = 196, PL = 34, PR = 8, PT = 22, PB = 22;
+    var W = 640, H = 196, PL = 34, PR = 8, PT = 40, PB = 22;
     var band = (W - PL - PR) / b.length, bw = Math.min(64, band * 0.56);
     function x(i) { return PL + band * i + band / 2; }
     function y(v) { return PT + (1 - v / max) * (H - PT - PB); }
@@ -239,7 +201,7 @@
         return h('button', {
           key: s.k, type: 'button', className: 'adm-pin',
           title: 'Ara on ' + s.t, 'aria-label': 'What Ara suggests about ' + s.t,
-          style: { left: (x(i) / W * 100) + '%', top: ((y(s.n) - 24) / H * 100) + '%' },
+          style: { left: (x(i) / W * 100) + '%', top: ((y(s.n) - 34) / H * 100) + '%' },
           onClick: function () { p.onOpen(f); }
         }, ARA);
       }));
@@ -293,7 +255,6 @@
      accounts without a second factor. Ordered by when it is due. */
   var PILL = { revoke: 'fail', invite: 'warn', suspend: 'sched', mfa: 'manual',
     Overdue: 'fail', 'Due soon': 'warn', Scheduled: 'sched', 'At risk': 'fail', Waiting: 'warn' };
-  var ACTION = { revoke: 'Revoke access', invite: 'Resend invite', suspend: 'Decide suspension', mfa: 'Require MFA' };
 
   function accessQueue(users) {
     var today = seed.todayIso, rows = [];
@@ -329,22 +290,107 @@
 
   function pill(word, cls) { return h('span', { className: 'adm-p adm-p--' + (cls || PILL[word]) }, word); }
 
+  /* ====================================================== the access queue, as a donut
+     The same twelve items the queue holds, grouped by the kind of work, so the card says
+     at a glance what the admin owes and each slice's row opens where it is done. */
+  var QUEUE_KINDS = [
+    { k: 'revoke', t: 'Revoke access', c: 'var(--danger-fg)', to: 'admin/roles/review' },
+    { k: 'mfa', t: 'Require MFA', c: 'var(--info-fg)', to: 'admin/settings' },
+    { k: 'invite', t: 'Resend invite', c: 'var(--warning-fg)', to: 'admin/users/all' },
+    { k: 'suspend', t: 'Decide suspension', c: 'var(--text-muted)', to: 'admin/users/all' }
+  ];
+
+  function Donut(p) {
+    var total = p.rows.reduce(function (a, r) { return a + r.n; }, 0);
+    var R = 58, C = 2 * Math.PI * R, GAP = total > 1 ? 3 : 0, off = 0;
+    return h('div', { className: 'admb-ring adm-donut' },
+      h('svg', { viewBox: '0 0 150 150', role: 'img', 'aria-label': p.label },
+        h('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 16 }),
+        p.rows.filter(function (r) { return r.n; }).map(function (r) {
+          var len = r.n / (total || 1) * C, dash = Math.max(len - GAP, 1.5), o = off;
+          off += len;
+          return h('circle', { key: r.k, cx: 75, cy: 75, r: R, fill: 'none', stroke: r.c, strokeWidth: 16,
+            strokeDasharray: dash + ' ' + (C - dash), strokeDashoffset: -o, transform: 'rotate(-90 75 75)' });
+        })),
+      h('span', { className: 'admb-ring__mid' }, h('b', null, total), h('span', null, p.caption)));
+  }
+
+  /* ====================================================== from Tracklivo
+     Asset requests are raised and decided in Tracklivo; what reaches the register is
+     the request and where Tracklivo has got to with it. Stacked by that status, per
+     category, so "what are people asking for, and what is cleared to issue" is one read. */
+  var TL_STATUS = [
+    { s: 'Approved', t: 'Ready to issue', c: 'var(--success-fg)' },
+    { s: 'Pending Approval', t: 'In Tracklivo', c: 'var(--brand-solid)' },
+    { s: 'Rejected', t: 'Declined', c: 'var(--border-strong)' }
+  ];
+  function tracklivoRows() {
+    var by = {};
+    store.collection('assetRequests').forEach(function (r) {
+      var c = by[r.category] || (by[r.category] = { k: r.category, n: 0, parts: {} });
+      c.n++; c.parts[r.status] = (c.parts[r.status] || 0) + 1;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.n - a.n; });
+  }
+
+  /* ====================================================== MFA coverage, by role
+     Who signs in with a second factor, per role, privileged roles first — the gap that
+     matters most is the one at the top of this list. */
+  var MFA_ROLES = [['admin', 'Admins'], ['hr', 'HR'], ['manager', 'Managers'], ['me', 'Employees']];
+  function mfaByRole(users) {
+    return MFA_ROLES.map(function (r) {
+      var all = users.filter(function (u) { return u.role === r[0]; });
+      return { k: r[0], t: r[1], n: all.length, on: all.filter(function (u) { return u.mfa; }).length };
+    }).filter(function (r) { return r.n; });
+  }
+
+  /* ====================================================== plan usage
+     What the plan includes and how much of it is spent: seats against the plan, AI
+     credits against the month, and where the credits went. Read from the subscription
+     and the AI usage the billing screens use. */
+  function Gauge(p) {
+    var R = 34, C = 2 * Math.PI * R, on = Math.max(0, Math.min(100, p.pct)) / 100 * C;
+    return h('div', { className: 'adm-gauge' },
+      h('span', { className: 'adm-gauge__ring' },
+        h('svg', { viewBox: '0 0 84 84', 'aria-hidden': 'true' },
+          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 9 }),
+          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: p.color, strokeWidth: 9, strokeLinecap: 'round',
+            strokeDasharray: on + ' ' + (C - on), transform: 'rotate(-90 42 42)' })),
+        h('b', null, Math.round(p.pct) + '%')),
+      h('span', { className: 'adm-gauge__m' }, h('strong', null, p.t), h('span', null, p.s)));
+  }
+
   /* ====================================================== the page */
-  var QUEUE_FOLD = 6;
+  var TABS = [{ k: 'mfa', t: 'MFA coverage' }, { k: 'plan', t: 'Plan usage' }];
 
   function AdminDashA(p) {
+    var savedTab = store.pref('adminDashTab');
+    var tabSt = React.useState(savedTab === 'plan' ? 'plan' : 'mfa');
+    var tab = tabSt[0];
+    function pickTab(k) { tabSt[1](k); store.setPref('adminDashTab', k); }
     var openSt = React.useState(null);
     var allSt = React.useState(false);
-    var moreSt = React.useState(false);
     var s = store.stats();
     var users = store.collection('users');
     var me = store.employeeByName(HRMS.nav.role('admin').persona);
 
-    var joiners = joinersBySix();
-    var jmax = Math.max.apply(null, joiners.map(function (x) { return x.n; }).concat([1]));
-    var priv = privileged(users), privMfa = priv.filter(function (u) { return u.mfa; }).length;
+    var mfa = mfaByRole(users);
+    var mfaOn = mfa.reduce(function (a, r) { return a + r.on; }, 0);
+    var sub = seed.subscription, ai = seed.aiUsage;
+    var aiMax = Math.max.apply(null, ai.byModule.map(function (m) { return m.credits; }).concat([1]));
     var buckets = signins(users);
     var queue = accessQueue(users);
+    var queueRows = QUEUE_KINDS.map(function (k) {
+      var items = queue.filter(function (r) { return r.kind === k.k; });
+      return Object.assign({ n: items.length, overdue: items.filter(function (r) { return r.status === 'Overdue' || r.status === 'At risk'; }).length }, k);
+    });
+    var urgent = queueRows.reduce(function (a, r) { return a + r.overdue; }, 0);
+    var firstLeave = (queue.filter(function (r) { return r.kind === 'revoke'; }).map(function (r) { return r.due; }).sort()[0]) || seed.todayIso;
+    var tlRows = tracklivoRows();
+    var tlTotal = tlRows.reduce(function (a, r) { return a + r.n; }, 0);
+    var tlMax = Math.max.apply(null, tlRows.map(function (r) { return r.n; }).concat([1]));
+    var tlReady = store.collection('assetRequests').filter(function (r) { return r.status === 'Approved'; }).length;
+    var tlConn = (seed.integrations.filter(function (x) { return x.name === 'Tracklivo'; })[0] || {}).connectedOn;
     var sugg = suggestions(users, buckets, queue);
     var flags = {};
     sugg.forEach(function (x) { if (x.bucket) flags[x.bucket] = x; });
@@ -357,11 +403,11 @@
         src: x.provider, tgt: x.kind, at: 'Today', to: 'admin/integrations' };
     }).concat([
       { icon: I.person, t: plural(s.invited, 'invitation') + ' unaccepted', s: 'Past the start date and never signed in. Resend or revoke them.',
-        src: 'User management', tgt: plural(s.invited, 'account'), at: '11:04:12 IST', to: 'admin/users/all' },
+        src: 'User management', tgt: plural(s.invited, 'account'), at: '11:04', to: 'admin/users/all' },
       { icon: I.shield, t: 'Single sign-on not configured', s: 'Everyone signs in with an email and a password only.',
-        src: 'Authentication', tgt: 'All ' + num(users.length) + ' users', at: '09:51:40 IST', to: 'admin/settings' },
+        src: 'Authentication', tgt: 'All ' + num(users.length) + ' users', at: '09:51', to: 'admin/settings' },
       { icon: I.database, t: 'Nightly backup completed', s: 'No errors reported.',
-        src: 'Core platform', tgt: 'Object store', at: '04:00:00 IST', to: 'admin/settings' }
+        src: 'Core platform', tgt: 'Object store', at: '04:00', to: 'admin/settings' }
     ]);
 
     return h('div', { className: 'adm' },
@@ -390,48 +436,55 @@
         }))),
 
       h('div', { className: 'adm-mid' },
-        /* The directory, and six months of joiners. */
-        h('section', { className: 'adm-card adm-tall' },
-          h('div', { className: 'adm-tall__art' }, h(CardStack)),
-          h('div', null,
-            h('span', { className: 'adm-tall__n' }, num(s.headcount)),
-            h('p', { className: 'adm-tall__cap' }, 'People on the directory · ' + s.newJoiners + ' joined this month')),
-          h('div', { className: 'adm-bars' },
-            h('div', { className: 'adm-call' },
-              h('span', { className: 'adm-call__t' },
-                h('span', { className: 'adm-call__dot' }),
-                h('span', null, 'Best of six months ', h('em', null, plural(jmax, 'joiner'))))),
-            h('div', { className: 'adm-bars__row' }, joiners.map(function (m, i) {
-              var hi = m.n === jmax;
-              return h('div', { className: 'adm-bars__b' + (hi ? ' is-hi' : ''), key: m.label + i },
-                h('i', { style: { height: Math.max(6, Math.round(m.n / jmax * 76)) + 'px' } }),
-                h('span', null, m.label));
-            })),
-            h('div', { className: 'adm-bars__base' }))),
-
-        /* The few accounts that can change everything. */
-        h('section', { className: 'adm-card adm-priv' },
+        /* Two readings an admin owns, MFA coverage and the plan, in one card with a tab
+           each. The tab picked is remembered, so the card opens where it was left. */
+        h('section', { className: 'adm-card adm-tabbed' },
           h('div', { className: 'adm-card__head' },
-            h('div', null,
-              h('h2', null, 'Privileged access'),
-              h('p', null, 'Admin and HR rights')),
-            h('button', { type: 'button', className: 'dash__link',
-              onClick: function () { router.go('admin/roles/modules'); } }, 'Roles', I.right)),
-          h('div', { className: 'adm-priv__top' },
-            h('span', { className: 'adm-priv__n' }, priv.length),
-            h('span', { className: 'adm-priv__cap' },
-              h('b', null, privMfa + ' of ' + priv.length + ' on MFA'),
-              h('span', { className: 'adm-priv__meter' },
-                h('i', { style: { width: (priv.length ? privMfa / priv.length * 100 : 0) + '%' } })))),
-          h('div', { className: 'adm-priv__list' }, priv.map(function (u) {
-            var e = store.employee(u.employee);
-            return h('div', { className: 'adm-priv__r', key: u.id },
-              h(V.Avatar, { name: e ? e.name : u.email, size: 'xs' }),
-              h('span', { className: 'adm-priv__m' },
-                h('strong', null, e ? e.name : u.email),
-                h('span', null, ROLE_NAME[u.role])),
-              u.mfa ? pill('MFA on', 'ok') : pill('No MFA', 'fail'));
-          }))),
+            h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'Account health' },
+              TABS.map(function (t) {
+                return h('button', {
+                  key: t.k, type: 'button', role: 'tab', id: 'admtab-' + t.k,
+                  'aria-selected': tab === t.k ? 'true' : 'false', 'aria-controls': 'admpanel-' + t.k,
+                  className: 'ad-seg__b' + (tab === t.k ? ' is-on' : ''),
+                  onClick: function () { pickTab(t.k); }
+                }, t.t);
+              })),
+            tab === 'mfa'
+              ? h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/settings'); } }, 'Security', I.right)
+              : h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/billing/usage'); } }, 'Usage', I.right)),
+          tab === 'mfa'
+            ? h('div', { className: 'adm-tabbed__p', role: 'tabpanel', id: 'admpanel-mfa', 'aria-labelledby': 'admtab-mfa' },
+                h('p', { className: 'adm-tabbed__s' }, h('b', { className: 'adm-inl' }, num(mfaOn)), ' of ' + num(users.length) + ' accounts on MFA \u00b7 ',
+                  h('b', { className: 'adm-inl' }, Math.round(mfaOn / (users.length || 1) * 100) + '%')),
+          h('div', { className: 'adm-legend' },
+            h('span', null, h('i', { style: { background: 'var(--success-fg)' } }), 'MFA on'),
+            h('span', null, h('i', { style: { background: 'var(--danger-fg)', opacity: .35 } }), 'Password only')),
+          h('div', { className: 'adm-stack adm-stack--mfa' }, mfa.map(function (r) {
+            var pct = r.n ? r.on / r.n * 100 : 0;
+            return h('button', { type: 'button', className: 'adm-stack__r', key: r.k,
+              title: r.on + ' of ' + r.n + ' ' + r.t.toLowerCase() + ' on MFA',
+              onClick: function () { router.go('admin/settings'); } },
+              h('span', { className: 'adm-stack__l' }, r.t, h('small', null, num(r.n))),
+              h('span', { className: 'adm-stack__bar' },
+                r.on ? h('i', { style: { width: pct + '%', background: 'var(--success-fg)' } }) : null,
+                r.n - r.on ? h('i', { style: { width: (100 - pct) + '%', background: 'var(--danger-fg)', opacity: .35 } }) : null),
+              h('b', { className: pct < 50 ? 'is-low' : null }, Math.round(pct) + '%'));
+          })),
+          h('p', { className: 'adm-card__foot' }, 'Privileged roles first: their accounts can change everyone else’s.'))
+            : h('div', { className: 'adm-tabbed__p', role: 'tabpanel', id: 'admpanel-plan', 'aria-labelledby': 'admtab-plan' },
+                h('p', { className: 'adm-tabbed__s' }, sub.plan + ' plan \u00b7 renews ' + sub.renewsLabel),
+          h('div', { className: 'adm-gauges' },
+            h(Gauge, { pct: sub.seatsUsed / sub.seats * 100, color: 'var(--brand-solid)', t: 'Seats',
+              s: num(sub.seatsUsed) + ' of ' + num(sub.seats) }),
+            h(Gauge, { pct: ai.used / ai.credits * 100, color: 'var(--priority-high)', t: 'AI credits',
+              s: num(ai.used) + ' of ' + num(ai.credits) })),
+          h('span', { className: 'adm-sub' }, 'Where the credits went this month'),
+          h('div', { className: 'adm-stack adm-stack--wide' }, ai.byModule.map(function (m) {
+            return h('div', { className: 'adm-stack__r adm-stack__r--static', key: m.module },
+              h('span', { className: 'adm-stack__l', title: m.module }, m.module),
+              h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (m.credits / aiMax * 100) + '%', background: 'var(--priority-high)' } })),
+              h('b', null, (m.credits / 1000).toFixed(1) + 'k'));
+          })))),
 
         /* How recently people sign in, with Ara's reading pinned to it. */
         h('section', { className: 'adm-card' },
@@ -456,55 +509,65 @@
           })))),
 
       h('div', { className: 'adm-low' },
-        /* The access work queued against the admin. */
+        /* The access work queued against the admin, by kind. */
         h('section', { className: 'adm-card' },
           h('div', { className: 'adm-card__head' },
             h('div', null,
               h('h2', null, 'Access queue'),
-              h('p', null, plural(queue.length, 'item') + ' waiting on an admin — leavers, invites, suspensions and unprotected privileged accounts')),
-            h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
-              onClick: function () { router.go('admin/users/all'); } }, 'All users')),
-          queue.length ? h('div', { className: 'adm-wrap' },
-            h('table', { className: 'adm-tbl' },
-              h('thead', null, h('tr', null,
-                ['Person', 'Action', 'When', 'Status'].map(function (c, i) {
-                  return h('th', { key: i }, c);
-                }))),
-              /* The most urgent six, ordered as the queue is; the rest one click away, so
-                 the card is as tall as the work that needs doing first. */
-              h('tbody', null, (moreSt[0] ? queue : queue.slice(0, QUEUE_FOLD)).map(function (r) {
-                return h('tr', { key: r.id + r.kind },
-                  h('td', null, h('span', { className: 'adm-who' },
-                    h(V.Avatar, { name: r.who, size: 'sm' }),
-                    h('span', null, h('strong', null, r.who), h('small', null, r.dept)))),
-                  /* The action is the way in: the pill names the job and opens where it is done. */
-                  h('td', null, h('button', {
-                    type: 'button', className: 'adm-p adm-p--' + PILL[r.kind] + ' adm-p--btn',
-                    'aria-label': ACTION[r.kind] + ' for ' + r.who,
-                    onClick: function () { router.go(r.to); }
-                  }, ACTION[r.kind], I.right)),
-                  h('td', { className: 'is-mut' }, r.when),
-                  h('td', null, pill(r.status)));
-              }))))
+              h('p', null, 'Work waiting on an admin')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/roles/review'); } }, 'Review', I.right)),
+          queue.length ? h('div', { className: 'adm-split' },
+            h(Donut, { rows: queueRows, caption: queue.length === 1 ? 'item' : 'items',
+              label: 'Access queue: ' + queueRows.map(function (r) { return r.n + ' ' + r.t; }).join(', ') }),
+            h('div', { className: 'adm-key' }, queueRows.map(function (r) {
+              return h('button', { type: 'button', className: 'adm-key__r', key: r.k, disabled: !r.n,
+                onClick: function () { router.go(r.to); } },
+                h('i', { style: { background: r.c } }),
+                h('span', { className: 'grow' }, r.t),
+                h('b', null, r.n));
+            })))
             : h(ui.Empty, { icon: I.ok, title: 'Nothing waiting', body: 'No leaver, invitation or privileged account needs an admin today.' }),
-          queue.length > QUEUE_FOLD ? h('button', { type: 'button', className: 'adm-more', 'aria-expanded': moreSt[0] ? 'true' : 'false',
-            onClick: function () { moreSt[1](!moreSt[0]); } },
-            moreSt[0] ? 'Show the first ' + QUEUE_FOLD : 'Show all ' + queue.length, moreSt[0] ? I.chevUp : I.chevron) : null),
+          urgent ? h('p', { className: 'adm-card__foot adm-card__foot--warn' }, I.warn,
+            plural(urgent, 'item') + ' overdue or at risk \u00b7 the earliest leaver goes ' + ui.dateLabel(firstLeave)) : null),
+
+        /* Asset requests, as Tracklivo reports them. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null,
+              h('h2', null, 'Asset requests'),
+              h('p', null, num(tlTotal) + ' from Tracklivo, by category')),
+            h('span', { className: 'atl__src' }, 'From Tracklivo')),
+          h('div', { className: 'adm-legend' }, TL_STATUS.map(function (st) {
+            return h('span', { key: st.s }, h('i', { style: { background: st.c } }), st.t);
+          })),
+          h('div', { className: 'adm-stack' }, tlRows.map(function (r) {
+            return h('button', { type: 'button', className: 'adm-stack__r', key: r.k,
+              title: TL_STATUS.map(function (st) { return (r.parts[st.s] || 0) + ' ' + st.t.toLowerCase(); }).join(' · '),
+              onClick: function () { router.go('admin/assets/requests'); } },
+              h('span', { className: 'adm-stack__l' }, r.k),
+              h('span', { className: 'adm-stack__bar' }, TL_STATUS.map(function (st) {
+                var n = r.parts[st.s] || 0;
+                return n ? h('i', { key: st.s, style: { width: (n / tlMax * 100) + '%', background: st.c } }) : null;
+              })),
+              h('b', null, r.n));
+          })),
+          h('p', { className: 'adm-card__foot' }, plural(tlReady, 'request') + ' ready to issue · synced from Tracklivo, connected ' +
+            ui.dateLabel(tlConn))),
 
         /* The alerts column, with the reference's source and target lines. */
         h('section', { className: 'adm-card' },
           h('div', { className: 'adm-card__head' },
             h('div', null,
               h('h2', null, 'Alerts'),
-              h('p', null, 'Everything the platform has raised today')),
-            h('span', { className: 'adm-pill' }, 'Showing all')),
+              h('p', null, 'Raised by the platform today')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/audit/security'); } }, 'All', I.right)),
           h('div', { className: 'adm-alerts' }, alerts.map(function (a) {
             return h('div', { className: 'adm-alert', key: a.t },
               h('span', { className: 'adm-ico' }, a.icon),
               h('div', { className: 'adm-alert__m' },
-                h('span', { className: 'adm-alert__top' }, h('strong', null, a.t), h('span', { className: 'adm-alert__t' }, a.at)),
+                h('strong', { className: 'adm-alert__h', title: a.t }, a.t),
                 h('span', { className: 'adm-alert__s', title: a.s }, a.s),
-                h('span', { className: 'adm-alert__kv' }, a.src, ' \u2192 ', a.tgt)),
+                h('span', { className: 'adm-alert__kv' }, a.src, ' \u2192 ', a.tgt, ' \u00b7 ', a.at)),
               h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + a.t,
                 onClick: function () { router.go(a.to); } }, I.right));
           })))),
