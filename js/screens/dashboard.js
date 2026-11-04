@@ -15,8 +15,9 @@
      their sign-in is protected;
    - the wide card is how recently people actually sign in, with Ara's suggestions read
      off the same records and pinned to the bar they are about;
-   - the table is the access work queued against the admin — leavers to revoke, invites
-     nobody accepted, suspensions to decide, privileged accounts without MFA.
+   - the bottom row is charts: the access work queued against the admin as a donut by
+     kind (leavers to revoke, invites nobody accepted, suspensions, privileged accounts
+     without MFA), and the asset requests Tracklivo has sent, stacked by status.
 
    Every count is read from the store. The one fixed panel is the backup line in the
    alerts, because nothing in the prototype records a backup. */
@@ -275,7 +276,6 @@
      accounts without a second factor. Ordered by when it is due. */
   var PILL = { revoke: 'fail', invite: 'warn', suspend: 'sched', mfa: 'manual',
     Overdue: 'fail', 'Due soon': 'warn', Scheduled: 'sched', 'At risk': 'fail', Waiting: 'warn' };
-  var ACTION = { revoke: 'Revoke access', invite: 'Resend invite', suspend: 'Decide suspension', mfa: 'Require MFA' };
 
   function accessQueue(users) {
     var today = seed.todayIso, rows = [];
@@ -311,13 +311,53 @@
 
   function pill(word, cls) { return h('span', { className: 'adm-p adm-p--' + (cls || PILL[word]) }, word); }
 
-  /* ====================================================== the page */
-  var QUEUE_FOLD = 6;
+  /* ====================================================== the access queue, as a donut
+     The same twelve items the queue holds, grouped by the kind of work, so the card says
+     at a glance what the admin owes and each slice's row opens where it is done. */
+  var QUEUE_KINDS = [
+    { k: 'revoke', t: 'Revoke access', c: 'var(--danger-fg)', to: 'admin/roles/review' },
+    { k: 'mfa', t: 'Require MFA', c: 'var(--info-fg)', to: 'admin/settings' },
+    { k: 'invite', t: 'Resend invite', c: 'var(--warning-fg)', to: 'admin/users/all' },
+    { k: 'suspend', t: 'Decide suspension', c: 'var(--text-muted)', to: 'admin/users/all' }
+  ];
 
+  function Donut(p) {
+    var total = p.rows.reduce(function (a, r) { return a + r.n; }, 0);
+    var R = 58, C = 2 * Math.PI * R, GAP = total > 1 ? 3 : 0, off = 0;
+    return h('div', { className: 'admb-ring adm-donut' },
+      h('svg', { viewBox: '0 0 150 150', role: 'img', 'aria-label': p.label },
+        h('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 16 }),
+        p.rows.filter(function (r) { return r.n; }).map(function (r) {
+          var len = r.n / (total || 1) * C, dash = Math.max(len - GAP, 1.5), o = off;
+          off += len;
+          return h('circle', { key: r.k, cx: 75, cy: 75, r: R, fill: 'none', stroke: r.c, strokeWidth: 16,
+            strokeDasharray: dash + ' ' + (C - dash), strokeDashoffset: -o, transform: 'rotate(-90 75 75)' });
+        })),
+      h('span', { className: 'admb-ring__mid' }, h('b', null, total), h('span', null, p.caption)));
+  }
+
+  /* ====================================================== from Tracklivo
+     Asset requests are raised and decided in Tracklivo; what reaches the register is
+     the request and where Tracklivo has got to with it. Stacked by that status, per
+     category, so "what are people asking for, and what is cleared to issue" is one read. */
+  var TL_STATUS = [
+    { s: 'Approved', t: 'Ready to issue', c: 'var(--success-fg)' },
+    { s: 'Pending Approval', t: 'In Tracklivo', c: 'var(--brand-solid)' },
+    { s: 'Rejected', t: 'Declined', c: 'var(--border-strong)' }
+  ];
+  function tracklivoRows() {
+    var by = {};
+    store.collection('assetRequests').forEach(function (r) {
+      var c = by[r.category] || (by[r.category] = { k: r.category, n: 0, parts: {} });
+      c.n++; c.parts[r.status] = (c.parts[r.status] || 0) + 1;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.n - a.n; });
+  }
+
+  /* ====================================================== the page */
   function AdminDashA(p) {
     var openSt = React.useState(null);
     var allSt = React.useState(false);
-    var moreSt = React.useState(false);
     var s = store.stats();
     var users = store.collection('users');
     var me = store.employeeByName(HRMS.nav.role('admin').persona);
@@ -326,6 +366,17 @@
     var priv = privileged(users), privMfa = priv.filter(function (u) { return u.mfa; }).length;
     var buckets = signins(users);
     var queue = accessQueue(users);
+    var queueRows = QUEUE_KINDS.map(function (k) {
+      var items = queue.filter(function (r) { return r.kind === k.k; });
+      return Object.assign({ n: items.length, overdue: items.filter(function (r) { return r.status === 'Overdue' || r.status === 'At risk'; }).length }, k);
+    });
+    var urgent = queueRows.reduce(function (a, r) { return a + r.overdue; }, 0);
+    var firstLeave = (queue.filter(function (r) { return r.kind === 'revoke'; }).map(function (r) { return r.due; }).sort()[0]) || seed.todayIso;
+    var tlRows = tracklivoRows();
+    var tlTotal = tlRows.reduce(function (a, r) { return a + r.n; }, 0);
+    var tlMax = Math.max.apply(null, tlRows.map(function (r) { return r.n; }).concat([1]));
+    var tlReady = store.collection('assetRequests').filter(function (r) { return r.status === 'Approved'; }).length;
+    var tlConn = (seed.integrations.filter(function (x) { return x.name === 'Tracklivo'; })[0] || {}).connectedOn;
     var sugg = suggestions(users, buckets, queue);
     var flags = {};
     sugg.forEach(function (x) { if (x.bucket) flags[x.bucket] = x; });
@@ -338,11 +389,11 @@
         src: x.provider, tgt: x.kind, at: 'Today', to: 'admin/integrations' };
     }).concat([
       { icon: I.person, t: plural(s.invited, 'invitation') + ' unaccepted', s: 'Past the start date and never signed in. Resend or revoke them.',
-        src: 'User management', tgt: plural(s.invited, 'account'), at: '11:04:12 IST', to: 'admin/users/all' },
+        src: 'User management', tgt: plural(s.invited, 'account'), at: '11:04', to: 'admin/users/all' },
       { icon: I.shield, t: 'Single sign-on not configured', s: 'Everyone signs in with an email and a password only.',
-        src: 'Authentication', tgt: 'All ' + num(users.length) + ' users', at: '09:51:40 IST', to: 'admin/settings' },
+        src: 'Authentication', tgt: 'All ' + num(users.length) + ' users', at: '09:51', to: 'admin/settings' },
       { icon: I.database, t: 'Nightly backup completed', s: 'No errors reported.',
-        src: 'Core platform', tgt: 'Object store', at: '04:00:00 IST', to: 'admin/settings' }
+        src: 'Core platform', tgt: 'Object store', at: '04:00', to: 'admin/settings' }
     ]);
 
     return h('div', { className: 'adm' },
@@ -435,55 +486,65 @@
           })))),
 
       h('div', { className: 'adm-low' },
-        /* The access work queued against the admin. */
+        /* The access work queued against the admin, by kind. */
         h('section', { className: 'adm-card' },
           h('div', { className: 'adm-card__head' },
             h('div', null,
               h('h2', null, 'Access queue'),
-              h('p', null, plural(queue.length, 'item') + ' waiting on an admin — leavers, invites, suspensions and unprotected privileged accounts')),
-            h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
-              onClick: function () { router.go('admin/users/all'); } }, 'All users')),
-          queue.length ? h('div', { className: 'adm-wrap' },
-            h('table', { className: 'adm-tbl' },
-              h('thead', null, h('tr', null,
-                ['Person', 'Action', 'When', 'Status'].map(function (c, i) {
-                  return h('th', { key: i }, c);
-                }))),
-              /* The most urgent six, ordered as the queue is; the rest one click away, so
-                 the card is as tall as the work that needs doing first. */
-              h('tbody', null, (moreSt[0] ? queue : queue.slice(0, QUEUE_FOLD)).map(function (r) {
-                return h('tr', { key: r.id + r.kind },
-                  h('td', null, h('span', { className: 'adm-who' },
-                    h(V.Avatar, { name: r.who, size: 'sm' }),
-                    h('span', null, h('strong', null, r.who), h('small', null, r.dept)))),
-                  /* The action is the way in: the pill names the job and opens where it is done. */
-                  h('td', null, h('button', {
-                    type: 'button', className: 'adm-p adm-p--' + PILL[r.kind] + ' adm-p--btn',
-                    'aria-label': ACTION[r.kind] + ' for ' + r.who,
-                    onClick: function () { router.go(r.to); }
-                  }, ACTION[r.kind], I.right)),
-                  h('td', { className: 'is-mut' }, r.when),
-                  h('td', null, pill(r.status)));
-              }))))
+              h('p', null, 'Work waiting on an admin')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/roles/review'); } }, 'Review', I.right)),
+          queue.length ? h('div', { className: 'adm-split' },
+            h(Donut, { rows: queueRows, caption: queue.length === 1 ? 'item' : 'items',
+              label: 'Access queue: ' + queueRows.map(function (r) { return r.n + ' ' + r.t; }).join(', ') }),
+            h('div', { className: 'adm-key' }, queueRows.map(function (r) {
+              return h('button', { type: 'button', className: 'adm-key__r', key: r.k, disabled: !r.n,
+                onClick: function () { router.go(r.to); } },
+                h('i', { style: { background: r.c } }),
+                h('span', { className: 'grow' }, r.t),
+                h('b', null, r.n));
+            })))
             : h(ui.Empty, { icon: I.ok, title: 'Nothing waiting', body: 'No leaver, invitation or privileged account needs an admin today.' }),
-          queue.length > QUEUE_FOLD ? h('button', { type: 'button', className: 'adm-more', 'aria-expanded': moreSt[0] ? 'true' : 'false',
-            onClick: function () { moreSt[1](!moreSt[0]); } },
-            moreSt[0] ? 'Show the first ' + QUEUE_FOLD : 'Show all ' + queue.length, moreSt[0] ? I.chevUp : I.chevron) : null),
+          urgent ? h('p', { className: 'adm-card__foot adm-card__foot--warn' }, I.warn,
+            plural(urgent, 'item') + ' overdue or at risk \u00b7 the earliest leaver goes ' + ui.dateLabel(firstLeave)) : null),
+
+        /* Asset requests, as Tracklivo reports them. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null,
+              h('h2', null, 'Asset requests'),
+              h('p', null, num(tlTotal) + ' from Tracklivo, by category')),
+            h('span', { className: 'atl__src' }, 'From Tracklivo')),
+          h('div', { className: 'adm-legend' }, TL_STATUS.map(function (st) {
+            return h('span', { key: st.s }, h('i', { style: { background: st.c } }), st.t);
+          })),
+          h('div', { className: 'adm-stack' }, tlRows.map(function (r) {
+            return h('button', { type: 'button', className: 'adm-stack__r', key: r.k,
+              title: TL_STATUS.map(function (st) { return (r.parts[st.s] || 0) + ' ' + st.t.toLowerCase(); }).join(' · '),
+              onClick: function () { router.go('admin/assets/requests'); } },
+              h('span', { className: 'adm-stack__l' }, r.k),
+              h('span', { className: 'adm-stack__bar' }, TL_STATUS.map(function (st) {
+                var n = r.parts[st.s] || 0;
+                return n ? h('i', { key: st.s, style: { width: (n / tlMax * 100) + '%', background: st.c } }) : null;
+              })),
+              h('b', null, r.n));
+          })),
+          h('p', { className: 'adm-card__foot' }, plural(tlReady, 'request') + ' ready to issue · synced from Tracklivo, connected ' +
+            ui.dateLabel(tlConn))),
 
         /* The alerts column, with the reference's source and target lines. */
         h('section', { className: 'adm-card' },
           h('div', { className: 'adm-card__head' },
             h('div', null,
               h('h2', null, 'Alerts'),
-              h('p', null, 'Everything the platform has raised today')),
-            h('span', { className: 'adm-pill' }, 'Showing all')),
+              h('p', null, 'Raised by the platform today')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/audit/security'); } }, 'All', I.right)),
           h('div', { className: 'adm-alerts' }, alerts.map(function (a) {
             return h('div', { className: 'adm-alert', key: a.t },
               h('span', { className: 'adm-ico' }, a.icon),
               h('div', { className: 'adm-alert__m' },
-                h('span', { className: 'adm-alert__top' }, h('strong', null, a.t), h('span', { className: 'adm-alert__t' }, a.at)),
+                h('strong', { className: 'adm-alert__h', title: a.t }, a.t),
                 h('span', { className: 'adm-alert__s', title: a.s }, a.s),
-                h('span', { className: 'adm-alert__kv' }, a.src, ' \u2192 ', a.tgt)),
+                h('span', { className: 'adm-alert__kv' }, a.src, ' \u2192 ', a.tgt, ' \u00b7 ', a.at)),
               h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + a.t,
                 onClick: function () { router.go(a.to); } }, I.right));
           })))),
