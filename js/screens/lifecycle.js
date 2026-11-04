@@ -73,6 +73,28 @@
 
   /* ================================================== Onboarding (PRD 4.6–4.9) */
   function onboardingCases() { return store.collection('onboarding'); }
+  /* "In progress" means exactly that, now that finished cases have their own tab. */
+  function openOnboardingCases() {
+    return onboardingCases().filter(function (c) { return c.stage !== 'Completed'; });
+  }
+  function completedOnboardingCases() {
+    return onboardingCases().filter(function (c) { return c.stage === 'Completed'; });
+  }
+  /* Where the hire came from. The case records it at the time it was started, so a later
+     edit to the employee cannot rewrite the history; older cases fall back to the record. */
+  function caseSource(c) {
+    if (c.source) return c.source;
+    var e = emp(c.employee);
+    return (e && e.source) || 'Direct';
+  }
+  function isPsyHire(x) { return x === 'PsyHire'; }
+  /* The PsyHire marker, used in the picker, the case tables and the record drawer. */
+  function SourceChip(p) {
+    if (!isPsyHire(p.source)) {
+      return p.showDirect ? h(V.Chip, { size: 'sm', shape: 'tag' }, 'Direct') : null;
+    }
+    return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'primary' }, 'PsyHire');
+  }
   function openTasks(c) { return (c.tasks || []).filter(function (t) { return !t.done; }); }
   function overdueTasks(c) { return openTasks(c).filter(function (t) { return t.due && t.due < today(); }); }
   function templateName(id) {
@@ -141,16 +163,19 @@
   }
 
   function OnboardingDashboard() {
+    /* Stage counts cover every case; the in-flight list and open-task roll-up below
+       read from the open ones, so a finished case does not show as work outstanding. */
     var cases = onboardingCases();
+    var open = openOnboardingCases();
     var s = store.stats();
     var docs = pendingDocuments();
 
     function stage(name) { return cases.filter(function (c) { return c.stage === name; }).length; }
-    var overdue = cases.reduce(function (n, c) { return n + overdueTasks(c).length; }, 0);
+    var overdue = open.reduce(function (n, c) { return n + overdueTasks(c).length; }, 0);
 
     /* Which task is holding the most cases up, counted across open cases only. */
     var byTask = seed.onboardingTaskNames.map(function (name) {
-      return [name, cases.filter(function (c) {
+      return [name, open.filter(function (c) {
         return (c.tasks || []).some(function (t) { return t.name === name && !t.done; });
       }).length];
     }).filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; });
@@ -163,7 +188,7 @@
         h(Stat, { key: 2, label: 'In progress', value: stage('In Progress'), sub: s.pendingOnboardingTasks + ' tasks open in total' }),
         h(Stat, { key: 3, label: 'Pending verification', value: stage('Pending Verification'),
           sub: docs.length + ' documents awaiting review', tone: docs.length ? 'warn' : null }),
-        h(Stat, { key: 4, label: 'Completed', value: stage('Completed'), sub: 'Ready for activation', tone: 'good' }),
+        h(Stat, { key: 4, label: 'Completed', value: stage('Completed'), sub: 'Checklists closed in full', tone: 'good' }),
         h(Stat, { key: 5, label: 'Overdue tasks', value: overdue, sub: 'Past their due date', tone: overdue ? 'warn' : 'good' })),
 
       h(Grid, null,
@@ -171,8 +196,8 @@
           description: 'Every open case with its checklist progress (PRD 4.6).',
           aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.right,
             onClick: function () { router.goAs('hr/onboarding/cases'); } }, 'All cases') },
-          cases.length
-            ? h('div', { className: 'list scroll-320' }, cases.map(function (c) {
+          open.length
+            ? h('div', { className: 'list scroll-320' }, open.map(function (c) {
                 var e = emp(c.employee);
                 return h('div', { className: 'list__row', key: c.id },
                   h('div', { className: 'list__main' },
@@ -206,21 +231,94 @@
           ]}))));
   }
 
+  /* The start flow: who is joining, on what template, and when. The joining date is the
+     pivot — every task is due before it, so it is asked for here rather than inherited. */
+  function StartOnboardingModal(p) {
+    var form = p.form;
+    var chosen = form.values.employee ? emp(form.values.employee) : null;
+    var tasks = seed.onboardingTaskNames.length;
+    var joining = form.values.joiningDate;
+    var firstDue = joining && !form.errors.joiningDate
+      ? seed.util.pretty(seed.util.addDays(new Date(joining + 'T00:00'), -tasks)) : null;
+    var lastDue = joining && !form.errors.joiningDate
+      ? seed.util.pretty(seed.util.addDays(new Date(joining + 'T00:00'), -1)) : null;
+    var mailTo = chosen ? (chosen.personalEmail || chosen.workEmail) : null;
+
+    return h(ui.Modal, {
+      title: 'Start onboarding',
+      description: 'Generates the checklist from the chosen template and assigns each task (PRD 4.7).',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', iconStart: I.send, onClick: p.onStart }, 'Start and send invite'))
+    },
+      h('div', { className: 'row gap-2', style: { marginBottom: 12, flexWrap: 'wrap' } },
+        h(V.Chip, {
+          size: 'sm', selected: p.psyOnly, onClick: function () { p.setPsyOnly(!p.psyOnly); }
+        }, 'PsyHire intake only'),
+        h('span', { className: 'muted', style: { fontSize: 12, alignSelf: 'center' } },
+          p.pool.length + ' candidate' + (p.pool.length === 1 ? '' : 's') + ' without a case')),
+
+      h(ui.EmployeePicker, {
+        label: 'Employee', pool: p.pool, value: form.values.employee,
+        status: form.errors.employee ? 'error' : undefined,
+        hint: form.errors.employee || 'Someone who does not already have a case',
+        onChange: function (v) { form.set('employee', v); },
+        badge: function (e) { return h(SourceChip, { source: e.source }); }
+      }),
+      chosen ? h('div', { className: 'row gap-2', style: { margin: '-6px 0 12px' } },
+        h(SourceChip, { source: chosen.source, showDirect: true }),
+        h('span', { className: 'muted', style: { fontSize: 12, alignSelf: 'center' } },
+          isPsyHire(chosen.source) ? 'Sourced through PsyHire' : 'Direct hire')) : null,
+
+      h(ui.FieldRow, { cols: 2 },
+        h(V.Select, Object.assign({ label: 'Template',
+          options: store.collection('onboardingTemplates')
+            .filter(function (t) { return t.status === 'Active'; })
+            .map(function (t) { return { value: t.id, label: t.name + ' · ' + t.tasks + ' tasks' }; })
+        }, form.select('template'))),
+        h(V.DateField, Object.assign({ label: 'Date of joining', required: true },
+          form.field('joiningDate', { hint: 'The checklist is scheduled backwards from this date' })))),
+
+      firstDue ? h('div', { className: 'ai-note', style: { marginTop: 4 } },
+        h('span', { className: 'ai-note__mark' }, I.mail),
+        h('div', { className: 'ai-note__body' },
+          h('span', { className: 'ai-note__eyebrow' }, 'On start'),
+          h('p', { className: 'ai-note__text' },
+            'An invitation is emailed' + (mailTo ? ' to ' + mailTo : '') + ', and all ' + tasks
+            + ' tasks fall before the joining date — the first due ' + firstDue
+            + ', the last ' + lastDue + '.'))) : null,
+
+      form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null);
+  }
+
   function OnboardingCases() {
     var openSt = React.useState(null);
     var startSt = React.useState(false);
     var stageSt = React.useState('');
-    var form = ui.useForm({ template: 'tpl-standard' });
+    var psyOnlySt = React.useState(false);
+    var form = ui.useForm({ template: 'tpl-standard', joiningDate: '' },
+      function (v) { return rules.validOnboardingStart(v); });
 
-    var cases = onboardingCases();
+    var cases = openOnboardingCases();
     var rows = stageSt[0] ? cases.filter(function (c) { return c.stage === stageSt[0]; }) : cases;
 
+    /* Anyone without a case yet, optionally narrowed to the PsyHire intake. */
+    function candidatePool() {
+      var taken = onboardingCases().map(function (c) { return c.employee; });
+      return store.collection('employees').filter(function (e) {
+        if (e.status === 'Exited' || taken.indexOf(e.id) >= 0) return false;
+        return psyOnlySt[0] ? isPsyHire(e.source) : true;
+      });
+    }
+
+    function resetStart() { form.reset({ template: 'tpl-standard', joiningDate: '' }); psyOnlySt[1](false); }
     function start() {
       var res = form.submit(function (v) {
         if (!v.employee) return { ok: false, errors: { employee: 'Choose an employee' } };
-        return ui.report(act.initiateOnboarding(v.employee, v.template));
+        return ui.report(act.initiateOnboarding(v.employee, v.template, { joiningDate: v.joiningDate }));
       });
-      if (res && res.ok) { startSt[1](false); form.reset({ template: 'tpl-standard' }); openSt[1](res.id); }
+      if (res && res.ok) { startSt[1](false); resetStart(); openSt[1](res.id); }
     }
 
     var columns = [
@@ -234,6 +332,9 @@
         } },
       { key: 'department', header: 'Department', csv: function (c) { var e = emp(c.employee); return e ? deptName(e.department) : ''; },
         cell: function (c) { var e = emp(c.employee); return e ? deptName(e.department) : '—'; } },
+      { key: 'source', header: 'Source', sortable: true,
+        sortValue: function (c) { return caseSource(c); }, csv: function (c) { return caseSource(c); },
+        cell: function (c) { return h(SourceChip, { source: caseSource(c), showDirect: true }); } },
       { key: 'startDate', header: 'Start date', sortable: true, cell: function (c) { return c.startDateLabel; } },
       { key: 'template', header: 'Template', csv: function (c) { return templateName(c.template); },
         cell: function (c) { return templateName(c.template); } },
@@ -282,26 +383,138 @@
 
       openSt[0] ? h(OnboardingDrawer, { id: openSt[0], onClose: function () { openSt[1](null); } }) : null,
 
-      startSt[0] ? h(ui.Modal, {
-        title: 'Start onboarding',
-        description: 'Generates the checklist from the chosen template and assigns each task (PRD 4.7).',
-        onClose: function () { startSt[1](false); },
-        footer: h(React.Fragment, null,
-          h(V.Button, { variant: 'outline', onClick: function () { startSt[1](false); } }, 'Cancel'),
-          h(V.Button, { variant: 'primary', onClick: start }, 'Start onboarding'))
+      startSt[0] ? h(StartOnboardingModal, {
+        form: form, pool: candidatePool(), psyOnly: psyOnlySt[0], setPsyOnly: psyOnlySt[1],
+        onStart: start, onClose: function () { startSt[1](false); resetStart(); }
+      }) : null);
+  }
+
+  /* ------------------------------------------------- Completed onboardings
+     The archive: once a checklist is finished the case leaves the "In progress" tab, and
+     the whole record — who, from where, against which template, and when each task was
+     closed — is kept here rather than disappearing with the open-case list. */
+  function CompletedRecordDrawer(p) {
+    var c = store.find('onboarding', p.id);
+    if (!c) return null;
+    var e = emp(c.employee);
+    var tasks = c.tasks || [];
+    var docs = store.collection('employeeDocuments').filter(function (d) { return d.employee === c.employee; });
+    var tpl = store.collection('onboardingTemplates').filter(function (t) { return t.id === c.template; })[0];
+
+    return h(ui.Drawer, {
+      eyebrow: c.id + ' · ' + templateName(c.template),
+      title: e ? e.name : c.employee,
+      description: e ? e.designation + ' · joined ' + c.startDateLabel : null,
+      onClose: p.onClose,
+      footer: h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close')
+    },
+      h('div', { className: 'row gap-3 wrap' },
+        h(ui.StatusChip, { status: 'Completed', size: 'md' }),
+        h(SourceChip, { source: caseSource(c), showDirect: true }),
+        h(V.Chip, { size: 'sm', shape: 'tag', icon: I.checklist }, tasks.length + ' tasks closed')),
+
+      h(ui.KeyValue, { rows: [
+        ['Employee', e ? h('span', { className: 'mono' }, e.id) : c.employee],
+        ['Department', e ? deptName(e.department) : null],
+        ['Work location', e ? locName(e.location) : null],
+        ['Hiring source', caseSource(c)],
+        ['Template', tpl ? tpl.name : templateName(c.template)],
+        ['Invitation sent', c.invitedOn ? ui.dateLabel(c.invitedOn) : null],
+        ['Date of joining', c.startDateLabel],
+        ['Checklist closed', c.completedOnLabel || (c.completedOn ? ui.dateLabel(c.completedOn) : null)]
+      ]}),
+
+      h(ui.FormSection, { title: 'Checklist', description: 'Every task, its owner and the day it was closed.' },
+        h('div', { className: 'checks' }, tasks.map(function (t) {
+          return h('div', { className: 'checks__row is-done', key: t.name },
+            h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, I.check),
+            h('div', { className: 'checks__main' },
+              h('span', { className: 'checks__name' }, t.name),
+              h('span', { className: 'checks__meta' },
+                empName(t.assignee) + ' · closed ' + (t.completedOn ? ui.dateLabel(t.completedOn) : '—'))),
+            t.mandatory ? h(V.Chip, { size: 'sm', shape: 'tag' }, 'Mandatory') : null);
+        }))),
+
+      h(ui.FormSection, { title: 'Documents on file', description: 'What the joiner submitted, and how it was decided.' },
+        docs.length
+          ? h('div', { className: 'checks' }, docs.map(function (d) {
+            return h('div', { className: 'checks__row', key: d.id || d.name },
+              h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, I.file),
+              h('div', { className: 'checks__main' },
+                h('span', { className: 'checks__name' }, d.name),
+                h('span', { className: 'checks__meta' },
+                  d.category + ' · uploaded ' + ui.dateLabel(d.uploaded)
+                  + (d.verifiedBy ? ' · verified by ' + empName(d.verifiedBy) : ''))),
+              h(ui.StatusChip, { status: d.status }));
+          }))
+          : h('p', { className: 'muted', style: { fontSize: 13, margin: 0 } }, 'No documents are filed against this record.')));
+  }
+
+  function OnboardingCompleted() {
+    var openSt = React.useState(null);
+    var sourceSt = React.useState('');
+    var all = completedOnboardingCases();
+    var rows = sourceSt[0] ? all.filter(function (c) { return caseSource(c) === sourceSt[0]; }) : all;
+    var psy = all.filter(function (c) { return isPsyHire(caseSource(c)); }).length;
+
+    return h(React.Fragment, null,
+      h(Stats, { cols: 3 },
+        h(Stat, { key: 1, label: 'Completed onboardings', value: all.length, sub: 'Checklists closed in full', tone: 'good' }),
+        h(Stat, { key: 2, label: 'From PsyHire', value: psy,
+          sub: all.length ? ui.pct(psy, all.length) + '% of the intake' : 'No records yet' }),
+        h(Stat, { key: 3, label: 'Direct hires', value: all.length - psy, sub: 'Sourced outside PsyHire' })),
+
+      h(Card, {
+        title: 'Completed onboarding records',
+        description: 'The archive of finished checklists. Open a record for its tasks, owners and documents.'
       },
-        h(ui.EmployeePicker, {
-          label: 'Employee', value: form.values.employee,
-          status: form.errors.employee ? 'error' : undefined,
-          hint: form.errors.employee || 'Someone who does not already have a case',
-          onChange: function (v) { form.set('employee', v); }
-        }),
-        h(V.Select, Object.assign({ label: 'Template',
-          options: store.collection('onboardingTemplates')
-            .filter(function (t) { return t.status === 'Active'; })
-            .map(function (t) { return { value: t.id, label: t.name + ' · ' + t.tasks + ' tasks' }; })
-        }, form.select('template'))),
-        form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null) : null);
+        h(ui.DataTable, {
+          exportName: 'onboarding-completed', label: 'Completed onboardings', rows: rows, pageSize: 10,
+          search: function (c) { return empName(c.employee) + ' ' + c.id + ' ' + caseSource(c); },
+          searchPlaceholder: 'Search by name, case or source',
+          filters: h(ui.Filter, {
+            label: 'Source', value: sourceSt[0], onChange: sourceSt[1], options: ['PsyHire', 'Direct']
+          }),
+          columns: [
+            { key: 'employee', header: 'Employee', sortable: true,
+              sortValue: function (c) { return empName(c.employee); },
+              csv: function (c) { return empName(c.employee); },
+              cell: function (c) {
+                var e = emp(c.employee);
+                return e ? h(ui.Person, { employee: e, sub: e.id, onClick: function () { openSt[1](c.id); } })
+                  : h('span', { className: 'muted' }, c.employee);
+              } },
+            { key: 'department', header: 'Department',
+              csv: function (c) { var e = emp(c.employee); return e ? deptName(e.department) : ''; },
+              cell: function (c) { var e = emp(c.employee); return e ? deptName(e.department) : '—'; } },
+            { key: 'source', header: 'Source', sortable: true,
+              sortValue: function (c) { return caseSource(c); }, csv: function (c) { return caseSource(c); },
+              cell: function (c) { return h(SourceChip, { source: caseSource(c), showDirect: true }); } },
+            { key: 'template', header: 'Template', csv: function (c) { return templateName(c.template); },
+              cell: function (c) { return templateName(c.template); } },
+            { key: 'startDate', header: 'Joined', sortable: true,
+              csv: function (c) { return c.startDate; }, cell: function (c) { return c.startDateLabel; } },
+            { key: 'completedOn', header: 'Checklist closed', sortable: true,
+              csv: function (c) { return c.completedOn || ''; },
+              cell: function (c) {
+                return c.completedOn
+                  ? h('span', null, c.completedOnLabel || ui.dateLabel(c.completedOn))
+                  : h('span', { className: 'muted' }, '—');
+              } },
+            { key: 'tasks', header: 'Tasks', numeric: true, align: 'right',
+              csv: function (c) { return c.tasksTotal; },
+              cell: function (c) { return c.tasksTotal; } },
+            { key: 'actions', header: '', align: 'right',
+              cell: function (c) {
+                return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm',
+                  onClick: function () { openSt[1](c.id); } }, 'Record');
+              } }
+          ],
+          emptyIcon: I.archive, emptyTitle: 'No completed onboardings yet',
+          emptyBody: 'A case moves here once every task on its checklist is closed.'
+        })),
+
+      openSt[0] ? h(CompletedRecordDrawer, { id: openSt[0], onClose: function () { openSt[1](null); } }) : null);
   }
 
   /* -------------------------------------------------- Document verification (4.8) */
@@ -2437,6 +2650,7 @@
     'hr/onboarding/dashboard': OnboardingDashboard,
     'hr/onboarding/cases': OnboardingCases,
     'hr/onboarding/verification': DocumentVerification,
+    'hr/onboarding/completed': OnboardingCompleted,
     'hr/onboarding/templates': OnboardingTemplates,
 
     'hr/offboarding/dashboard': OffboardingDashboard,

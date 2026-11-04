@@ -289,6 +289,22 @@
     if (!form.reason) errors.reason = REQUIRED;
     return errors;
   }
+  /* Onboarding runs before the joiner arrives, so the joining date has to leave room for
+     the checklist: one day per task, plus the day before joining that the last one takes. */
+  function validOnboardingStart(form) {
+    var errors = {};
+    var tasks = (HRMS.seed.onboardingTaskNames || []).length;
+    if (!form.template) errors.template = REQUIRED;
+    if (!form.joiningDate) errors.joiningDate = REQUIRED;
+    else if (form.joiningDate <= HRMS.seed.todayIso) errors.joiningDate = 'The joining date must be in the future';
+    else {
+      var days = Math.round((new Date(form.joiningDate + 'T00:00') - HRMS.seed.today) / 86400000);
+      if (days < tasks) {
+        errors.joiningDate = tasks + ' days are needed before joining for the checklist · this leaves ' + days;
+      }
+    }
+    return errors;
+  }
   function noticeShortfall(lastWorkingDay, noticeDays) {
     var given = Math.round((new Date(lastWorkingDay + 'T00:00') - HRMS.seed.today) / 86400000);
     var required = noticeDays || 60;
@@ -336,6 +352,7 @@
     payrollLocked: payrollLocked, payrollInputsReady: payrollInputsReady, validSalaryStructure: validSalaryStructure,
     canSubmitSelf: canSubmitSelf, canReview: canReview,
     validResignation: validResignation, noticeShortfall: noticeShortfall, outstandingClearance: outstandingClearance,
+    validOnboardingStart: validOnboardingStart,
     required: required, uniqueIn: uniqueIn, hasErrors: hasErrors
   };
 })();
