@@ -203,9 +203,9 @@
                 return h('div', { className: 'checks__row', key: d.id },
                   h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, I.file),
                   h('div', { className: 'checks__main' },
-                    h('span', { className: 'checks__name' }, d.category),
+                    h('span', { className: 'checks__name' }, d.title || d.category),
                     h('span', { className: 'checks__meta' },
-                      d.name + ' · ' + d.size + ' · uploaded ' + ui.dateLabel(d.uploaded)
+                      d.category + ' · ' + d.name + ' · ' + d.size + ' · uploaded ' + ui.dateLabel(d.uploaded)
                       + (d.verifiedBy ? ' · verified by ' + (emp(d.verifiedBy) || {}).name : ''))),
                   days != null
                     ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', dot: true,
@@ -341,11 +341,12 @@
   /* Uploading a document onto a person's record (PRD 4.24). It lands as Pending
      Verification, which is the same path an employee's own upload takes. */
   function UploadEmployeeDocModal(p) {
-    var form = ui.useForm({ category: seed.documentCategories[0], name: '', size: '', expiry: '' });
+    var form = ui.useForm({ title: '', category: seed.documentCategories[0], name: '', size: '', expiry: '' });
     function save() {
       var res = form.submit(function (v) {
         return ui.report(act.uploadDocument(p.employee.id, {
-          category: v.category, name: v.name, size: v.size || '— KB', expiry: v.expiry || null
+          title: v.title || v.name, category: v.category, name: v.name,
+          size: v.size || '— KB', expiry: v.expiry || null
         }));
       });
       if (res && res.ok) p.onClose();
@@ -358,6 +359,8 @@
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
         h(V.Button, { variant: 'primary', iconStart: I.up, onClick: save }, 'Upload'))
     },
+      h(V.TextField, Object.assign({ label: 'Document name', placeholder: 'e.g. Aadhaar card',
+        hint: 'Defaults to the file name' }, form.field('title'))),
       h(V.Select, Object.assign({ label: 'Category', required: true, options: seed.documentCategories }, form.select('category'))),
       h(V.TextField, Object.assign({ label: 'File name', required: true, placeholder: 'e.g. Aadhaar_Front.pdf' }, form.field('name'))),
       h(ui.FieldRow, { cols: 2 },

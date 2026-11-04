@@ -263,6 +263,9 @@
       { path: 'emergency', label: 'Emergency contacts', section: '4.3', note: 'Who to reach, and how, in an emergency.' },
       { path: 'education', label: 'Education & experience', section: '2.3', note: 'Qualifications and prior employment.' },
       { path: 'bank', label: 'Bank details', section: '2.3', note: 'Salary account details. Changes here need HR approval.' },
+      /* Your own papers belong with the rest of your record, not in the company
+         library, which is where they used to be looked for. */
+      { path: 'documents', label: 'Documents', section: '4.24', note: 'Your own documents: share one with HR, and see what has been verified.' },
       { path: 'preferences', label: 'Preferences', section: '11.1', note: 'Appearance and other personal preferences held in this browser.' },
       { path: 'notifications', label: 'Notification channels', section: '7.2', note: 'Which notifications reach you in-app and by email.' }
     ]},
