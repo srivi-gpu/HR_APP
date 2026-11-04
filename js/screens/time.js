@@ -1193,77 +1193,10 @@
 
   /* ============================================================ Shift dashboard
      PRD 4.23: coverage per shift, unassigned employees and open swap requests. */
-  function ShiftsDashboard() {
-    var shifts = store.collection('shifts');
-    var assignments = store.collection('shiftAssignments');
-    var swaps = store.collection('shiftSwaps');
-    var today = seed.todayIso;
-
-    var todays = assignments.filter(function (a) { return a.date === today; });
-    var coverage = shifts.map(function (s) {
-      return [s.name, todays.filter(function (a) { return a.shift === s.id; }).length, s.night ? 'warning' : 'success'];
-    });
-    var assignedToday = {};
-    todays.forEach(function (a) { assignedToday[a.employee] = true; });
-    var unassigned = workforce().filter(function (e) { return !assignedToday[e.id]; });
-    var openSwaps = swaps.filter(function (x) { return x.status === 'Pending Approval'; });
-
-    var byShiftHeadcount = shifts.map(function (s) {
-      return [s.name, workforce().filter(function (e) { return e.shift === s.id; }).length, 'info'];
-    });
-
-    return h(React.Fragment, null,
-      h(ui.PageHead, {
-        eyebrow: seed.todayLabel, title: 'Shift overview',
-        description: todays.length + ' employees are rostered today across ' + shifts.length + ' shift templates.',
-        actions: [
-          h(V.Button, { key: 'a', variant: 'outline', iconStart: I.gantt, onClick: function () { router.go('hr/shifts/roster'); } }, 'Open roster'),
-          h(V.Button, { key: 'b', variant: 'primary', iconStart: I.plus, onClick: function () { router.go('hr/shifts/templates'); } }, 'Shift templates')
-        ]
-      }),
-
-      h(Stats, null,
-        h(Stat, { label: 'Shift templates', value: shifts.length, sub: shifts.filter(function (s) { return s.night; }).length + ' night shift' }),
-        h(Stat, { label: 'Rostered today', value: todays.length, sub: ui.pct(todays.length, workforce().length) + '% of the workforce' }),
-        h(Stat, { label: 'Unassigned today', value: unassigned.length, sub: 'Weekly off or no roster row',
-          tone: unassigned.length ? 'warn' : 'good' }),
-        h(Stat, { label: 'Open swap requests', value: openSwaps.length, sub: 'Awaiting a decision',
-          tone: openSwaps.length ? 'warn' : 'good', onClick: function () { router.go('hr/shifts/swaps'); } })),
-
-      h(Grid, null,
-        h(Card, { span: 6, title: 'Coverage today', description: 'Published roster rows per shift for ' + seed.todayLabel + '.' },
-          h(ui.Bars, { rows: coverage })),
-        h(Card, { span: 6, title: 'Default shift assignment', description: 'The shift each employee record carries (PRD 4.21).' },
-          h(ui.Bars, { rows: byShiftHeadcount })),
-
-        h(Card, { span: 7, title: 'Shift timings', description: 'Hours are computed from the timings and break (PRD 14.4).' },
-          h('div', { className: 'list' }, shifts.map(function (s) {
-            return h('div', { className: 'list__row', key: s.id },
-              h('div', { className: 'list__main' },
-                h('span', { className: 'list__title' }, s.name),
-                h('span', { className: 'list__meta' },
-                  s.start + ' – ' + s.end + ' · ' + s.breakMins + ' min break · ' + s.grace + ' min grace · ' + s.days)),
-              s.night ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, 'Night') : null,
-              h(V.Chip, { size: 'sm', shape: 'tag' }, rules.shiftHours(s) + ' h'));
-          }))),
-
-        h(Card, {
-          span: 5, title: 'Open swap requests',
-          aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { router.go('hr/shifts/swaps'); } }, 'Decide')
-        },
-          openSwaps.length
-            ? h('div', { className: 'list' }, openSwaps.map(function (x) {
-                return h('div', { className: 'list__row', key: x.id },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' }, empName(x.employee) + ' → ' + shiftName(x.to)),
-                    h('span', { className: 'list__meta' }, ui.dateLabel(x.date) + ' · with ' + empName(x.with))),
-                  h(ui.StatusChip, { status: x.status }));
-              }))
-            : h(ui.Empty, { icon: I.ok, title: 'No swaps waiting' }))));
-  }
-
-  /* ============================================================ Shift templates
-     PRD 4.20: shift definitions with timing, break, grace period and night flag. */
+  /* ==================================================================== Shifts
+     PRD 4.20: shift definitions with timing, break, grace period and night flag.
+     Named "Shifts" rather than "Templates": it is the list of shifts the organization
+     runs, and calling it a template suggested something you copy from. */
   function ShiftTemplates() {
     var openSt = React.useState(false);
     var form = ui.useForm({ start: '09:00', end: '18:00', breakMins: 60, grace: 15, days: 'Mon–Fri', allowance: 0 });
@@ -1286,11 +1219,11 @@
 
     return h(React.Fragment, null,
       h(Card, {
-        title: 'Shift templates', description: 'Working hours per shift, with break, grace period and the night flag (PRD 4.20).',
+        title: 'Shifts', description: 'Working hours per shift, with break, grace period and the night flag (PRD 4.20). Put people on one from the roster.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Create shift')
       },
         h(ui.DataTable, {
-          exportName: 'shift-templates', label: 'Shift templates', rows: rows, pageSize: 10,
+          exportName: 'shifts', label: 'Shifts', rows: rows, pageSize: 10,
           search: function (s) { return s.name + ' ' + s.code + ' ' + s.days; }, searchPlaceholder: 'Search shifts',
           columns: [
             { key: 'name', header: 'Shift', sortable: true,
@@ -1357,8 +1290,10 @@
     var weekSt = React.useState(0);
     var selSt = React.useState([]);
     var assignSt = React.useState(null);
+    var moveSt = React.useState(null);               // bulk change of the standing shift
     var deptSt = React.useState(''), locSt = React.useState('');
     var shiftPickSt = React.useState('sh-gen');
+    var movePickSt = React.useState('sh-gen');
     var daysPickSt = React.useState([]);
 
     var start = mondayOf(addDays(seed.today, weekSt[0] * 7));
@@ -1396,11 +1331,27 @@
       var res = ui.report(act.assignShift(assignSt[0], shiftPickSt[0], daysPickSt[0]));
       if (res && res.ok) { assignSt[1](null); selSt[1]([]); }
     }
+    function openMove(ids) { movePickSt[1]('sh-gen'); moveSt[1](ids); }
+    function saveMove() {
+      var res = ui.report(act.changeDefaultShift(moveSt[0], movePickSt[0]));
+      if (res && res.ok) { moveSt[1](null); selSt[1]([]); }
+    }
 
     var columns = [{
       key: 'employee', header: 'Employee', sortable: true,
       sortValue: function (r) { return r.employee.name; }, csv: function (r) { return r.employee.name; },
       cell: function (r) { return h(ui.Person, { employee: r.employee, sub: deptName(r.employee.department) }); }
+    }, {
+      /* The shift they are on, as against the dated rows beside it. Without this the
+         bulk change has nowhere to show, and the two ideas stay easy to confuse. */
+      key: 'standing', header: 'On shift', sortable: true,
+      sortValue: function (r) { return shiftName(r.employee.shift); },
+      csv: function (r) { return shiftName(r.employee.shift); },
+      cell: function (r) {
+        var s = shiftOf(r.employee.shift);
+        if (!s) return h('span', { className: 'muted' }, '—');
+        return h(V.Chip, { size: 'sm', shape: 'tag', variant: s.night ? 'soft' : undefined, tone: s.night ? 'warning' : undefined }, s.code || s.name);
+      }
     }].concat(dates.map(function (d, idx) {
       var day = new Date(d + 'T00:00');
       return {
@@ -1424,10 +1375,17 @@
     })).concat([{
       key: 'actions', header: '', align: 'right',
       cell: function (r) {
-        return h(V.Button, {
-          variant: 'ghost', className: 'vi-btn--sm',
-          onClick: function () { openAssign([r.employee.id]); }
-        }, 'Assign');
+        /* Icons, not labels: seven day columns plus the standing shift already fill the
+           row, and two more text buttons pushed the table into a horizontal scroll. */
+        return h('span', { className: 'row gap-1', style: { justifyContent: 'flex-end' } },
+          h(V.IconButton, {
+            icon: I.hourglass, 'aria-label': 'Change ' + r.employee.name + '\u2019s shift',
+            title: 'Change shift', onClick: function () { openMove([r.employee.id]); }
+          }),
+          h(V.IconButton, {
+            icon: I.gantt, 'aria-label': 'Roster ' + r.employee.name,
+            title: 'Roster this week', onClick: function () { openAssign([r.employee.id]); }
+          }));
       }
     }]);
 
@@ -1464,11 +1422,17 @@
           filters: h(React.Fragment, null,
             h(ui.Filter, { label: 'Department', value: deptSt[0], onChange: deptSt[1], options: deptOptions() }),
             h(ui.Filter, { label: 'Location', value: locSt[0], onChange: locSt[1], options: locOptions() })),
-          toolbar: h(V.Button, {
-            variant: 'primary', className: 'vi-btn--sm', iconStart: I.relate,
-            disabled: !selSt[0].length,
-            onClick: function () { openAssign(selSt[0]); }
-          }, selSt[0].length ? 'Assign ' + selSt[0].length + ' selected' : 'Assign selected'),
+          toolbar: h('span', { className: 'row gap-2' },
+            h(V.Button, {
+              variant: 'outline', className: 'vi-btn--sm', iconStart: I.hourglass,
+              disabled: !selSt[0].length,
+              onClick: function () { openMove(selSt[0]); }
+            }, selSt[0].length ? 'Change shift for ' + selSt[0].length : 'Change shift'),
+            h(V.Button, {
+              variant: 'primary', className: 'vi-btn--sm', iconStart: I.relate,
+              disabled: !selSt[0].length,
+              onClick: function () { openAssign(selSt[0]); }
+            }, selSt[0].length ? 'Roster ' + selSt[0].length + ' selected' : 'Roster selected')),
           columns: columns,
           emptyIcon: I.gantt, emptyTitle: 'No employees in this view',
           emptyBody: 'Clear the department or location filter to see the full roster.'
@@ -1502,7 +1466,44 @@
           }))),
         h('p', { className: 'muted', style: { fontSize: 12 } },
           (assignSt[0].length * daysPickSt[0].length) + ' roster row(s) will be written. '
-          + 'An existing shift on the same date is replaced and reported in the result.')) : null);
+          + 'An existing shift on the same date is replaced and reported in the result.')) : null,
+
+      moveSt[0] ? h(ui.Modal, {
+        title: moveSt[0].length > 1 ? 'Change the shift for ' + moveSt[0].length + ' employees' : 'Change shift',
+        description: moveSt[0].length === 1
+          ? empName(moveSt[0][0]) + ' is on ' + shiftName((emp(moveSt[0][0]) || {}).shift)
+          : 'Moves everyone selected onto one shift from today.',
+        onClose: function () { moveSt[1](null); },
+        footer: h(React.Fragment, null,
+          h(V.Button, { variant: 'outline', onClick: function () { moveSt[1](null); } }, 'Cancel'),
+          h(V.Button, { variant: 'primary', onClick: saveMove }, 'Change shift'))
+      },
+        h(V.Select, {
+          label: 'Move onto', required: true, value: movePickSt[0], options: shiftOptions(),
+          onChange: function (v) { movePickSt[1](v); }
+        }),
+        /* What they are on now, so a bulk move over a mixed selection is not blind. */
+        h(ui.FormSection, { title: 'Currently on', description: 'The shift each selected employee carries today.' },
+          h('div', { className: 'checks' },
+            Object.keys(moveSt[0].reduce(function (m, id) {
+              var e = emp(id); var k = e ? (e.shift || 'none') : 'none';
+              m[k] = (m[k] || 0) + 1; return m;
+            }, {})).map(function (k) {
+              var count = moveSt[0].filter(function (id) { var e = emp(id); return e && (e.shift || 'none') === k; }).length;
+              return h('div', { className: 'checks__row', key: k },
+                h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, I.hourglass),
+                h('div', { className: 'checks__main' },
+                  h('span', { className: 'checks__name' }, k === 'none' ? 'No shift set' : shiftName(k)),
+                  h('span', { className: 'checks__meta' },
+                    count + ' employee' + (count === 1 ? '' : 's')
+                    + (k === movePickSt[0] ? ' \u00b7 already on the chosen shift' : ''))),
+                k === movePickSt[0]
+                  ? h(V.Chip, { size: 'sm', shape: 'tag' }, 'No change')
+                  : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, 'Will move'));
+            }))),
+        h('p', { className: 'muted', style: { fontSize: 12 } },
+          'This changes the shift the employee is on, not the roster rows already published for this week. '
+          + 'Each change is written to the employee\u2019s employment history.')) : null);
   }
 
   /* ============================================================== Shift swaps
@@ -2031,7 +2032,6 @@
     'hr/leave/types': LeaveTypes,
     'hr/leave/policies': LeavePolicies,
 
-    'hr/shifts/dashboard': ShiftsDashboard,
     'hr/shifts/templates': ShiftTemplates,
     'hr/shifts/roster': ShiftRoster,
     'hr/shifts/swaps': ShiftSwaps,

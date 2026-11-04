@@ -485,6 +485,34 @@
     return done(form.name + ' created');
   }
 
+  /* The shift an employee is *on*, as opposed to the dated roster rows assignShift
+     writes. Changing it in bulk is what moving a team onto a new shift actually means:
+     the roster governs a given week, this governs what they are rostered to by default.
+     Each change is recorded against the employee like any other record edit. */
+  function changeDefaultShift(employeeIds, shiftId) {
+    var ids = [].concat(employeeIds);
+    if (!ids.length) return fail({ _: 'Choose at least one employee' });
+    var shift = store.shift(shiftId);
+    if (!shift) return fail({ shift: 'Choose a shift' });
+    var changed = 0, already = 0;
+    ids.forEach(function (employeeId) {
+      var e = store.employee(employeeId);
+      if (!e) return;
+      if (e.shift === shiftId) { already++; return; }
+      store.setOverride('employees', employeeId, { shift: shiftId });
+      store.add('employmentHistory', {
+        id: store.nextId('employmentHistory', 'EH'), employee: employeeId, on: today(),
+        change: 'Assigned shift changed',
+        from: (store.shift(e.shift) || {}).name || '—', to: shift.name
+      });
+      changed++;
+    });
+    store.log('moved ' + changed + ' employee(s) onto the ' + shift.name + ' shift', 'User activity');
+    if (!changed) return done('Everyone selected is already on ' + shift.name, { changed: 0, already: already });
+    return done(changed + ' employee' + (changed === 1 ? '' : 's') + ' moved onto ' + shift.name
+      + (already ? ', ' + already + ' already on it' : ''), { changed: changed, already: already });
+  }
+
   function assignShift(employeeIds, shiftId, dates) {
     var ids = [].concat(employeeIds), assigned = 0, conflicts = [];
     ids.forEach(function (employeeId) {
@@ -1237,7 +1265,7 @@
     checkIn: checkIn, checkOut: checkOut, requestRegularization: requestRegularization,
     approveRegularization: approveRegularization, rejectRegularization: rejectRegularization,
     /* Shifts */
-    createShift: createShift, assignShift: assignShift,
+    createShift: createShift, assignShift: assignShift, changeDefaultShift: changeDefaultShift,
     requestShiftSwap: requestShiftSwap, decideShiftSwap: decideShiftSwap,
     /* Documents */
     uploadDocument: uploadDocument, verifyDocument: verifyDocument,
