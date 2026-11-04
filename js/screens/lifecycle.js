@@ -2705,71 +2705,6 @@
         })));
   }
 
-  function DocumentsConfig() {
-    var docs = store.collection('employeeDocuments');
-    var REQUIRED = ['Identity Proof', 'Address Proof', 'Education Certificate', 'Employment Agreement'];
-    return h(Grid, null,
-      h(Card, { span: 12, title: 'Document categories',
-        description: 'PRD 4.25: the categories an employee can upload against, which are mandatory, and which carry an expiry date.' },
-        h(ui.DataTable, {
-          exportName: 'config-document-categories', label: 'Document categories', pageSize: 10, onExport: false,
-          rows: seed.documentCategories.map(function (cat) {
-            var mine = docs.filter(function (d) { return d.category === cat; });
-            return {
-              id: cat, category: cat, required: REQUIRED.indexOf(cat) >= 0,
-              expiry: cat === 'Identity Proof', count: mine.length,
-              pending: mine.filter(function (d) { return d.status === 'Pending Verification'; }).length
-            };
-          }),
-          columns: [
-            { key: 'category', header: 'Category', sortable: true },
-            { key: 'required', header: 'Mandatory', align: 'center',
-              csv: function (r) { return r.required ? 'Yes' : 'No'; },
-              cell: function (r) {
-                return r.required
-                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning' }, 'Mandatory')
-                  : h('span', { className: 'muted' }, 'Optional');
-              } },
-            { key: 'expiry', header: 'Expiry tracked', align: 'center',
-              csv: function (r) { return r.expiry ? 'Yes' : 'No'; },
-              cell: function (r) { return r.expiry ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, 'Tracked') : h('span', { className: 'muted' }, 'No'); } },
-            { key: 'count', header: 'On file', numeric: true, align: 'right', sortable: true,
-              cell: function (r) { return r.count.toLocaleString(); } },
-            { key: 'pending', header: 'Pending', numeric: true, align: 'right' }
-          ]
-        })),
-
-      h(Card, { span: 6, title: 'Access rules',
-        description: 'Who may see a document once it is uploaded (PRD 10 data scopes).' },
-        h(ui.KeyValue, { rows: [
-          ['Employee', 'Their own documents only'],
-          ['Reporting manager', 'No access to personal documents'],
-          ['HR Administrator', 'Every document, with verification rights'],
-          ['Organization Admin', 'Every document, read only'],
-          ['Verification', 'HR Administrator only (PRD 4.8)'],
-          ['Retention', 'Until one year after exit']
-        ]})),
-
-      h(Card, { span: 6, title: 'Acknowledgement and expiry' },
-        h(ui.KeyValue, { rows: [
-          ['Acknowledgement', 'Per policy, set when it is published (PRD 4.25)'],
-          ['Reminder cadence', 'Weekly until acknowledged'],
-          ['Expiry reminder window', '180 days before expiry (PRD 4.27)'],
-          ['Escalation', 'HR Administrator once the deadline passes'],
-          ['Versioning', 'A new version re-opens acknowledgement for the audience']
-        ]}),
-        h('div', { className: 'checks' },
-          [['Require acknowledgement on a new policy by default', true],
-            ['Remind weekly until acknowledged', true],
-            ['Warn 180 days before a document expires', true],
-            ['Block the employee portal until mandatory documents are uploaded', false]].map(function (row) {
-            return h('div', { className: 'checks__row', key: row[0] },
-              h(V.Switch, { defaultChecked: row[1], 'aria-label': row[0],
-                onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); } }),
-              h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-          }))));
-  }
-
   function AssetsConfig() {
     var assets = store.collection('assets');
     return h(Grid, null,
@@ -2873,7 +2808,6 @@
 
     'hr/config/onboarding': OnboardingConfig,
     'hr/config/offboarding': OffboardingConfig,
-    'hr/config/documents': DocumentsConfig,
     'hr/config/assets': AssetsConfig
   });
 })();
