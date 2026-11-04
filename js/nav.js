@@ -32,12 +32,9 @@
     ]},
 
     { path: 'org', label: 'Organization', icon: 'building', section: '3.2', tabs: [
-      { path: 'profile', label: 'Company profile', section: '3.2', note: 'Name, logo, industry, company size, website and registration details.' },
+      { path: 'profile', label: 'Company profile', section: '3.2', note: 'Name, logo, industry, company size, website, registration details and the office locations and branches.' },
       { path: 'details', label: 'Organization details', section: '3.2', note: 'Time zone, default currency and regional settings.' },
       { path: 'entities', label: 'Legal entities', section: '3.2', note: 'Registered business entities, each with its own statutory configuration.' },
-      { path: 'locations', label: 'Locations & branches', section: '11.2', note: 'Office locations with address, time zone, headcount and status.' },
-      { path: 'chart', label: 'Org chart', section: '3.1', note: 'The position hierarchy. Positions, not people — a vacant one keeps its place in the approval path.' },
-      { path: 'departments', label: 'Departments', section: '3.2', note: 'The department list with head, location and headcount against target. HR owns it; admin reads it.' },
       { path: 'teams', label: 'Teams', section: '3.2', note: 'Working groups inside a department, with their lead and size.' },
       { path: 'numbering', label: 'Employee numbering', section: '3.2', note: 'Prefix, width and next number each entity issues employee IDs from.' },
       { path: 'workweek', label: 'Work week', section: '3.2', note: 'Organization-wide working days, weekly offs and default working hours.' },
@@ -389,7 +386,6 @@
   var PLAN = [
     { label: 'Overview', slots: [
       { label: 'Dashboard', icon: 'home', path: 'dashboard' },
-      { label: 'Search', icon: 'search', path: 'search' },
       { label: 'Approval inbox', icon: 'checklist', path: 'approvals' }
     ]},
     { label: 'People', slots: [
@@ -435,7 +431,13 @@
      `me/profile` does not also need a rail row — and it could not honestly take the
      Employees slot, which is a roster everywhere else. The routes stay; only the row
      goes. Listed here so the orphan check below still means something. */
-  var OFF_PLAN = { 'me/profile': true };
+  var OFF_PLAN = {
+    'me/profile': true,
+    /* Search keeps its route and its place in the command palette, but not a sidebar
+       row: the header's search field is the way in, and a rail row for it was a second
+       door onto the same screen. */
+    'admin/search': true, 'hr/search': true, 'me/search': true
+  };
 
   /* A role's sidebar: the plan, carrying that role's items. The slot owns the label
      and the icon so the structure reads the same everywhere; the item keeps everything

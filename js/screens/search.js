@@ -190,7 +190,7 @@
       rows: function () { return store.collection('locations'); },
       text: function (l) { return [l.name, l.label, l.address, l.tz].join(' '); },
       row: function (l) { return { title: l.name, sub: l.address + ' · ' + l.tz, chip: l.hq ? 'HQ' : null }; },
-      to: { admin: 'admin/org/locations', hr: 'hr/config/structure' } },
+      to: { admin: 'admin/org/profile', hr: 'hr/config/structure' } },
 
     { key: 'audit', label: 'Audit log', icon: 'history', module: 'audit',
       rows: function () { return store.collection('audit'); },

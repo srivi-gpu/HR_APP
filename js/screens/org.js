@@ -62,7 +62,11 @@
             ['Subscription', seed.subscription.plan]
           ]}),
           h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.sitemap,
-            onClick: function () { router.goAs('hr/config/structure'); } }, 'Organization structure'))));
+            onClick: function () { router.goAs('hr/config/structure'); } }, 'Organization structure'))),
+      /* Locations and branches live here rather than on a tab of their own: an office
+         address is part of who the company is, and the profile was the page people
+         went looking for it on. */
+      h(Locations));
   }
 
   function OrganizationDetails() {
@@ -1034,7 +1038,7 @@
         h('div', { className: 'row gap-2 wrap' },
           h(V.Button, {
             variant: 'outline', className: 'vi-btn--sm',
-            onClick: function () { router.go('admin/org/locations'); }
+            onClick: function () { router.go('admin/org/profile'); }
           }, 'Edit billing address'),
           h(V.Button, {
             variant: 'outline', className: 'vi-btn--sm',
@@ -1595,11 +1599,9 @@
     'admin/org/profile': CompanyProfile,
     'admin/org/details': OrganizationDetails,
     'admin/org/entities': LegalEntities,
-    'admin/org/chart': OrgChart,
-    'admin/org/departments': Departments,
     'admin/org/teams': Teams,
     'admin/org/numbering': Numbering,
-    'admin/org/locations': Locations,
+    'admin/org/locations': CompanyProfile,   /* folded into the profile; kept so old links resolve */
     'admin/org/workweek': WorkWeek,
     'admin/org/holidays': OrgHolidays,
     'admin/org/settings': OrgSettings,
