@@ -145,3 +145,23 @@
 .ast-hero__n small { font-size: 13px; color: var(--text-secondary); }
 @media (max-width: 1240px) { .ast-hero__art { width: 240px; height: 170px; } }
 }
+
+/* --- the hero's 3D base: plinth, platform, grid --- */
+@layer tl {
+.ast-iso__shadow { fill: #2a1866; opacity: .22; }
+.ast-iso__ledge { fill: var(--brand-soft); }
+.ast-iso__edge { fill: none; stroke: #ffffff; stroke-opacity: .65; stroke-width: 1.1; stroke-linejoin: round; }
+.ast-iso__tl { fill: var(--bg-muted); }
+.ast-iso__tr { fill: var(--border-default); }
+.ast-iso__top { stroke: var(--brand-border); stroke-width: .8; }
+.ast-iso__grid { fill: none; stroke: var(--brand-border); stroke-width: .6; opacity: .7; }
+@media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .ast-iso__edge { stroke-opacity: .25; } }
+html[data-theme="dark"] .ast-iso__edge { stroke-opacity: .25; }
+}
+/* The plinth is lit from the top left in both themes: the left faces stay lighter than
+   the right, which theme tokens alone would invert in dark mode. */
+@layer tl {
+.ast-iso { --iso-l1: #ddd2fb; --iso-l2: #f4effb; --iso-r1: #5733c1; --iso-r2: #3d2496; }
+@media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .ast-iso { --iso-l1: #5b44a6; --iso-l2: #3a2a72; --iso-r1: #2c1d5c; --iso-r2: #1d1340; } }
+html[data-theme="dark"] .ast-iso { --iso-l1: #5b44a6; --iso-l2: #3a2a72; --iso-r1: #2c1d5c; --iso-r2: #1d1340; }
+}
