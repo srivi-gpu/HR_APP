@@ -9,6 +9,8 @@
 
    What each card holds is the admin's job, which is accounts and access:
 
+   - the first card is the audit log, newest first, so "who changed that?" is answered
+     on the page that opens;
    - the square card is the handful of people who can change everything, and whether
      their sign-in is protected;
    - the wide card is how recently people actually sign in, with Ara's suggestions read
@@ -62,44 +64,24 @@
     ];
   }
 
-  /* ---------- six months of joiners, counted from the directory ---------- */
-  var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  function joinersBySix() {
-    var counts = {}, out = [];
-    store.collection('employees').forEach(function (e) {
-      if (e.joined) counts[e.joined.slice(0, 7)] = (counts[e.joined.slice(0, 7)] || 0) + 1;
-    });
-    var d = new Date(seed.todayIso + 'T00:00');
-    for (var i = 5; i >= 0; i--) {
-      var m = new Date(d.getFullYear(), d.getMonth() - i, 1);
-      var key = m.getFullYear() + '-' + String(m.getMonth() + 1).padStart(2, '0');
-      out.push({ label: MON[m.getMonth()], n: counts[key] || 0 });
-    }
-    return out;
+  /* ====================================================== recent changes
+     The audit log, newest first: who changed what, and when. It is the record an admin
+     is most often asked about ("who turned that off?"), and the app writes to it on
+     every action, so the card is live rather than a summary of the seed. */
+  var AUDIT_ICON = { Security: 'lock', Configuration: 'gear', Permissions: 'shield', 'User activity': 'person' };
+  var AUDIT_ROUTE = { Security: 'admin/audit/security', Configuration: 'admin/audit/config',
+    Permissions: 'admin/audit/permissions', 'User activity': 'admin/audit/activity' };
+  function recentChanges(n) {
+    return store.collection('audit').slice()
+      .sort(function (a, b) { return a.on < b.on ? 1 : a.on > b.on ? -1 : 0; })
+      .slice(0, n);
   }
-
-  /* The card-stack illustration from the reference, redrawn in brand tints. */
-  function CardStack() {
-    return h('svg', { viewBox: '0 0 240 112', preserveAspectRatio: 'xMidYMid meet', 'aria-hidden': 'true' },
-      h('defs', null,
-        h('linearGradient', { id: 'admSt1', x1: 0, y1: 0, x2: 1, y2: 1 },
-          h('stop', { offset: 0, stopColor: 'var(--brand-solid)', stopOpacity: .18 }),
-          h('stop', { offset: 1, stopColor: 'var(--brand-solid)', stopOpacity: .04 })),
-        h('linearGradient', { id: 'admSt2', x1: 0, y1: 0, x2: 1, y2: 1 },
-          h('stop', { offset: 0, stopColor: 'var(--priority-high)', stopOpacity: .22 }),
-          h('stop', { offset: 1, stopColor: 'var(--priority-high)', stopOpacity: .04 }))),
-      h('rect', { x: 52, y: 18, width: 92, height: 66, rx: 12, fill: 'url(#admSt2)', stroke: 'var(--border-subtle)', transform: 'rotate(-11 98 51)' }),
-      h('rect', { x: 68, y: 12, width: 92, height: 66, rx: 12, fill: 'url(#admSt1)', stroke: 'var(--border-subtle)', transform: 'rotate(6 114 45)' }),
-      h('rect', { x: 78, y: 24, width: 92, height: 66, rx: 12, fill: 'var(--bg-surface)', stroke: 'var(--brand-border)' }),
-      h('circle', { cx: 97, cy: 43, r: 8, fill: 'var(--brand-soft)' }),
-      h('path', { d: 'M93 43l3 3 5-6', stroke: 'var(--brand-solid)', strokeWidth: 1.8, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' }),
-      [52, 62, 72].map(function (yy, i) {
-        return h('rect', { key: yy, x: 112, y: yy - 14, width: [44, 34, 26][i], height: 5, rx: 2.5, fill: 'var(--bg-muted)' });
-      }),
-      h('rect', { x: 92, y: 62, width: 62, height: 5, rx: 2.5, fill: 'var(--bg-muted)' }),
-      h('rect', { x: 92, y: 73, width: 40, height: 5, rx: 2.5, fill: 'var(--bg-muted)' }),
-      h('path', { d: 'M186 28l3.4 8.4 8.6 3.2-8.6 3.2L186 51l-3.4-8.2-8.6-3.2 8.6-3.2L186 28Z', fill: 'var(--brand-solid)', opacity: .55 }),
-      h('circle', { cx: 204, cy: 58, r: 3.4, fill: 'var(--priority-high)', opacity: .6 }));
+  function when(on) {
+    var d = daysBetween(on.slice(0, 10), seed.todayIso);
+    if (d <= 0) return 'Today ' + on.slice(11, 16);
+    if (d === 1) return 'Yesterday';
+    if (d < 7) return d + ' days ago';
+    return ui.dateLabel(on.slice(0, 10));
   }
 
   /* ====================================================== privileged access
@@ -340,8 +322,7 @@
     var users = store.collection('users');
     var me = store.employeeByName(HRMS.nav.role('admin').persona);
 
-    var joiners = joinersBySix();
-    var jmax = Math.max.apply(null, joiners.map(function (x) { return x.n; }).concat([1]));
+    var changes = recentChanges(4);
     var priv = privileged(users), privMfa = priv.filter(function (u) { return u.mfa; }).length;
     var buckets = signins(users);
     var queue = accessQueue(users);
@@ -390,24 +371,22 @@
         }))),
 
       h('div', { className: 'adm-mid' },
-        /* The directory, and six months of joiners. */
-        h('section', { className: 'adm-card adm-tall' },
-          h('div', { className: 'adm-tall__art' }, h(CardStack)),
-          h('div', null,
-            h('span', { className: 'adm-tall__n' }, num(s.headcount)),
-            h('p', { className: 'adm-tall__cap' }, 'People on the directory · ' + s.newJoiners + ' joined this month')),
-          h('div', { className: 'adm-bars' },
-            h('div', { className: 'adm-call' },
-              h('span', { className: 'adm-call__t' },
-                h('span', { className: 'adm-call__dot' }),
-                h('span', null, 'Best of six months ', h('em', null, plural(jmax, 'joiner'))))),
-            h('div', { className: 'adm-bars__row' }, joiners.map(function (m, i) {
-              var hi = m.n === jmax;
-              return h('div', { className: 'adm-bars__b' + (hi ? ' is-hi' : ''), key: m.label + i },
-                h('i', { style: { height: Math.max(6, Math.round(m.n / jmax * 76)) + 'px' } }),
-                h('span', null, m.label));
-            })),
-            h('div', { className: 'adm-bars__base' }))),
+        /* What has changed lately, and who changed it. */
+        h('section', { className: 'adm-card adm-log' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null,
+              h('h2', null, 'Recent changes'),
+              h('p', null, 'Audit log, newest first')),
+            h('button', { type: 'button', className: 'dash__link',
+              onClick: function () { router.go('admin/audit/activity'); } }, 'Audit log', I.right)),
+          changes.length ? h('div', { className: 'adm-log__list' }, changes.map(function (c) {
+            return h('button', { type: 'button', className: 'adm-log__r', key: c.id,
+              onClick: function () { router.go(AUDIT_ROUTE[c.category] || 'admin/audit/activity'); } },
+              h('span', { className: 'adm-ico adm-ico--sm' }, I[AUDIT_ICON[c.category]] || I.history),
+              h('span', { className: 'adm-log__m' },
+                h('span', { className: 'adm-log__t' }, h('b', null, nameOf(c.actor)), ' ', c.action),
+                h('span', { className: 'adm-log__w' }, c.category, ' \u00b7 ', when(c.on))));
+          })) : h(ui.Empty, { icon: I.history, title: 'Nothing logged yet', body: 'Changes made in the app appear here as they happen.' })),
 
         /* The few accounts that can change everything. */
         h('section', { className: 'adm-card adm-priv' },
