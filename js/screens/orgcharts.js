@@ -55,11 +55,11 @@
       var k = n.k || '\u0000root';
       (byManager[k] = byManager[k] || []).push(n);
     });
-    function build(node) {
-      var kids = (byManager[node.id] || []).map(function (k) { return build(k); });
+    function build(node, depth, branch) {
+      var kids = (byManager[node.id] || []).map(function (k, i) { return build(k, depth + 1, depth === 0 ? i : branch); });
       var out = {
         id: node.id, name: node.id, role: node.r || '', dept: node.d || '',
-        mark: initials(node.id)
+        mark: initials(node.id), depth: depth, branch: branch
       };
       if (kids.length) {
         out.children = kids;
@@ -71,7 +71,7 @@
     }
     var root = staff.filter(function (n) { return n.id === rootId; })[0]
       || (byManager['\u0000root'] || [])[0];
-    return root ? [build(root)] : [];
+    return root ? [build(root, 0, -1)] : [];
   }
 
   /* One element, owned by amCharts. The key forces a fresh node per view, so a chart
@@ -213,9 +213,19 @@
   }
 
   /* ------------------------------------------------------------------- network */
-  /* The collapsible force-directed tree, on amCharts' own recipe: the stock forces,
-     a soft shadow under each circle, every other colour so neighbouring branches
-     differ, and the name inside the circle. Only the palette and the click are ours. */
+  /* A collapsible force-directed tree that reads as a reporting line rather than a
+     heap of bubbles. Three decisions do it:
+
+     - size by level, not by headcount. amCharts sizes a circle by everything under it,
+       so the head of a 248-person organisation was a planet and everyone else was dust.
+       Here the root is largest, then directors, then managers, then individuals, so the
+       eye reads depth at a glance. (The series' own radius step is replaced on this one
+       instance; it only sets the circle's radius, which the collision force reads.)
+     - colour by branch. Each director's team takes one colour, lighter at each level
+       down, so a team reads as one group instead of the palette cycling node by node.
+     - links that carry the flow: each is drawn in the colour of the team it feeds and
+       thins with depth, so a reporting line can be followed out from the centre. */
+  var LEVEL_R = [46, 30, 21, 15];
   function drawNetwork(data, onSelect) {
     return function (root, am5, am5hierarchy) {
       var chart = root.container.children.push(am5.SerialChartContainer.new(root, {
@@ -230,34 +240,68 @@
         categoryField: 'name',
         childDataField: 'children',
         idField: 'id',
-        minRadius: 24,
-        maxRadius: am5.percent(9),
-        manyBodyStrength: -10,
-        centerStrength: 0.8
+        manyBodyStrength: -18,
+        centerStrength: 0.7,
+        nodePadding: 7,
+        velocityDecay: 0.45
       }));
+      /* Zoom and pan, with the buttons, so a wide-open branch can always be brought
+         back into the frame. */
+      chart.zoomableContainer.setAll({ wheelable: true, pinchZoom: true, minZoomLevel: 0.3, maxZoomLevel: 4 });
+      chart.set('zoomTools', am5.ZoomTools.new(root, {}));
 
-      series.get('colors').setAll({ colors: palette(), step: 2 });
-      series.links.template.setAll({ strength: 0.5, strokeOpacity: 0.4 });
-      series.circles.template.setAll({
-        fillOpacity: 1,
-        shadowColor: am5.color(0x000000), shadowOpacity: 0.25, shadowBlur: 6, shadowOffsetX: 2, shadowOffsetY: 2
+      var colours = palette().slice(1);   // the first, darkest, is the root's
+      function branchColour(d) {
+        if (!d || d.depth === 0) return am5.color(cssVar('--brand-solid', '#5733c1'));
+        var c = colours[(d.branch < 0 ? 0 : d.branch) % colours.length];
+        return d.depth <= 1 ? c : am5.Color.lighten(c, Math.min(0.55, (d.depth - 1) * 0.28));
+      }
+
+      series._updateRadius = function (dataItem) {
+        var d = dataItem.dataContext || {};
+        var r = LEVEL_R[Math.min(d.depth || 0, LEVEL_R.length - 1)];
+        dataItem.get('circle').animate({ key: 'radius', to: r, duration: this.get('animationDuration', 0) });
+      };
+
+      series.circles.template.setAll({ fillOpacity: 1, strokeWidth: 3, stroke: am5.color(cssVar('--bg-surface', '#ffffff')),
+        shadowColor: am5.color(0x2a1866), shadowOpacity: 0.16, shadowBlur: 10, shadowOffsetY: 3 });
+      series.circles.template.adapters.add('fill', function (fill, target) {
+        return branchColour(target.dataItem && target.dataItem.dataContext);
       });
-      series.outerCircles.template.setAll({ strokeOpacity: 0.35, strokeDasharray: [3, 3] });
+      /* The dashed ring marks a person whose team is folded away. */
+      series.outerCircles.template.setAll({ strokeOpacity: 0.5, strokeWidth: 1.5, strokeDasharray: [3, 3] });
+      series.outerCircles.template.adapters.add('stroke', function (st, target) {
+        return branchColour(target.dataItem && target.dataItem.dataContext);
+      });
 
-      /* The name, fitted into its own circle. A circle too small for the whole name
-         shows the first one, and the tooltip always has the whole name and role. */
+      series.links.template.setAll({ strength: 0.7, distance: 1.25, strokeOpacity: 0.55 });
+      series.links.template.adapters.add('stroke', function (st, target) {
+        var t = target.get('target');
+        return branchColour(t && t.dataContext);
+      });
+      series.links.template.adapters.add('strokeWidth', function (w, target) {
+        var t = target.get('target'), d = t && t.dataContext;
+        return d ? Math.max(1.2, 3.2 - (d.depth - 1) * 0.9) : 1.5;
+      });
+
+      /* First names where there is room for them, initials where there is not; the
+         tooltip always carries the whole name and the role. */
       series.labels.template.setAll({
-        text: '{name}', fontSize: 12, fontWeight: '600', textAlign: 'center',
-        fill: am5.color(0xffffff), oversizedBehavior: 'fit', minScale: 0.6
+        fontSize: 12, fontWeight: '600', textAlign: 'center', fill: am5.color(0xffffff),
+        oversizedBehavior: 'fit', minScale: 0.7, populateText: true
       });
       series.labels.template.adapters.add('text', function (text, target) {
-        var di = target.dataItem, circle = di && di.get('circle');
-        var r = circle ? circle.get('radius', 0) : 0;
-        var d = di && di.dataContext;
-        return d && r < 40 ? String(d.name || '').split(' ')[0] : text;
+        var d = target.dataItem && target.dataItem.dataContext;
+        if (!d) return text;
+        if (d.depth === 0) return '[bold]' + d.name + '[/]';
+        return d.depth === 1 ? String(d.name).split(' ')[0] : d.mark;
+      });
+      series.labels.template.adapters.add('fill', function (f, target) {
+        var d = target.dataItem && target.dataItem.dataContext;
+        return d && d.depth >= 3 ? am5.color(0x2a1866) : am5.color(0xffffff);
       });
 
-      series.nodes.template.set('tooltipText', '[bold]{category}[/]\n{role} · {dept}');
+      series.nodes.template.setAll({ tooltipText: '[bold]{category}[/]\n{role} · {dept}', draggable: true });
       series.nodes.template.events.on('click', function (ev) {
         var d = ev.target.dataItem && ev.target.dataItem.dataContext;
         if (d && onSelect) onSelect(d.id);
@@ -265,7 +309,7 @@
 
       series.data.setAll(data);
       series.set('selectedDataItem', series.dataItems[0]);
-      series.appear(1000, 100);
+      series.appear(900, 100);
     };
   }
 

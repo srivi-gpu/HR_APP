@@ -1815,6 +1815,104 @@
         h('span', null, 'Assigned')));
   }
 
+  /* ---------- the hero's isometric illustration ----------
+     A desk-top platform holding the register's kinds of thing — a laptop with a chart on
+     it, a monitor, a stack of boxes, a phone — drawn as isometric cuboids. Every face is
+     a token colour (top light, left mid, right dark), so it follows the accent and works
+     in dark mode. Decoration: it carries no data, so it is hidden from the reading order. */
+  var ISO_C = Math.cos(Math.PI / 6), ISO_S = 0.5;
+  function isoPt(x, y, z) { return [(x - y) * ISO_C, (x + y) * ISO_S - z]; }
+  function isoPoly(pts) { return pts.map(function (q) { var v = isoPt(q[0], q[1], q[2]); return v[0].toFixed(1) + ',' + v[1].toFixed(1); }).join(' '); }
+  /* One box: x,y on the floor, z up; w along x, d along y, ht up. */
+  function cuboid(key, x, y, z, w, d, ht, tone) {
+    var X = x + w, Y = y + d, Z = z + ht;
+    return h('g', { key: key, className: 'iso iso--' + tone },
+      h('polygon', { className: 'iso__l', points: isoPoly([[x, Y, z], [X, Y, z], [X, Y, Z], [x, Y, Z]]) }),
+      h('polygon', { className: 'iso__r', points: isoPoly([[X, y, z], [X, Y, z], [X, Y, Z], [X, y, Z]]) }),
+      h('polygon', { className: 'iso__t', points: isoPoly([[x, y, Z], [X, y, Z], [X, Y, Z], [x, Y, Z]]) }));
+  }
+  /* A flat panel standing on its back edge (a screen), facing the viewer's left. */
+  function panel(key, x, y, z, w, ht, tone) {
+    return h('g', { key: key, className: 'iso iso--' + tone },
+      h('polygon', { className: 'iso__l', points: isoPoly([[x, y, z], [x + w, y, z], [x + w, y, z + ht], [x, y, z + ht]]) }),
+      h('polygon', { className: 'iso__r', points: isoPoly([[x + w, y - 3, z], [x + w, y, z], [x + w, y, z + ht], [x + w, y - 3, z + ht]]) }),
+      h('polygon', { className: 'iso__t', points: isoPoly([[x, y - 3, z + ht], [x + w, y - 3, z + ht], [x + w, y, z + ht], [x, y, z + ht]]) }));
+  }
+  /* A face filled with one of the gradients defined below, for the plinth's sides. */
+  function face(key, pts, fill, cls) {
+    return h('polygon', { key: key, points: isoPoly(pts), fill: fill, className: cls || null });
+  }
+  /* The isometric grid scored into the platform's top, so it reads as a surface. */
+  function isoGrid(x0, y0, size, z, step) {
+    var out = [];
+    for (var t = step; t < size; t += step) {
+      out.push(h('polyline', { key: 'gx' + t, className: 'ast-iso__grid', points: isoPoly([[x0 + t, y0, z], [x0 + t, y0 + size, z]]) }));
+      out.push(h('polyline', { key: 'gy' + t, className: 'ast-iso__grid', points: isoPoly([[x0, y0 + t, z], [x0 + size, y0 + t, z]]) }));
+    }
+    return out;
+  }
+
+  function AssetIso() {
+    var bars = [14, 22, 17, 28];
+    /* Two tiers: a deep plinth, and a lighter platform stood on it. Their sides are lit
+       from the top left — the left faces lighter, the right faces darker — through
+       gradients, so the base has real depth rather than flat colour. */
+    var P = { x: -80, y: -80, s: 160, h: 22 };      // the plinth
+    var T = { x: -66, y: -66, s: 132, h: 9 };       // the platform on it
+    var Z = P.h + T.h;                              // where the objects stand
+    return h('svg', { className: 'ast-iso', viewBox: '-150 -122 300 214', 'aria-hidden': 'true' },
+      h('defs', null,
+        h('linearGradient', { id: 'isoPL', x1: 0, y1: 0, x2: 0, y2: 1 },
+          h('stop', { offset: 0, style: { stopColor: 'var(--iso-l1)' } }),
+          h('stop', { offset: 1, style: { stopColor: 'var(--iso-l2)' } })),
+        h('linearGradient', { id: 'isoPR', x1: 0, y1: 0, x2: 0, y2: 1 },
+          h('stop', { offset: 0, style: { stopColor: 'var(--iso-r1)' } }),
+          h('stop', { offset: 1, style: { stopColor: 'var(--iso-r2)' } })),
+        h('linearGradient', { id: 'isoTT', x1: 0, y1: 0, x2: 1, y2: 1 },
+          h('stop', { offset: 0, style: { stopColor: 'var(--bg-surface)' } }),
+          h('stop', { offset: 1, style: { stopColor: 'var(--brand-softer)' } })),
+        h('filter', { id: 'isoBlur', x: '-20%', y: '-50%', width: '140%', height: '200%' },
+          h('feGaussianBlur', { stdDeviation: 7 }))),
+
+      h('ellipse', { cx: 0, cy: 86, rx: 132, ry: 22, className: 'ast-iso__shadow', filter: 'url(#isoBlur)' }),
+
+      /* the plinth */
+      face('pl', [[P.x, P.y + P.s, 0], [P.x + P.s, P.y + P.s, 0], [P.x + P.s, P.y + P.s, P.h], [P.x, P.y + P.s, P.h]], 'url(#isoPL)'),
+      face('pr', [[P.x + P.s, P.y, 0], [P.x + P.s, P.y + P.s, 0], [P.x + P.s, P.y + P.s, P.h], [P.x + P.s, P.y, P.h]], 'url(#isoPR)'),
+      face('pt', [[P.x, P.y, P.h], [P.x + P.s, P.y, P.h], [P.x + P.s, P.y + P.s, P.h], [P.x, P.y + P.s, P.h]], null, 'ast-iso__ledge'),
+      /* a thin light line along the plinth's front edges, where the light catches */
+      h('polyline', { className: 'ast-iso__edge', points: isoPoly([[P.x, P.y + P.s, P.h], [P.x + P.s, P.y + P.s, P.h], [P.x + P.s, P.y, P.h]]) }),
+
+      /* the platform */
+      face('tl', [[T.x, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, Z], [T.x, T.y + T.s, Z]], null, 'ast-iso__tl'),
+      face('tr', [[T.x + T.s, T.y, P.h], [T.x + T.s, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, Z], [T.x + T.s, T.y, Z]], null, 'ast-iso__tr'),
+      face('tt', [[T.x, T.y, Z], [T.x + T.s, T.y, Z], [T.x + T.s, T.y + T.s, Z], [T.x, T.y + T.s, Z]], 'url(#isoTT)', 'ast-iso__top'),
+      isoGrid(T.x, T.y, T.s, Z, 22),
+
+      /* boxes, back right */
+      cuboid('b1', 22, -56, Z, 34, 34, 30, 'warm'),
+      cuboid('b2', 22, -20, Z, 34, 30, 22, 'warm'),
+      cuboid('b3', 26, -52, Z + 30, 26, 26, 22, 'warm'),
+      h('polyline', { className: 'ast-iso__tape', points: isoPoly([[39, -56, Z + 30], [39, -56, Z]]) }),
+      /* monitor, back left */
+      cuboid('mstand', -50, -50, Z, 16, 12, 4, 'grey'),
+      cuboid('mneck', -45, -46, Z + 4, 5, 4, 20, 'grey'),
+      panel('mon', -62, -40, Z + 20, 40, 30, 'dark'),
+      /* laptop, front */
+      cuboid('lbase', -36, 4, Z, 52, 36, 3, 'grey'),
+      panel('lscr', -36, 4, Z + 3, 52, 32, 'dark'),
+      bars.map(function (bh, i) {
+        var x0 = -30 + i * 11;
+        return h('polygon', { key: 'bar' + i, className: 'ast-iso__bar' + (i === 3 ? ' is-hi' : ''),
+          points: isoPoly([[x0, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7 + bh * 0.8], [x0, 3.6, Z + 7 + bh * 0.8]]) });
+      }),
+      /* phone, front right */
+      cuboid('phone', 28, 30, Z, 14, 24, 2, 'dark'),
+      /* a sparkle and a mote, floating */
+      h('path', { className: 'ast-iso__spark', d: 'M104 -104l4 9.5 9.5 3.5-9.5 3.5-4 9.5-4-9.5-9.5-3.5 9.5-3.5 4-9.5Z' }),
+      h('circle', { className: 'ast-iso__dot', cx: -116, cy: -48, r: 4 }));
+  }
+
   function AssetsDashboard() {
     var assets = store.collection('assets');
     var requests = store.collection('assetRequests');
@@ -1857,11 +1955,12 @@
         h('div', { className: 'ast-hero__copy' },
           h('span', { className: 'ast-hero__eyebrow' }, 'Asset operations'),
           h('h1', null, 'Your asset ecosystem ', h('em', null, 'at a glance.')),
-          h('p', null, 'Track, manage, and keep your organization’s assets available, secure and productive.')),
-        h('div', { className: 'ast-hero__art', 'aria-hidden': 'true' },
-          h('span', { className: 'ast-hero__card ast-hero__card--3' }),
-          h('span', { className: 'ast-hero__card ast-hero__card--2' }),
-          h('span', { className: 'ast-hero__card ast-hero__card--1' }, I.package)),
+          /* The headline number: the size of the register, and what it is worth. */
+          h('div', { className: 'ast-hero__n' },
+            h('b', null, num(total)),
+            h('span', null, h('strong', null, 'assets on the register'),
+              h('small', null, num(assigned.length) + ' in use \u00b7 ' + ui.inr(value, { short: true }) + ' in value')))),
+        h('div', { className: 'ast-hero__art', 'aria-hidden': 'true' }, h(AssetIso)),
         h('div', { className: 'ast-hero__pills' },
           [['In use', assigned.length, 'is-on'], ['Available', available.length, 'is-free'], ['Service', service.length, 'is-svc']]
             .map(function (x) {
