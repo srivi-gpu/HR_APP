@@ -132,7 +132,7 @@
       row: function (a) {
         return { title: a.name, sub: a.serial + ' · ' + a.category + (a.assignedTo ? ' · ' + empName(a.assignedTo) : ' · unassigned'), chip: a.status };
       },
-      to: { hr: 'hr/assets/inventory', me: 'me/assets' } },
+      to: { hr: 'admin/assets/inventory', me: 'me/assets' } },
 
     { key: 'documents', label: 'Documents', icon: 'file', module: 'documents',
       rows: function () { return store.collection('employeeDocuments'); },

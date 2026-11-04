@@ -40,6 +40,19 @@
     /* Active, pending, suspended and deactivated were four tabs over one table that
        differed only by a status predicate. They are a filter on the table now, which is
        where a reader looks for them, and leaves room for the access-request inbox. */
+    /* Assets are a company resource, not a people process: who holds a laptop, what it
+       cost, when its warranty runs out and who signs off a replacement are all admin's.
+       HR still meets them during offboarding, through the return tasks that module
+       raises, and an employee still sees what is assigned to them. */
+    { path: 'assets', label: 'Assets', icon: 'package', section: '4.33', tabs: [
+      { path: 'dashboard', label: 'Dashboard', section: '4.33', note: 'Inventory by status and category, plus open requests and returns.' },
+      { path: 'inventory', label: 'Inventory', section: '4.29', note: 'Every asset with serial, warranty, condition, location and holder.' },
+      { path: 'allocations', label: 'Allocations', section: '4.30', note: 'Current assignments with employee acknowledgement state.' },
+      { path: 'requests', label: 'Requests', section: '4.31', note: 'Employee asset requests awaiting availability check and approval.' },
+      { path: 'returns', label: 'Returns', section: '4.32', note: 'Return tasks from offboarding, with condition verification.' },
+      { path: 'maintenance', label: 'Maintenance', section: '4.33', note: 'Service records and assets currently out of circulation.' }
+    ]},
+
     { path: 'users', label: 'Users', icon: 'users', section: '2.1', tabs: [
       { path: 'all', label: 'Users', section: '2.1', note: 'Every user account with role, status and last sign-in, filtered by status.' },
       { path: 'access', label: 'Access requests', section: '10', note: 'One inbox for new-user, role-change, team and system access requests.' }
@@ -168,14 +181,6 @@
       { path: 'statutory', label: 'Statutory', section: '4.36', note: 'PF, ESI, professional tax and TDS: what is owed, to whom, by when, and the rates behind each.' },
       { path: 'reimbursements', label: 'Reimbursements', section: '4.36', note: 'Expense claims across the organization and which ones the next cycle carries.' },
       { path: 'loans', label: 'Loans & advances', section: '4.36', note: 'What the company has lent, what is outstanding and what each cycle recovers.' }
-    ]},
-    { path: 'assets', label: 'Assets', icon: 'package', section: '4.33', tabs: [
-      { path: 'dashboard', label: 'Dashboard', section: '4.33', note: 'Inventory by status and category, plus open requests and returns.' },
-      { path: 'inventory', label: 'Inventory', section: '4.29', note: 'Every asset with serial, warranty, condition, location and holder.' },
-      { path: 'allocations', label: 'Allocations', section: '4.30', note: 'Current assignments with employee acknowledgement state.' },
-      { path: 'requests', label: 'Requests', section: '4.31', note: 'Employee asset requests awaiting availability check and approval.' },
-      { path: 'returns', label: 'Returns', section: '4.32', note: 'Return tasks from offboarding, with condition verification.' },
-      { path: 'maintenance', label: 'Maintenance', section: '4.33', note: 'Service records and assets currently out of circulation.' }
     ]},
 
     { path: 'documents', label: 'Documents & policies', icon: 'file', section: '4.27', tabs: [
@@ -391,7 +396,8 @@
     ]},
     { label: 'Compensation & resources', slots: [
       { label: 'Payroll', icon: 'card', path: 'payroll' },
-      { label: 'Assets', icon: 'package', path: 'assets' }
+      /* An employee's own assets. Admin's register is under Administration. */
+      { label: 'Assets', icon: 'package', as: { me: 'assets' } }
     ]},
     { label: 'Organization', slots: [
       { label: 'Organization', icon: 'building', path: 'org' },
@@ -407,6 +413,7 @@
     ]},
     { label: 'Administration', slots: [
       { label: 'Users', icon: 'users', path: 'users' },
+      { label: 'Assets', icon: 'package', as: { admin: 'assets' } },
       { label: 'Permissions', icon: 'shield', path: 'roles' },
       { label: 'Billing and usage', icon: 'card', path: 'billing' },
       { label: 'Integrations', icon: 'plug', path: 'integrations' },
