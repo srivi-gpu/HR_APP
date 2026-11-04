@@ -219,13 +219,20 @@
   /* ============================================================= Users (2.1) */
   var ROLE_LABEL = { admin: 'Organization Admin', hr: 'HR Administrator', manager: 'Manager', me: 'Employee' };
 
+  /* Active, pending, suspended and deactivated were four screens over one table that
+     differed only by a status predicate, so they are a filter on the table now. The
+     predicate is the same one each tab used; only where it is chosen has moved. */
+  var USER_STATUSES = ['Active', 'Pending Invitation', 'Suspended', 'Deactivated'];
+
   function usersScreen(filter, title, description, emptyTitle) {
     return function () {
       var inviteSt = React.useState(false);
       var confirmSt = React.useState(null);
+      var statusSt = React.useState('');
       var form = ui.useForm({ role: 'me' });
       var all = store.collection('users');
       var rows = filter ? all.filter(filter) : all;
+      if (statusSt[0]) rows = rows.filter(function (u) { return u.status === statusSt[0]; });
 
       function invite() {
         var res = form.submit(function (v) { return ui.report(act.inviteUser(v)); });
@@ -269,7 +276,14 @@
             exportName: 'users', label: 'Users', rows: rows, pageSize: 10,
             search: function (u) { var e = emp(u.employee); return (e ? e.name : '') + ' ' + u.email + ' ' + u.role; },
             searchPlaceholder: 'Search by name, email or role',
-            emptyIcon: I.users, emptyTitle: emptyTitle || 'No users here',
+            filters: h(ui.Filter, {
+              label: 'Status', allLabel: 'All statuses', value: statusSt[0], onChange: statusSt[1],
+              options: USER_STATUSES.map(function (x) {
+                return { value: x, label: x === 'Pending Invitation' ? 'Pending invitation' : x };
+              })
+            }),
+            emptyIcon: I.users,
+            emptyTitle: statusSt[0] ? 'No ' + statusSt[0].toLowerCase() + ' accounts' : (emptyTitle || 'No users here'),
             emptyBody: 'Users appear here once they match this view.'
           })),
 
@@ -483,7 +497,32 @@
      the chart: a month that is 30% spent on day 3 is not a month that is fine. */
   function UsageTrend(p) {
     var m = p.m, limit = p.limit, perDay = p.perDay;
-    var W = 580, H = 250, L = 56, R = 18, T = 16, B = 30;
+    var boxRef = React.useRef(null);
+    var boxSt = React.useState({ w: 580, h: 250 });
+
+    /* The card is stretched to the height of the one beside it, so how big the chart
+       should be is only knowable from the box it lands in. A fixed viewBox with
+       `height: auto` could only ever keep its aspect ratio and leave the remainder of
+       the card blank. Measuring the box and drawing at exactly that size fills it, and
+       because the viewBox then matches the box one-to-one nothing is scaled: the axis
+       labels stay the size they are set in, which stretching the drawing would not. */
+    React.useEffect(function () {
+      var el = boxRef.current;
+      if (!el || typeof ResizeObserver === 'undefined') return;
+      var ro = new ResizeObserver(function (entries) {
+        var r = entries[0].contentRect;
+        if (r.width > 0 && r.height > 0) {
+          boxSt[1](function (prev) {
+            var w = Math.max(360, Math.round(r.width)), hh = Math.max(220, Math.round(r.height));
+            return prev.w === w && prev.h === hh ? prev : { w: w, h: hh };
+          });
+        }
+      });
+      ro.observe(el);
+      return function () { ro.disconnect(); };
+    }, []);
+
+    var W = boxSt[0].w, H = boxSt[0].h, L = 56, R = 18, T = 16, B = 30;
 
     var cum = [], run = 0, i;
     for (i = 0; i < m.daily.length; i++) { run += m.daily[i]; cum.push(run); }
@@ -513,8 +552,9 @@
       .filter(function (d, n, a) { return a.indexOf(d) === n && d > 0; });
 
     return h('div', { className: 'bu-chart' },
+      h('div', { className: 'bu-chart__box', ref: boxRef },
       h('svg', {
-        viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'xMidYMid meet', role: 'img',
+        viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'none', role: 'img',
         'aria-label': 'Credits used in ' + m.k + ' against the ' + num(limit) + ' monthly limit'
       },
         h('defs', null, h('linearGradient', { id: 'buFill', x1: 0, y1: 0, x2: 0, y2: 1 },
@@ -548,7 +588,7 @@
         }, (m.live ? 'Runs out ' : 'Ran out ') + cross[0] + ' ' + m.k.slice(0, 3)) : null,
         xs.map(function (d) {
           return h('text', { key: d, x: x(d), y: H - 9, textAnchor: 'middle', className: 'bu-chart__ax' }, d);
-        })),
+        }))),
       h('div', { className: 'bu-chart__k' },
         h('span', null, h('i', { className: 'k-line' }), 'Used'),
         m.live ? h('span', null, h('i', { className: 'k-dash' }), 'At the current pace') : null,
@@ -1034,7 +1074,7 @@
         h('div', { className: 'row gap-2 wrap' },
           h(V.Button, {
             variant: 'outline', className: 'vi-btn--sm',
-            onClick: function () { router.go('admin/org/locations'); }
+            onClick: function () { router.go('admin/org/profile'); }
           }, 'Edit billing address'),
           h(V.Button, {
             variant: 'outline', className: 'vi-btn--sm',
@@ -1590,25 +1630,429 @@
         ]})));
   }
 
+  /* ====================================================== Branding
+     Tracklivo's Branding page: the accent the whole product is drawn in, the two logos
+     people actually see, and whether the product signs its own name at the bottom.
+     The accent is written straight onto the document element, so the swatch you pick
+     is the colour the rest of the app is already using while you look at it. */
+  var ACCENTS = ['#5733c1', '#3730c4', '#2f7ae5', '#1f7a6e', '#2f8a52', '#c2741a', '#cf4a16', '#c02848', '#b4249e', '#263445'];
+
+  function applyAccent(hex) {
+    var r = document.documentElement.style;
+    var keys = ['--brand-solid', '--brand-hover', '--brand-soft', '--brand-softer', '--brand-border', '--text-brand'];
+    if (!hex || hex.toLowerCase() === '#5733c1') {
+      keys.forEach(function (k) { r.removeProperty(k); });
+      return;
+    }
+    r.setProperty('--brand-solid', hex);
+    r.setProperty('--brand-hover', 'color-mix(in srgb, ' + hex + ' 86%, #000)');
+    r.setProperty('--brand-soft', 'color-mix(in srgb, ' + hex + ' 13%, var(--bg-surface))');
+    r.setProperty('--brand-softer', 'color-mix(in srgb, ' + hex + ' 7%, var(--bg-surface))');
+    r.setProperty('--brand-border', 'color-mix(in srgb, ' + hex + ' 32%, var(--bg-surface))');
+    r.setProperty('--text-brand', hex);
+  }
+
+  function SettingRow(p) {
+    return h('div', { className: 'ad-row2' },
+      h('div', { className: 'stack gap-1' },
+        h('strong', null, p.title),
+        p.desc ? h('span', { className: 'muted' }, p.desc) : null),
+      h('div', { className: 'ad-row2__c' }, p.children));
+  }
+
+  function UploadRow(p) {
+    var v = p.value;
+    return h(SettingRow, { title: p.title, desc: p.desc },
+      v ? h('span', { className: 'ad-file' }, I.file, v) : null,
+      v
+        ? h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { p.onChange(null); } }, 'Remove')
+        : h('label', { className: 'vi-btn vi-btn--outline vi-btn--sm ad-upload' }, 'Upload',
+            h('input', {
+              type: 'file', accept: 'image/*', hidden: true, 'aria-label': 'Upload ' + p.title.toLowerCase(),
+              onChange: function (e) {
+                var f = e.target.files && e.target.files[0];
+                if (f) p.onChange(f.name);
+                e.target.value = '';
+              }
+            })));
+  }
+
+  function Branding() {
+    var o = org();
+    var accentSt = React.useState(store.pref('accent') || '#5733c1');
+    var loginSt = React.useState(store.pref('logoLogin') || null);
+    var mailSt = React.useState(store.pref('logoEmail') || null);
+    var byStr = store.pref('poweredBy');
+    var bySt = React.useState(byStr === undefined || byStr === null ? true : byStr);
+    var cur = (accentSt[0] || '#5733c1').toLowerCase();
+
+    React.useEffect(function () { applyAccent(cur); }, [cur]);
+
+    function pick(hex) {
+      if (hex.toLowerCase() === cur) return;
+      accentSt[1](hex);
+      store.setPref('accent', hex);
+      store.log('changed the accent colour to ' + hex.toUpperCase(), 'Organization');
+    }
+    function setLogo(st, key, label) {
+      return function (name) {
+        st[1](name);
+        store.setPref(key, name);
+        store.log((name ? 'uploaded ' + name + ' as ' : 'removed ') + label, 'Organization');
+        ui.toast(name ? label.charAt(0).toUpperCase() + label.slice(1) + ' updated' : label.charAt(0).toUpperCase() + label.slice(1) + ' removed', 'success');
+      };
+    }
+
+    return h(React.Fragment, null,
+      h(Card, { title: 'Branding', description: 'What your people and your candidates see across ' + o.name + '.' },
+        h(SettingRow, { title: 'Accent colour', desc: 'Buttons, links, highlights and the logo, everywhere in the app' },
+          h('div', { className: 'ad-swatches' },
+            ACCENTS.map(function (hex) {
+              return h('button', {
+                key: hex, type: 'button',
+                className: 'ad-swatch' + (cur === hex ? ' is-on' : ''),
+                style: { background: hex }, title: hex.toUpperCase(),
+                'aria-label': 'Accent colour ' + hex.toUpperCase(),
+                'aria-pressed': cur === hex ? 'true' : 'false',
+                onClick: function () { pick(hex); }
+              });
+            }),
+            h('label', {
+              className: 'ad-swatch ad-swatch--custom' + (ACCENTS.indexOf(cur) < 0 ? ' is-on' : ''),
+              title: 'Pick your own colour'
+            }, I.palette,
+              h('input', {
+                type: 'color', value: cur, 'aria-label': 'Pick your own accent colour',
+                onChange: function (e) { pick(e.target.value); }
+              })))),
+        h(SettingRow, { title: 'Preview', desc: 'The same colour the rest of the app is using now' },
+          h(V.Button, { className: 'vi-btn--sm' }, 'Primary'),
+          h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'primary' }, 'Chip'),
+          h('span', { className: 'muted' }, cur.toUpperCase()))),
+
+      h(Card, { title: 'Logo and email' },
+        h(UploadRow, {
+          title: 'Logo', desc: 'Shows on the sign-in screen, the employee portal and exported reports',
+          value: loginSt[0], onChange: setLogo(loginSt, 'logoLogin', 'the logo')
+        }),
+        h(UploadRow, {
+          title: 'Email header', desc: 'Sits at the top of every email the product sends',
+          value: mailSt[0], onChange: setLogo(mailSt, 'logoEmail', 'the email header')
+        }),
+        h(SettingRow, { title: 'Show “Powered by Aptagrim HR”', desc: 'On emails, the employee portal and exported reports' },
+          h(V.Switch, {
+            'aria-label': 'Show Powered by Aptagrim HR', checked: !!bySt[0],
+            onChange: function (e) { bySt[1](e.target.checked); store.setPref('poweredBy', e.target.checked); }
+          }))));
+  }
+
+  /* ====================================================== Email templates
+     The messages the product sends on the organisation's behalf. Each one is
+     previewable before it is edited, because the thing being changed is what a person
+     receives, not a row in a table. */
+  var EMAIL_SEED = [
+    { k: 'invite', name: 'Invitation to join', when: 'When an admin invites someone', subject: 'You have been invited to {{org}}',
+      body: 'Hi {{name}},\n\n{{inviter}} has invited you to join {{org}} on Aptagrim HR. Set your password and you are in.\n\n{{button:Accept the invitation}}\n\nThe link expires in 7 days.' },
+    { k: 'welcome', name: 'Welcome on day one', when: 'On the joining date', subject: 'Welcome to {{org}}, {{name}}',
+      body: 'Hi {{name}},\n\nWelcome aboard. Your manager is {{manager}} and your first-day checklist is waiting for you.\n\n{{button:Open your checklist}}' },
+    { k: 'leave', name: 'Leave decision', when: 'When leave is approved or rejected', subject: 'Your leave request was {{decision}}',
+      body: 'Hi {{name}},\n\nYour {{leaveType}} request for {{dates}} was {{decision}} by {{approver}}.\n\n{{button:View the request}}' },
+    { k: 'payslip', name: 'Payslip published', when: 'When a payroll run is released', subject: 'Your {{month}} payslip is ready',
+      body: 'Hi {{name}},\n\nYour payslip for {{month}} is available now.\n\n{{button:Download the payslip}}' },
+    { k: 'reset', name: 'Password reset', when: 'When someone asks to reset their password', subject: 'Reset your {{org}} password',
+      body: 'Hi {{name}},\n\nSomebody asked to reset this password. If it was not you, ignore this email.\n\n{{button:Choose a new password}}\n\nThe link expires in 1 hour.' },
+    { k: 'exit', name: 'Exit confirmation', when: 'When an exit is approved', subject: 'Your last working day at {{org}}',
+      body: 'Hi {{name}},\n\nYour last working day is {{date}}. Your clearance checklist is below, and access closes at the end of that day.\n\n{{button:Open clearance}}' }
+  ];
+
+  function EmailPreview(p) {
+    var o = org();
+    var t = p.t;
+    var fill = function (x) { return String(x).replace(/\{\{org\}\}/g, o.name).replace(/\{\{name\}\}/g, 'Ananya'); };
+    var lines = fill(t.body).split('\n');
+    return h(ui.Modal, {
+      title: t.name, description: t.when,
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close'),
+        h(V.Button, { variant: 'primary', onClick: p.onEdit }, 'Edit this template'))
+    },
+      h('div', { className: 'ad-mail' },
+        h('div', { className: 'ad-mail__head' },
+          h('span', { className: 'muted' }, 'Subject'),
+          h('strong', null, fill(t.subject))),
+        h('div', { className: 'ad-mail__body' },
+          lines.map(function (ln, n) {
+            var btn = ln.match(/^\{\{button:(.+)\}\}$/);
+            if (btn) return h('span', { key: n, className: 'ad-mail__btn' }, btn[1]);
+            return ln.trim() ? h('p', { key: n }, ln) : h('span', { key: n, className: 'ad-mail__gap' });
+          }))));
+  }
+
+  function EmailEditor(p) {
+    var form = ui.useForm({ subject: p.t.subject, body: p.t.body }, function (v) {
+      return HRMS.rules.required([{ key: 'subject', label: 'Subject' }, { key: 'body', label: 'Message' }], v);
+    });
+    function save() {
+      var res = form.submit(function (v) { return { ok: true, message: p.t.name + ' saved', value: v }; });
+      if (res && res.ok) { p.onSave(res.value); }
+    }
+    return h(ui.Modal, {
+      title: 'Edit ' + p.t.name.toLowerCase(), description: p.t.when,
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, 'Save template'))
+    },
+      h(V.TextField, Object.assign({ label: 'Subject', required: true }, form.field('subject'))),
+      h(V.TextArea, Object.assign({ label: 'Message', required: true, rows: 9 }, form.field('body'))),
+      h('p', { className: 'muted', style: { margin: 0 } },
+        'Placeholders in double braces are filled in when the email is sent: {{name}}, {{org}}, {{manager}}, {{date}}.'));
+  }
+
+  function EmailTemplates() {
+    var rowsSt = React.useState(EMAIL_SEED.map(function (t) { return Object.assign({}, t); }));
+    var openSt = React.useState(null);
+    var rows = rowsSt[0];
+    var open = openSt[0];
+
+    function save(v) {
+      var k = open.t.k;
+      rowsSt[1](rows.map(function (t) { return t.k === k ? Object.assign({}, t, v) : t; }));
+      openSt[1](null);
+      store.log('edited the ' + open.t.name.toLowerCase() + ' email template', 'Organization');
+      ui.toast(open.t.name + ' saved', 'success');
+    }
+
+    return h(React.Fragment, null,
+      h(Card, {
+        title: 'Email templates',
+        description: 'The messages the product sends on your behalf. Preview one before you change it — what is edited here is what somebody receives.'
+      },
+        h('div', { className: 'ad-list' },
+          rows.map(function (t) {
+            return h('div', { className: 'ad-mailrow', key: t.k },
+              h('span', { className: 'ad-mailrow__i' }, I.mail),
+              h('div', { className: 'stack gap-1 grow', style: { minWidth: 0 } },
+                h('strong', null, t.name),
+                h('span', { className: 'muted' }, t.when),
+                h('span', { className: 'muted ad-mailrow__sub' }, t.subject)),
+              h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { openSt[1]({ t: t, mode: 'preview' }); } }, 'Preview'),
+              h(V.Button, { variant: 'outline', className: 'vi-btn--sm', onClick: function () { openSt[1]({ t: t, mode: 'edit' }); } }, 'Edit'));
+          }))),
+
+      open && open.mode === 'preview'
+        ? h(EmailPreview, {
+            t: open.t, onClose: function () { openSt[1](null); },
+            onEdit: function () { openSt[1]({ t: open.t, mode: 'edit' }); }
+          }) : null,
+      open && open.mode === 'edit'
+        ? h(EmailEditor, { t: open.t, onClose: function () { openSt[1](null); }, onSave: save }) : null);
+  }
+
+  /* ====================================================== Working hours
+     Work week, default hours and the holiday calendar on one page. They are the same
+     question — when does this organisation work — and a weekly off on one tab with the
+     public holidays on another made that question take two screens to answer. */
+  function WorkingHours() {
+    return h(React.Fragment, null, h(WorkWeek), h(OrgHolidays));
+  }
+
+  /* ====================================================== Security
+     Tracklivo's Security page: the rules that govern signing in, who is locked out of
+     the product right now, and who has a second step on their account. Policy, its
+     consequence and its coverage read together, which is why they are one page.
+     Everything here is real state from the users collection, not a table of prose. */
+  var TWO_APPS = ['Authenticator app', 'Authenticator app or SMS', 'Security key'];
+
+  function Security() {
+    var usersAll = store.collection('users');
+    var polSt = React.useState({
+      codeLogin: true, pwLogin: true, twoStep: true,
+      twoApp: 'Authenticator app', twoWho: 'Admins and HR',
+      timeout: '7 days', tries: '5 wrong passwords', lockFor: '15 minutes', noRepeat: true
+    });
+    var pol = polSt[0];
+    function set(k) {
+      return function (e) {
+        var v = e && e.target ? (e.target.type === 'checkbox' ? e.target.checked : e.target.value) : e;
+        polSt[1](Object.assign({}, pol, pick(k, v)));
+        store.log('changed the sign-in rule “' + k + '”', 'Security');
+      };
+    }
+    function pick(k, v) { var o = {}; o[k] = v; return o; }
+
+    var blocked = usersAll.filter(function (u) { return u.status === 'Suspended' || u.status === 'Deactivated'; });
+    var signsIn = usersAll.filter(function (u) { return u.status === 'Active'; });
+    var privileged = signsIn.filter(function (u) { return u.role === 'admin' || u.role === 'hr'; });
+    var enrolled = privileged.filter(function (u) { return u.mfa; });
+
+    function unblock(u) {
+      ui.report(act.setUserStatus(u.id, 'Active'));
+    }
+
+    return h(React.Fragment, null,
+      h(Card, {
+        title: 'Sign-in rules',
+        description: 'How people get in, and what happens when they get it wrong.'
+      },
+        h(V.Switch, { label: 'Email sign-in code', description: 'A 6-digit code sent to the work email.', checked: pol.codeLogin, onChange: set('codeLogin') }),
+        h(V.Switch, { label: 'Password sign-in', description: 'Works when codes are slow to arrive.', checked: pol.pwLogin, onChange: set('pwLogin') }),
+        h(V.Switch, { label: '2-step sign-in', description: 'A one-time code from an app, on top of the password.', checked: pol.twoStep, onChange: set('twoStep') }),
+        pol.twoStep ? h('div', { className: 'ad-nest' },
+          h(ui.FieldRow, null,
+            h(V.Select, { label: 'Second step', value: pol.twoApp, options: TWO_APPS, onChange: set('twoApp') }),
+            h(V.Select, { label: 'Who has to use it', value: pol.twoWho, options: ['Admins only', 'Admins and HR', 'Everyone'], onChange: set('twoWho') }))) : null,
+        h(ui.FieldRow, null,
+          h(V.Select, { label: 'Sign out after', value: pol.timeout, options: ['12 hours', '1 day', '3 days', '7 days'], onChange: set('timeout'), hint: 'People stay signed in this long without using the product' }),
+          h(V.Select, { label: 'Block the account after', value: pol.tries, options: ['1 wrong password', '3 wrong passwords', '5 wrong passwords', '10 wrong passwords'], onChange: set('tries'), hint: 'In a row, from the same account' })),
+        h(ui.FieldRow, null,
+          h(V.Select, { label: 'Stay blocked for', value: pol.lockFor, options: ['15 minutes', '1 hour', 'Until an admin unblocks it'], onChange: set('lockFor') }),
+          h('div', null)),
+        h(V.Checkbox, { label: 'Block repeated characters like 00000000', checked: pol.noRepeat, onChange: set('noRepeat') }),
+        h('p', { className: 'muted', style: { margin: 0 } },
+          'People are signed out after ' + pol.timeout.toLowerCase() + ', and an account blocks for '
+            + pol.lockFor.toLowerCase() + ' after ' + pol.tries + '.')),
+
+      h(Card, {
+        title: 'Blocked and deactivated accounts',
+        aside: h('span', { className: 'muted' }, blocked.length + (blocked.length === 1 ? ' account' : ' accounts'))
+      },
+        h('p', { className: 'muted', style: { margin: 0 } },
+          'An account blocks itself after ' + pol.tries + '. Let it back in here, or close it for good from Users.'),
+        blocked.length
+          ? h('div', { className: 'ad-list' }, blocked.map(function (u) {
+              var e = emp(u.employee);
+              return h('div', { className: 'ad-blk' + (u.status === 'Suspended' ? ' is-bad' : ''), key: u.id },
+                h('span', { className: 'ad-blk__i' }, u.status === 'Suspended' ? I.lock : I.clock),
+                h('div', { className: 'stack gap-1 grow', style: { minWidth: 0 } },
+                  h('strong', null, e ? e.name : u.email, h('span', { className: 'muted' }, ' · ' + u.email)),
+                  h('span', { className: 'muted' },
+                    (u.status === 'Suspended' ? 'Suspended' : 'Deactivated') + ' · last signed in '
+                      + (u.lastSignIn ? ui.relTime(u.lastSignIn) : 'never'))),
+                h(V.Button, { variant: 'outline', className: 'vi-btn--sm', onClick: function () { unblock(u); } },
+                  u.status === 'Suspended' ? 'Unblock' : 'Reactivate'));
+            }))
+          : h(ui.Empty, { icon: I.lock, title: 'Nobody is blocked', body: 'Blocked and deactivated accounts show up here.' })),
+
+      h(Card, {
+        title: '2-step sign-in',
+        aside: h('span', { className: 'muted' }, enrolled.length + ' of ' + privileged.length + ' enrolled')
+      },
+        h('p', { className: 'muted', style: { margin: 0 } },
+          'Admin and HR accounts reach payroll, salaries and everyone’s records, so they are the ones a second step matters for.'),
+        h(V.ProgressBar, {
+          value: privileged.length ? Math.round((enrolled.length / privileged.length) * 100) : 0,
+          'aria-label': 'Privileged accounts with a second step',
+          tone: enrolled.length === privileged.length ? 'success' : 'warning'
+        }),
+        h('div', { className: 'ad-list' }, privileged.map(function (u) {
+          var e = emp(u.employee);
+          return h('div', { className: 'ad-check', key: u.id },
+            h(V.Avatar, { name: e ? e.name : u.email, size: 'xs' }),
+            h('span', { className: 'grow' }, e ? e.name : u.email,
+              h('span', { className: 'muted' }, ' · ' + (ROLE_LABEL[u.role] || u.role)
+                + ' · ' + (u.mfa ? pol.twoApp : 'No second step yet'))),
+            u.mfa
+              ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, 'Enrolled')
+              : h(V.Button, {
+                  variant: 'outline', className: 'vi-btn--sm',
+                  onClick: function () { ui.toast('Reminder sent to ' + (e ? e.name : u.email), 'success'); }
+                }, 'Send a reminder'));
+        }))));
+  }
+
+  /* ====================================================== Access review
+     The standing question Tracklivo asks on this tab: who holds access they should not
+     still have. Each finding is a real row in the users collection, so Keep and the fix
+     both mean something; nothing here is a prose checklist. */
+  function AccessReview() {
+    var keptSt = React.useState([]);
+    var usersAll = store.collection('users');
+    var kept = keptSt[0];
+    var now = Date.now();
+    var DAY = 24 * 60 * 60 * 1000;
+
+    var findings = [];
+    usersAll.forEach(function (u) {
+      var e = emp(u.employee);
+      var who = e ? e.name : u.email;
+      if (u.status === 'Active' && (u.role === 'admin' || u.role === 'hr') && !u.mfa) {
+        findings.push({
+          id: 'mfa-' + u.id, who: who, tone: 'bad',
+          t: who + ' holds ' + (ROLE_LABEL[u.role] || u.role) + ' access with no second step',
+          d: 'Reaches payroll, salaries and every employee record behind a password alone.',
+          fix: 'Require 2-step',
+          run: function () { ui.toast(who + ' must set up a second step at the next sign-in', 'success'); }
+        });
+      }
+      if (u.status === 'Active' && u.lastSignIn && now - new Date(u.lastSignIn).getTime() > 60 * DAY) {
+        findings.push({
+          id: 'idle-' + u.id, who: who, tone: 'bad',
+          t: who + ' has not signed in for over 60 days',
+          d: 'Last seen ' + ui.relTime(u.lastSignIn) + '. The account can still sign in today.',
+          fix: 'Suspend the account',
+          run: function () { ui.report(act.setUserStatus(u.id, 'Suspended')); }
+        });
+      }
+      if (u.status === 'Pending Invitation' && u.invitedOn && now - new Date(u.invitedOn).getTime() > 14 * DAY) {
+        findings.push({
+          id: 'inv-' + u.id, who: who,
+          t: 'The invitation to ' + u.email + ' was never accepted',
+          d: 'Sent ' + ui.relTime(u.invitedOn) + ' and still open.',
+          fix: 'Revoke the invitation',
+          run: function () { ui.report(act.setUserStatus(u.id, 'Deactivated')); }
+        });
+      }
+    });
+    findings = findings.filter(function (f) { return kept.indexOf(f.id) < 0; });
+    var risky = findings.filter(function (f) { return f.tone === 'bad'; });
+
+    function fixAll() {
+      risky.forEach(function (f) { f.run(); });
+      ui.toast('Applied ' + risky.length + ' access fixes', 'success');
+    }
+
+    return h(Card, {
+      title: 'Access review',
+      description: 'Access is checked against the directory every Monday. Keep what is right, fix the rest.',
+      aside: risky.length > 1
+        ? h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.shield, onClick: fixAll },
+            'Fix the ' + risky.length + ' risky ones')
+        : null
+    },
+      findings.length
+        ? h('div', { className: 'ad-list' }, findings.map(function (f) {
+            return h('div', { className: 'ad-find' + (f.tone === 'bad' ? ' is-bad' : ''), key: f.id },
+              h('div', { className: 'stack gap-1 grow', style: { minWidth: 0 } },
+                h('strong', null, f.t),
+                h('span', { className: 'muted' }, f.d)),
+              h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { keptSt[1](kept.concat([f.id])); } }, 'Keep'),
+              h(V.Button, { variant: 'outline', className: 'vi-btn--sm', onClick: function () { f.run(); } }, f.fix));
+          }))
+        : h(ui.Empty, { icon: I.shield, title: 'Nothing to review', body: 'Every account looks right. The next check is on Monday.' }));
+  }
+
   /* ---------------------------------------------------------------- Register */
   HRMS.screens.register({
     'admin/org/profile': CompanyProfile,
-    'admin/org/details': OrganizationDetails,
-    'admin/org/entities': LegalEntities,
-    'admin/org/chart': OrgChart,
-    'admin/org/departments': Departments,
-    'admin/org/teams': Teams,
-    'admin/org/numbering': Numbering,
     'admin/org/locations': Locations,
-    'admin/org/workweek': WorkWeek,
-    'admin/org/holidays': OrgHolidays,
-    'admin/org/settings': OrgSettings,
+    'admin/org/workweek': WorkingHours,
+    'admin/org/branding': Branding,
+    'admin/org/emails': EmailTemplates,
+    /* `admin/org/org-tree` and `admin/org/teams` are registered by admin-people.js,
+       which owns the chart and the team roster that moved in from People. */
 
-    'admin/users/all': usersScreen(null, 'All users', 'Every user account with role, status and last sign-in.'),
-    'admin/users/active': usersScreen(function (u) { return u.status === 'Active'; }, 'Active users', 'Accounts that can currently sign in.', 'No active users'),
-    'admin/users/pending': usersScreen(function (u) { return u.status === 'Pending Invitation'; }, 'Pending invitations', 'Sent but not yet accepted.', 'No invitations outstanding'),
-    'admin/users/suspended': usersScreen(function (u) { return u.status === 'Suspended'; }, 'Suspended users', 'Temporarily blocked accounts.', 'No suspended accounts'),
-    'admin/users/deactivated': usersScreen(function (u) { return u.status === 'Deactivated'; }, 'Deactivated users', 'Closed accounts retained for audit.', 'No deactivated accounts'),
+    /* Organization details, legal entities, employee numbering and organization
+       settings are off the Tracklivo shape and have no tab, so they are not registered:
+       a route the nav does not declare reaches the not-found screen however it is
+       registered here, and an entry that can never be routed to is dead weight. The
+       holiday calendar is inside Working hours; OrgHolidays is rendered there. */
+
+    'admin/users/all': usersScreen(null, 'Users', 'Every user account with role, status and last sign-in.'),
+
+    'admin/roles/review': AccessReview,
+    'admin/settings': Security,
 
     'admin/roles/custom': CustomRoles,
     'admin/roles/groups': PermissionGroups,
@@ -1619,34 +2063,10 @@
 
     'admin/integrations': Integrations,
 
-    'admin/settings/general': settingsScreen('General settings', 'Formats and defaults across the product.', [
-      ['Date format', 'DD MMM YYYY'], ['Number format', 'Indian grouping'], ['Week starts on', 'Monday'],
-      ['Default language', 'English (India)'], ['Default currency', 'INR (₹)'], ['Time zone', 'Asia/Kolkata']
-    ], [['Show employee photos', true], ['Show the org directory to all', true], ['Compact tables by default', false]]),
-    'admin/settings/auth': settingsScreen('Authentication', 'How people sign in.', [
-      ['Sign-in methods', 'Email and password'], ['Single sign-on', 'Not configured'],
-      ['Allowed email domains', 'nexoratech.com'], ['Multi-factor', 'Optional, 38% enrolled']
-    ], [['Require multi-factor for Admin', true], ['Allow password sign-in alongside SSO', true], ['Remember devices for 30 days', true]]),
-    'admin/settings/passwords': settingsScreen('Password policy', 'Applied at sign-up and every reset.', [
-      ['Minimum length', '12 characters'], ['Requires', 'Upper, lower, number, symbol'],
-      ['Rotation', 'Every 180 days'], ['Reuse', 'Last 5 passwords blocked'], ['Lockout', '5 failed attempts, 15 minutes']
-    ], [['Block common passwords', true], ['Warn on breached passwords', true]]),
-    'admin/settings/security': settingsScreen('Security', 'Network and device controls.', [
-      ['IP allow-list', 'Not enforced'], ['Device trust', 'Off'],
-      ['Lockout threshold', '5 failed attempts'], ['Audit retention', '7 years']
-    ], [['Alert on sign-in from a new country', true], ['Alert on permission changes', true], ['Enforce IP allow-list', false]]),
-    'admin/settings/sessions': settingsScreen('Sessions', 'How long a session lasts.', [
-      ['Session lifetime', '12 hours'], ['Idle timeout', '60 minutes'],
-      ['Concurrent sessions', 'Allowed'], ['Forced sign-out', 'On password change']
-    ], [['Sign out all devices on password change', true], ['Allow "keep me signed in"', true]]),
-    'admin/settings/notifications': settingsScreen('Notification defaults', 'The channels each notification type uses unless a person overrides them.', [
-      ['In-app', 'All notification types'], ['Email', 'Leave, payroll, policy and exit events'],
-      ['Push', 'Not configured'], ['Digest', 'Daily at 09:00']
-    ], [['Let employees change their own channels', true], ['Send a daily digest', true], ['Email approvals immediately', true]]),
-    'admin/settings/retention': settingsScreen('Data retention', 'How long records are kept after an employee exits.', [
-      ['Exited employee records', '7 years, then anonymised'], ['Payroll records', '8 years (statutory)'],
-      ['Attendance records', '3 years'], ['Audit logs', '7 years'], ['Documents', 'Until 1 year after exit']
-    ], [['Anonymise instead of deleting', true], ['Allow HR to export before purge', true]]),
+    /* The seven settings tabs are gone: sign-in, lockouts and who has a second step
+       are the Security page above, and the rest were prose tables the product never
+       read. Their paths are not declared by the nav any more, so registering them here
+       could not make them reachable. */
 
     'admin/audit/activity': auditScreen('User activity', 'User activity', 'Who did what, where and when.'),
     'admin/audit/config': auditScreen('Configuration', 'Configuration changes', 'Every configuration edit.'),

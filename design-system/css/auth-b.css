@@ -4,11 +4,37 @@
 @layer tl {
 
 :root {
-  --authb-wash: #f1edfb; --authb-wash-2: #e9e3f8;
-  --authb-card: #ffffff; --authb-aside: #faf8fe;
+  --authb-wash:#f1edfb; --authb-wash-2:#e9e3f8;
+  --authb-card:#ffffff; --authb-aside:#faf8fe;
+  --authb-g1-a:#dfd4f8; --authb-g1-b:#e7e0fa;
+  --authb-g2-a:#d9ccf6; --authb-g2-b:#e6dff9;
+  --authb-g3:#eae4fb;
+  --authb-wave:#ffffff; --authb-wave-op:.75; --authb-wave-op-2:.6;
+  --authb-glow:#d9cefa66;
+  --authb-shadow: 0 2px 6px #2a1a5e0f, 0 24px 60px -12px #2a1a5e24;
 }
-:root[data-theme="dark"], :root:not([data-theme="light"]) {
-  color-scheme: light only;
+/* Dark follows the OS unless the theme is pinned, the same two-rule shape the tokens use. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --authb-wash:#141316; --authb-wash-2:#1a1824;
+    --authb-card:#1c1b20; --authb-aside:#25242a;
+    --authb-g1-a:#2a2340; --authb-g1-b:#221d33;
+    --authb-g2-a:#2a2340; --authb-g2-b:#1f1a2e;
+    --authb-g3:#241f36;
+    --authb-wave:#a993f0; --authb-wave-op:.14; --authb-wave-op-2:.09;
+    --authb-glow:#a993f029;
+    --authb-shadow: 0 2px 6px #00000052, 0 24px 60px -12px #00000085;
+  }
+}
+:root[data-theme="dark"] {
+    --authb-wash:#141316; --authb-wash-2:#1a1824;
+    --authb-card:#1c1b20; --authb-aside:#25242a;
+    --authb-g1-a:#2a2340; --authb-g1-b:#221d33;
+    --authb-g2-a:#2a2340; --authb-g2-b:#1f1a2e;
+    --authb-g3:#241f36;
+    --authb-wave:#a993f0; --authb-wave-op:.14; --authb-wave-op-2:.09;
+    --authb-glow:#a993f029;
+    --authb-shadow: 0 2px 6px #00000052, 0 24px 60px -12px #00000085;
 }
 
 .authb {
@@ -25,16 +51,16 @@
   overflow: hidden;
   /* Washes rather than shapes: no edge can show where a gradient fades out */
   background:
-    radial-gradient(1100px 620px at 102% -8%, #dfd4f8 0%, #e7e0fa 38%, transparent 68%),
-    radial-gradient(1000px 560px at 108% 106%, #d9ccf6 0%, #e6dff9 40%, transparent 70%),
-    radial-gradient(760px 520px at -8% 96%, #eae4fb 0%, transparent 62%),
+    radial-gradient(1100px 620px at 102% -8%, var(--authb-g1-a) 0%, var(--authb-g1-b) 38%, transparent 68%),
+    radial-gradient(1000px 560px at 108% 106%, var(--authb-g2-a) 0%, var(--authb-g2-b) 40%, transparent 70%),
+    radial-gradient(760px 520px at -8% 96%, var(--authb-g3) 0%, transparent 62%),
     var(--authb-wash);
 }
 /* Two ribbons over the wash, stroked only, so they read as curves and never as blocks */
 .authb__waves { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
-.authb__waves svg { position: absolute; width: 150%; height: auto; stroke: #ffffff; fill: none; opacity: .75; }
+.authb__waves svg { position: absolute; width: 150%; height: auto; stroke: var(--authb-wave); fill: none; opacity: var(--authb-wave-op); }
 .authb__waves svg:first-child { top: -6%; right: -30%; }
-.authb__waves svg:last-child { bottom: -8%; right: -24%; opacity: .6; }
+.authb__waves svg:last-child { bottom: -8%; right: -24%; opacity: var(--authb-wave-op-2); }
 
 .authb__top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .authb__foot { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
@@ -46,7 +72,7 @@
   place-self: center; width: min(1060px, 100%); max-height: 100%;
   display: grid; grid-template-columns: minmax(0, 0.84fr) minmax(0, 1fr);
   background: var(--authb-card); border-radius: 28px; overflow: hidden;
-  box-shadow: 0 2px 6px #2a1a5e0f, 0 24px 60px -12px #2a1a5e24;
+  box-shadow: var(--authb-shadow);
 }
 
 /* Left: the pitch, a glass illustration, and what people do here. It is an inset panel,
@@ -59,7 +85,7 @@
 }
 .authb__aside::after {
   content: ""; position: absolute; inset: auto 0 0 0; height: 56%; pointer-events: none;
-  background: radial-gradient(120% 90% at 25% 100%, #d9cefa66, transparent 72%);
+  background: radial-gradient(120% 90% at 25% 100%, var(--authb-glow), transparent 72%);
 }
 .authb__h { font-family: var(--font-flex); font-size: clamp(27px, 2.5vw, 33px); line-height: 1.22; font-weight: 600; color: var(--text-primary); }
 .authb__h em { font-style: normal; color: var(--brand-solid); }
@@ -90,6 +116,8 @@
   background: linear-gradient(100deg, #6b46d6 0%, #5733c1 52%, #7b5ce0 100%);
   border-color: transparent; box-shadow: 0 1px 2px #5733c21f, 0 10px 22px -6px #5733c259;
 }
+.authb__form .vi-btn--primary,
+.authb__form .vi-btn--primary:hover { color: #ffffff; }
 .authb__form .vi-btn--primary:hover { background: linear-gradient(100deg, #5f3ccb 0%, #4e2cb0 52%, #6e4dd8 100%); }
 
 @media (max-width: 920px) {

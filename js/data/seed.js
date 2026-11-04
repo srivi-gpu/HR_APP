@@ -973,7 +973,7 @@
     { id: 'n4', kind: 'Onboarding Reminder', title: 'Pranav Hegde has 3 documents awaiting verification', body: 'Document verification is blocking IT setup', on: '2026-11-02T11:20', read: false, route: 'hr/onboarding/verification', roles: ['hr'] },
     { id: 'n5', kind: 'Attendance Exception', title: '6 missing punches today', body: 'Including Vikram Desai, who has raised a correction', on: '2026-11-03T09:00', read: false, route: 'hr/attendance/regularization', roles: ['hr'] },
     { id: 'n6', kind: 'Asset Request', title: '7 asset requests awaiting approval', body: 'Oldest raised 20 days ago', on: '2026-11-01T10:10', read: true, route: 'hr/assets/requests', roles: ['hr'] },
-    { id: 'n7', kind: 'Invitation', title: '2 invitations are still unaccepted', body: 'Sent more than 5 days ago', on: '2026-10-30T14:30', read: true, route: 'admin/users/pending', roles: ['admin', 'hr'] },
+    { id: 'n7', kind: 'Invitation', title: '2 invitations are still unaccepted', body: 'Sent more than 5 days ago', on: '2026-10-30T14:30', read: true, route: 'admin/users/all', roles: ['admin', 'hr'] },
     { id: 'n8', kind: 'Payslip Published', title: 'Your October 2026 payslip is ready', body: 'Net pay credited on 31 Oct 2026', on: '2026-10-31T18:00', read: true, route: 'me/payroll/payslips', roles: ['me'] },
     { id: 'n9', kind: 'Survey Invitation', title: 'Q4 engagement pulse is open', body: '6 questions · closes 14 Nov 2026', on: '2026-10-30T10:00', read: false, route: 'me/engagement/surveys', roles: ['me'] },
     { id: 'n10', kind: 'Performance Review', title: 'H2 FY2026 self-assessment opens 15 November', body: 'Closes 30 November', on: '2026-10-24T09:30', read: true, route: 'me/performance/self', roles: ['me'] },

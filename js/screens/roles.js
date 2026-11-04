@@ -249,5 +249,8 @@
           + ((roleById(role.basedOn) || {}).name || 'Employee') + '. This cannot be undone from here.')) : null);
   }
 
+  /* `modules` is the Roles tab of the Permissions module: pick a role, set what it may
+     do. The path is unchanged so the permission links already in the product still land
+     here; only the tab's label moved. */
   HRMS.screens.register({ 'admin/roles/modules': RolePermissions });
 })();

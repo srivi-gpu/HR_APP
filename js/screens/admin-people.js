@@ -919,10 +919,17 @@
       }) : null);
   }
 
+  /* Admin no longer has a People module. The chart and the team roster are tabs of
+     Organization — both answer questions about the organisation — and access requests
+     are a tab of Users, because a request for access is a request about an account.
+     Lifecycle is HR's and stays there.
+
+     The old `admin/people/*` paths are not registered. The router resolves a route from
+     the nav tree rather than from this registry, so a path the nav no longer declares
+     reaches the not-found screen whatever is registered against it. */
   HRMS.screens.register({
-    'admin/people/org-tree': PeopleModule,
-    'admin/people/teams': PeopleModule,
-    'admin/people/lifecycle': PeopleModule,
-    'admin/people/access': PeopleModule
+    'admin/org/org-tree': PeopleModule,
+    'admin/org/teams': PeopleModule,
+    'admin/users/access': PeopleModule
   });
 })();
