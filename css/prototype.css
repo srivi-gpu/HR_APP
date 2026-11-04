@@ -372,6 +372,123 @@
 .checks__row.is-done .checks__name { color: var(--text-secondary); text-decoration: line-through; text-decoration-color: var(--border-strong); }
 .checks__meta { font-size: 12px; color: var(--text-secondary); }
 
+/* ---------- Announcement composer ---------- */
+.composer {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: 14px; overflow: visible; position: relative;
+}
+.composer.is-open { border-color: var(--border-strong); box-shadow: var(--tl-elevation-1); }
+.composer__top { display: flex; gap: 12px; align-items: flex-start; padding: 16px 18px; }
+.composer__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.composer__title {
+  border: 0; background: none; padding: 0; width: 100%; color: var(--text-primary);
+  font: 500 16px/1.4 var(--font-flex);
+}
+.composer__title::placeholder { color: var(--text-muted); }
+.composer__title:focus { outline: none; }
+
+/* The editable surface. :empty does not hold once the browser leaves a <br> behind, so
+   emptiness is tracked in state and reflected with data-empty. */
+.composer__editor {
+  min-height: 24px; font-size: 14px; line-height: 1.6; color: var(--text-primary);
+  outline: none; word-break: break-word;
+}
+.composer__editor[data-empty="true"]::before {
+  content: attr(data-ph); color: var(--text-muted); pointer-events: none; display: block;
+}
+.composer__editor p { margin: 0 0 8px; }
+.composer__editor p:last-child { margin-bottom: 0; }
+.composer__editor ul, .composer__editor ol { margin: 0 0 8px; padding-left: 22px; }
+.composer__editor blockquote {
+  margin: 0 0 8px; padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--brand-border); color: var(--text-secondary);
+}
+.composer__editor img { max-width: 100%; border-radius: 8px; }
+.composer__editor code, .post__body code {
+  font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px;
+  background: var(--bg-muted); border-radius: 4px; padding: 1px 5px;
+}
+.composer__hbtn { position: absolute; top: 12px; right: 14px; }
+
+/* Toolbar */
+.composer__bar {
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+  padding: 10px 14px; border-top: 1px solid var(--border-subtle);
+}
+.composer__bar .composer__post { margin-left: auto; }
+.tbtn {
+  width: 30px; height: 30px; display: grid; place-items: center; flex: none;
+  border: 0; background: none; border-radius: 8px; cursor: pointer;
+  color: var(--text-secondary); font-size: 14px;
+}
+.tbtn svg { width: 17px; height: 17px; }
+.tbtn:hover { background: var(--bg-hover); color: var(--text-primary); }
+.tbtn:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: -2px; }
+.tbtn.is-on { background: var(--brand-softer); color: var(--text-brand); }
+.tbtn--w { width: auto; padding: 0 8px; gap: 6px; display: inline-flex; align-items: center; font-size: 13px; }
+.tbar__sep { width: 1px; height: 20px; background: var(--border-subtle); margin: 0 4px; flex: none; }
+.tswatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--border-strong); }
+
+/* The little popovers the toolbar opens (block type, align, colour, emoji) */
+.tpop {
+  position: absolute; z-index: 45; bottom: calc(100% + 6px); left: 0; margin: 0; padding: 6px;
+  list-style: none; display: flex; flex-direction: column; gap: 2px; min-width: 170px;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: 12px; box-shadow: var(--tl-elevation-3);
+}
+.tpop--grid { display: grid; grid-template-columns: repeat(6, 28px); gap: 4px; min-width: 0; }
+.tpop__item {
+  display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 7px 9px;
+  border: 0; background: none; border-radius: 8px; color: var(--text-primary); font: inherit; cursor: pointer;
+}
+.tpop__item:hover { background: var(--bg-hover); }
+.tpop__swatch { width: 26px; height: 26px; border-radius: 7px; border: 1px solid var(--border-subtle); cursor: pointer; }
+.tpop__emoji { font-size: 17px; line-height: 1; padding: 4px; border: 0; background: none; border-radius: 7px; cursor: pointer; }
+.tpop__emoji:hover { background: var(--bg-hover); }
+.tbtn-wrap { position: relative; display: inline-flex; }
+
+/* @mention, in the editor and in a posted announcement */
+.mention {
+  color: var(--warning-fg, #b26a00); font-weight: 500; background: var(--warning-soft, rgba(255,176,32,.14));
+  border-radius: 5px; padding: 0 3px;
+}
+.mentions {
+  position: absolute; z-index: 46; margin: 0; padding: 6px; list-style: none; min-width: 240px;
+  max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: 12px; box-shadow: var(--tl-elevation-3);
+}
+
+/* ---------- A posted announcement ---------- */
+.post { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; }
+.post__head { display: flex; gap: 12px; align-items: center; padding: 14px 18px; }
+.post__who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.post__title { font-size: 14px; color: var(--text-primary); }
+.post__when { font-size: 12px; color: var(--text-secondary); }
+.post__body {
+  padding: 16px 18px; border-top: 1px solid var(--border-subtle);
+  font-size: 14px; line-height: 1.7; color: var(--text-primary);
+}
+.post__body > h3 { margin: 0 0 10px; font: 500 16px/1.4 var(--font-flex); }
+.post__body p { margin: 0 0 10px; }
+.post__body p:last-child { margin-bottom: 0; }
+.post__body ul, .post__body ol { margin: 0 0 10px; padding-left: 22px; }
+.post__body blockquote {
+  margin: 0 0 10px; padding: 2px 0 2px 12px;
+  border-left: 3px solid var(--brand-border); color: var(--text-secondary);
+}
+.post__body img { max-width: 100%; border-radius: 8px; }
+.post__acts { display: flex; gap: 6px; padding: 10px 14px; border-top: 1px solid var(--border-subtle); }
+.post__act {
+  display: inline-flex; align-items: center; gap: 7px; padding: 7px 12px;
+  border: 0; background: none; border-radius: 9px; cursor: pointer;
+  color: var(--text-secondary); font: inherit; font-size: 13px;
+}
+.post__act svg { width: 16px; height: 16px; }
+.post__act:hover { background: var(--bg-hover); color: var(--text-primary); }
+.post__act.is-on { color: var(--text-brand); }
+.post__act__n { font-variant-numeric: tabular-nums; }
+
 /* ---------- Library toolbar: breadcrumbs left, search and actions right ---------- */
 .libbar {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;

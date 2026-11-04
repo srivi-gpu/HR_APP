@@ -323,7 +323,8 @@
               h('div', { className: 'list__main' },
                 h('span', { className: 'list__title row gap-2' },
                   a.pinned ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.flag }, 'Pinned') : null,
-                  h('span', null, a.title)),
+                  /* A titleless announcement leads with its text. */
+                  h('span', null, a.title || a.body)),
                 h('span', { className: 'list__meta' }, a.body)));
           }))),
 

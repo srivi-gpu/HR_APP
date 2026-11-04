@@ -1590,31 +1590,6 @@
     return e ? e.name : (a.byName || 'HR');
   }
 
-  function Reactions(p) {
-    var all = store.collection('announcementReactions').filter(function (r) {
-      return r.announcement === p.announcement;
-    });
-    var me = p.me;
-    return h('div', { className: 'reacts' }, REACTIONS.map(function (r) {
-      var rows = all.filter(function (x) { return x.emoji === r.emoji; });
-      var mine = me && rows.some(function (x) { return x.employee === me.id; });
-      var who = rows.map(function (x) { var e = emp(x.employee); return e ? e.name : '—'; });
-      return h('button', {
-        key: r.emoji, type: 'button',
-        className: 'react' + (mine ? ' is-on' : ''),
-        'aria-pressed': mine ? 'true' : 'false',
-        'aria-label': r.label + (rows.length ? ' · ' + rows.length : ''),
-        title: who.length ? who.join(', ') : r.label,
-        /* A reaction needs no toast: the pill itself lights up. Only a failure speaks. */
-        onClick: function () {
-          var res = act.toggleAnnouncementReaction(p.announcement, r.emoji);
-          if (!res.ok) ui.report(res);
-        }
-      }, h('span', { className: 'react__e', 'aria-hidden': 'true' }, r.emoji),
-         rows.length ? h('span', { className: 'react__n' }, rows.length) : null);
-    }));
-  }
-
   function Comments(p) {
     var rows = store.collection('announcementComments')
       .filter(function (c) { return c.announcement === p.announcement; })
@@ -1662,28 +1637,396 @@
         }, 'Comment')));
   }
 
-  function Composer() {
+  /* ====================================================== Announcement composer
+     Four states of one component: closed, open, open with a title, and the posted
+     announcement. Closed is a single line; clicking it opens the editor; the H button
+     adds a title row; posting renders the result.
+
+     The editor is a contenteditable surface driven by document.execCommand. That API is
+     deprecated and nothing replaces it in a no-build prototype — a from-scratch model
+     would be a project of its own — so it is used deliberately and kept in this one
+     component, behind the toolbar, where swapping it later touches nothing else. */
+  /* The icon set has no thumbs-up and a star does not read as "like", so this one is
+     drawn here rather than borrowing a shape that means something else. */
+  function thumbIcon() {
+    return h('svg', { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', 'aria-hidden': 'true' },
+      h('path', {
+        d: 'M7 10.5V20H4.5A1.5 1.5 0 0 1 3 18.5v-6.5A1.5 1.5 0 0 1 4.5 10.5H7Zm0 0 4.2-7.1a1 1 0 0 1 1.8.5v4.1h4.6a2 2 0 0 1 1.96 2.4l-1.2 6A2 2 0 0 1 16.4 20H7',
+        stroke: 'currentColor', strokeWidth: 1.5, strokeLinejoin: 'round'
+      }));
+  }
+
+  var FONT_COLORS = ['#101114', '#5b5f6b', '#6d3bf5', '#1769d6', '#0f8a4c', '#c0392b', '#b26a00'];
+  var EMOJIS = ['👍', '🎉', '🚀', '✨', '❤️', '👏',
+    '😊', '🙌', '🔥', '✅', '⚠️', '💡'];
+  var BLOCK_TYPES = [
+    { cmd: 'P', label: 'Normal text' },
+    { cmd: 'H2', label: 'Heading' },
+    { cmd: 'H3', label: 'Subheading' },
+    { cmd: 'PRE', label: 'Code block' }
+  ];
+  var ALIGNMENTS = [
+    { cmd: 'justifyLeft', label: 'Align left' },
+    { cmd: 'justifyCenter', label: 'Align centre' },
+    { cmd: 'justifyRight', label: 'Align right' },
+    { cmd: 'justifyFull', label: 'Justify' }
+  ];
+
+  /* Content is authored in this editor, but it is still HTML going back into the DOM,
+     so it is stripped to the tags the toolbar can produce before it is rendered. */
+  var ALLOWED_TAGS = ('P BR B I U S STRONG EM STRIKE DEL SPAN DIV A UL OL LI H2 H3 PRE CODE '
+    + 'BLOCKQUOTE IMG FONT').split(' ');
+  function sanitizeHtml(html) {
+    var box = document.createElement('div');
+    box.innerHTML = String(html || '');
+    (function walk(node) {
+      [].slice.call(node.childNodes).forEach(function (child) {
+        if (child.nodeType === 3) return;                       // text is always fine
+        if (child.nodeType !== 1 || ALLOWED_TAGS.indexOf(child.tagName) < 0) {
+          child.remove();
+          return;
+        }
+        [].slice.call(child.attributes).forEach(function (attr) {
+          var name = attr.name.toLowerCase();
+          var value = String(attr.value || '');
+          var ok = name === 'style' || name === 'class' || name === 'color'
+            || (child.tagName === 'A' && name === 'href')
+            || (child.tagName === 'IMG' && (name === 'src' || name === 'alt'))
+            || (name === 'data-employee');
+          if (!ok || /^\s*javascript:/i.test(value)) child.removeAttribute(attr.name);
+        });
+        if (child.tagName === 'A') { child.setAttribute('target', '_blank'); child.setAttribute('rel', 'noopener'); }
+        walk(child);
+      });
+    })(box);
+    return box.innerHTML;
+  }
+  function htmlToText(html) {
+    var box = document.createElement('div');
+    box.innerHTML = String(html || '');
+    return (box.textContent || '').replace(/\s+/g, ' ').trim();
+  }
+
+  /* A popover anchored to its toolbar button. */
+  function ToolPop(p) {
+    var ref = React.useRef(null);
+    React.useEffect(function () {
+      function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) p.onClose(); }
+      function onKey(e) { if (e.key === 'Escape') p.onClose(); }
+      document.addEventListener('mousedown', onDoc);
+      document.addEventListener('keydown', onKey);
+      return function () {
+        document.removeEventListener('mousedown', onDoc);
+        document.removeEventListener('keydown', onKey);
+      };
+    }, []);
+    return h('ul', { className: 'tpop' + (p.grid ? ' tpop--grid' : ''), ref: ref, role: 'menu' }, p.children);
+  }
+
+  function ToolButton(p) {
+    return h('button', {
+      type: 'button',
+      className: 'tbtn' + (p.wide ? ' tbtn--w' : '') + (p.on ? ' is-on' : ''),
+      title: p.title, 'aria-label': p.title,
+      /* Keep the caret where it is: the editor must not lose focus to the button. */
+      onMouseDown: function (e) { e.preventDefault(); },
+      onClick: p.onClick
+    }, p.children);
+  }
+
+  function RichEditor(p) {
+    var ref = p.editorRef;
+    var emptySt = React.useState(true);
+    var popSt = React.useState(null);                 // 'block' | 'align' | 'color' | 'emoji'
+    var colorSt = React.useState(FONT_COLORS[0]);
+    var mentionSt = React.useState(null);             // { query, at: {left, top} }
+    var fileRef = React.useRef(null);
+
+    function sync() {
+      var el = ref.current;
+      if (!el) return;
+      emptySt[1](!(el.textContent || '').trim() && !el.querySelector('img'));
+      p.onChange(el.innerHTML);
+    }
+    function run(cmd, value) {
+      if (ref.current) ref.current.focus();
+      try { document.execCommand(cmd, false, value); } catch (e) { /* unsupported */ }
+      sync();
+    }
+    function block(tag) { run('formatBlock', tag === 'P' ? 'P' : tag); popSt[1](null); }
+
+    /* ---- @mention: look at the word the caret sits in, and offer people for it ---- */
+    function caretToken() {
+      var sel = window.getSelection();
+      if (!sel || !sel.rangeCount) return null;
+      var node = sel.focusNode;
+      if (!node || node.nodeType !== 3) return null;
+      var upto = node.textContent.slice(0, sel.focusOffset);
+      var m = upto.match(/@([\w'. -]{0,30})$/);
+      if (!m) return null;
+      return { node: node, start: sel.focusOffset - m[0].length, end: sel.focusOffset, query: m[1] };
+    }
+    function checkMention() {
+      var token = caretToken();
+      if (!token) { mentionSt[1](null); return; }
+      mentionSt[1]({ query: token.query });
+    }
+    function insertMention(person) {
+      var token = caretToken();
+      if (!token || !ref.current) { mentionSt[1](null); return; }
+      var range = document.createRange();
+      range.setStart(token.node, token.start);
+      range.setEnd(token.node, token.end);
+      var sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(range);
+      document.execCommand('insertHTML', false,
+        '<span class="mention" data-employee="' + person.id + '">@' + person.name + '</span>&nbsp;');
+      mentionSt[1](null);
+      sync();
+    }
+    var mentionMatches = mentionSt[0]
+      ? store.collection('employees').filter(function (e) {
+        if (e.status === 'Exited') return false;
+        var q = String(mentionSt[0].query || '').toLowerCase();
+        return !q || e.name.toLowerCase().indexOf(q) >= 0;
+      }).slice(0, 6)
+      : [];
+
+    function pickImage(file) {
+      if (!file) return;
+      if (file.size > 256 * 1024) {
+        ui.toast('That image is over 256 KB. The prototype keeps posts in this browser, so pick a smaller one.', 'error');
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function () { run('insertImage', String(reader.result)); };
+      reader.readAsDataURL(file);
+    }
+    function addLink() {
+      var sel = window.getSelection();
+      if (!sel || sel.isCollapsed) { ui.toast('Select the words to link first', 'error'); return; }
+      var href = window.prompt('Link to');
+      if (href) run('createLink', href);
+    }
+
+    return h('div', { className: 'composer__main', style: { position: 'relative' } },
+      p.showTitle ? h('input', {
+        className: 'composer__title', placeholder: 'Add Title here...',
+        value: p.title, 'aria-label': 'Announcement title',
+        onChange: function (e) { p.onTitle(e.target.value); }
+      }) : null,
+
+      h('div', {
+        className: 'composer__editor', contentEditable: true, suppressContentEditableWarning: true,
+        ref: ref, role: 'textbox', 'aria-multiline': 'true', 'aria-label': 'Announcement',
+        'data-ph': 'Type @ to mention someone', 'data-empty': emptySt[0] ? 'true' : 'false',
+        onInput: function () { sync(); checkMention(); },
+        onKeyUp: checkMention,
+        onFocus: p.onFocus,
+        onBlur: function () { window.setTimeout(function () { mentionSt[1](null); }, 150); }
+      }),
+
+      mentionSt[0] && mentionMatches.length ? h('ul', { className: 'mentions' },
+        mentionMatches.map(function (e) {
+          return h('li', { key: e.id },
+            h('button', {
+              type: 'button', className: 'picker__item',
+              onMouseDown: function (ev) { ev.preventDefault(); insertMention(e); }
+            },
+              h(V.Avatar, { name: e.name, size: 'xs' }),
+              h('span', { className: 'picker__text' },
+                h('span', { className: 'picker__name' }, e.name),
+                h('span', { className: 'picker__meta' }, e.designation))));
+        })) : null,
+
+      p.open ? h('div', { className: 'composer__bar' },
+        /* Block type */
+        h('span', { className: 'tbtn-wrap' },
+          h(ToolButton, {
+            wide: true, title: 'Text style',
+            onClick: function () { popSt[1](popSt[0] === 'block' ? null : 'block'); }
+          }, 'Normal text', I.chevron),
+          popSt[0] === 'block' ? h(ToolPop, { onClose: function () { popSt[1](null); } },
+            BLOCK_TYPES.map(function (b) {
+              return h('li', { key: b.cmd },
+                h('button', { type: 'button', className: 'tpop__item',
+                  onMouseDown: function (e) { e.preventDefault(); },
+                  onClick: function () { block(b.cmd); } }, b.label));
+            })) : null),
+
+        /* Alignment */
+        h('span', { className: 'tbtn-wrap' },
+          h(ToolButton, {
+            wide: true, title: 'Alignment',
+            onClick: function () { popSt[1](popSt[0] === 'align' ? null : 'align'); }
+          }, I.align, I.chevron),
+          popSt[0] === 'align' ? h(ToolPop, { onClose: function () { popSt[1](null); } },
+            ALIGNMENTS.map(function (a) {
+              return h('li', { key: a.cmd },
+                h('button', { type: 'button', className: 'tpop__item',
+                  onMouseDown: function (e) { e.preventDefault(); },
+                  onClick: function () { run(a.cmd); popSt[1](null); } }, a.label));
+            })) : null),
+
+        /* Colour */
+        h('span', { className: 'tbtn-wrap' },
+          h(ToolButton, {
+            wide: true, title: 'Text colour',
+            onClick: function () { popSt[1](popSt[0] === 'color' ? null : 'color'); }
+          }, h('span', { className: 'tswatch', style: { background: colorSt[0] } }), I.chevron),
+          popSt[0] === 'color' ? h(ToolPop, { grid: true, onClose: function () { popSt[1](null); } },
+            FONT_COLORS.map(function (c) {
+              return h('li', { key: c },
+                h('button', {
+                  type: 'button', className: 'tpop__swatch', style: { background: c },
+                  'aria-label': 'Colour ' + c,
+                  onMouseDown: function (e) { e.preventDefault(); },
+                  onClick: function () { colorSt[1](c); run('foreColor', c); popSt[1](null); }
+                }));
+            })) : null),
+
+        h('span', { className: 'tbar__sep' }),
+        h(ToolButton, { title: 'Bold', onClick: function () { run('bold'); } }, I.bold),
+        h(ToolButton, { title: 'Italic', onClick: function () { run('italic'); } }, I.italic),
+        h(ToolButton, { title: 'Underline', onClick: function () { run('underline'); } }, I.underline),
+        h(ToolButton, { title: 'Strikethrough', onClick: function () { run('strikeThrough'); } }, I.strike),
+        h(ToolButton, { title: 'Code', onClick: function () { block('PRE'); } }, I.code),
+        h(ToolButton, { title: 'Clear formatting', onClick: function () { run('removeFormat'); } }, I.flask),
+        h('span', { className: 'tbar__sep' }),
+        h(ToolButton, { title: 'Bulleted list', onClick: function () { run('insertUnorderedList'); } }, I.list),
+        h(ToolButton, { title: 'Numbered list', onClick: function () { run('insertOrderedList'); } }, I.numbered),
+        h(ToolButton, { title: 'Link', onClick: addLink }, I.link),
+        h(ToolButton, { title: 'Image', onClick: function () { if (fileRef.current) fileRef.current.click(); } }, I.clip),
+        h(ToolButton, { title: 'Quote', onClick: function () { block('BLOCKQUOTE'); } },
+          h('span', { style: { fontSize: 16, lineHeight: 1 } }, '“')),
+
+        /* Emoji */
+        h('span', { className: 'tbtn-wrap' },
+          h(ToolButton, {
+            title: 'Emoji',
+            onClick: function () { popSt[1](popSt[0] === 'emoji' ? null : 'emoji'); }
+          }, I.smile),
+          popSt[0] === 'emoji' ? h(ToolPop, { grid: true, onClose: function () { popSt[1](null); } },
+            EMOJIS.map(function (em) {
+              return h('li', { key: em },
+                h('button', {
+                  type: 'button', className: 'tpop__emoji', 'aria-label': 'Insert ' + em,
+                  onMouseDown: function (e) { e.preventDefault(); },
+                  onClick: function () { run('insertText', em); popSt[1](null); }
+                }, em));
+            })) : null),
+
+        h('input', {
+          ref: fileRef, type: 'file', accept: 'image/*', className: 'visually-hidden',
+          'aria-label': 'Choose an image',
+          onChange: function (e) { pickImage(e.target.files && e.target.files[0]); e.target.value = ''; }
+        }),
+
+        h(V.Button, {
+          variant: 'primary', className: 'composer__post', disabled: p.posting, onClick: p.onPost
+        }, 'Post')) : null);
+  }
+
+  function AnnouncementComposer() {
+    var me = store.persona(store.pref('role'));
     var openSt = React.useState(false);
-    var form = ui.useForm({ title: '', body: '', pinned: false });
-    function submit() {
-      var res = form.submit(function (v) { return ui.report(act.postAnnouncement(v)); });
-      if (res && res.ok) { form.reset({ title: '', body: '', pinned: false }); openSt[1](false); }
+    var titleOnSt = React.useState(false);
+    var titleSt = React.useState('');
+    var htmlSt = React.useState('');
+    var editorRef = React.useRef(null);
+    /* The editor owns whether it looks empty, so posting remounts it rather than
+       reaching in: clearing innerHTML alone leaves the placeholder hidden. */
+    var genSt = React.useState(0);
+
+    function reset() {
+      if (editorRef.current) editorRef.current.innerHTML = '';
+      htmlSt[1](''); titleSt[1](''); titleOnSt[1](false); openSt[1](false);
+      genSt[1](genSt[0] + 1);
     }
-    if (!openSt[0]) {
-      return h(Card, { span: 12 },
-        h('div', { className: 'row gap-2' },
-          h(V.Button, { variant: 'primary', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Post an announcement'),
-          h('span', { className: 'muted', style: { fontSize: 13 } },
-            'Everyone in the organization sees it, and can react and comment.')));
+    function post() {
+      var clean = sanitizeHtml(htmlSt[0]);
+      var text = htmlToText(clean);
+      if (!text && !/<img/i.test(clean)) { ui.toast('Write something before posting', 'error'); return; }
+      var res = ui.report(act.postAnnouncement({
+        title: titleSt[0].trim(), body: text, html: clean
+      }));
+      if (res && res.ok) reset();
     }
-    return h(Card, { span: 12, title: 'New announcement' },
-      h(V.TextField, Object.assign({ label: 'Title', placeholder: 'e.g. Office closed on 14 November' }, form.field('title'))),
-      h(V.TextArea, Object.assign({ label: 'Announcement', rows: 4, placeholder: 'What should everyone know?' }, form.field('body'))),
-      h('div', { className: 'row gap-3', style: { marginTop: 12 } },
-        h(V.Checkbox, Object.assign({ label: 'Pin to the top' }, form.check('pinned'))),
-        h('span', { style: { marginLeft: 'auto' } }),
-        h(V.Button, { variant: 'ghost', onClick: function () { openSt[1](false); } }, 'Cancel'),
-        h(V.Button, { variant: 'primary', iconStart: I.send, onClick: submit }, 'Post')));
+
+    return h('div', { className: 'composer' + (openSt[0] ? ' is-open' : '') },
+      h('div', { className: 'composer__top' },
+        h(V.Avatar, { name: me ? me.name : 'HR', size: 'sm' }),
+        h(RichEditor, {
+          key: genSt[0], editorRef: editorRef, open: openSt[0],
+          showTitle: titleOnSt[0], title: titleSt[0], onTitle: titleSt[1],
+          onChange: htmlSt[1], onFocus: function () { openSt[1](true); },
+          onPost: post
+        })),
+      /* The H toggle sits above the toolbar in the design, on the editor itself. */
+      openSt[0] ? h('button', {
+        type: 'button', className: 'tbtn composer__hbtn' + (titleOnSt[0] ? ' is-on' : ''),
+        title: titleOnSt[0] ? 'Remove the title' : 'Add a title',
+        'aria-label': titleOnSt[0] ? 'Remove the title' : 'Add a title',
+        'aria-pressed': titleOnSt[0] ? 'true' : 'false',
+        onMouseDown: function (e) { e.preventDefault(); },
+        onClick: function () {
+          var next = !titleOnSt[0];
+          titleOnSt[1](next);
+          if (!next) titleSt[1]('');
+        }
+      }, h('span', { style: { fontWeight: 500 } }, 'H')) : null);
+  }
+
+  /* The fourth state: what the composer produced. */
+  function PostedAnnouncement(p) {
+    var a = p.announcement, me = p.me;
+    var showCommentsSt = React.useState(false);
+    var author = a.by ? emp(a.by) : null;
+    var mine = me && author && me.id === author.id;
+
+    var likeEmoji = REACTIONS[0].emoji;
+    var likes = store.collection('announcementReactions').filter(function (r) {
+      return r.announcement === a.id && r.emoji === likeEmoji;
+    });
+    var iLike = me && likes.some(function (r) { return r.employee === me.id; });
+    var comments = store.collection('announcementComments')
+      .filter(function (c) { return c.announcement === a.id; });
+
+    return h('div', { className: 'post' },
+      h('div', { className: 'post__head' },
+        h(V.Avatar, { name: authorName(a), size: 'sm' }),
+        h('div', { className: 'post__who' },
+          h('span', { className: 'post__title' },
+            mine ? 'You have posted an announcement' : authorName(a) + ' posted an announcement'),
+          h('span', { className: 'post__when' }, ui.dateLabel(a.on))),
+        a.pinned ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.flag }, 'Pinned') : null),
+
+      h('div', { className: 'post__body' },
+        a.title ? h('h3', null, a.title) : null,
+        /* Written in this app's own editor and stripped on the way in and out. */
+        a.html
+          ? h('div', { dangerouslySetInnerHTML: { __html: sanitizeHtml(a.html) } })
+          : h('p', null, a.body)),
+
+      h('div', { className: 'post__acts' },
+        h('button', {
+          type: 'button', className: 'post__act' + (iLike ? ' is-on' : ''),
+          'aria-pressed': iLike ? 'true' : 'false',
+          onClick: function () {
+            var res = act.toggleAnnouncementReaction(a.id, likeEmoji);
+            if (!res.ok) ui.report(res);
+          }
+        }, thumbIcon(), 'Like', likes.length ? h('span', { className: 'post__act__n' }, likes.length) : null),
+        h('button', {
+          type: 'button', className: 'post__act' + (showCommentsSt[0] ? ' is-on' : ''),
+          'aria-expanded': showCommentsSt[0] ? 'true' : 'false',
+          onClick: function () { showCommentsSt[1](!showCommentsSt[0]); }
+        }, I.comment, 'Comment',
+          comments.length ? h('span', { className: 'post__act__n' }, comments.length) : null)),
+
+      showCommentsSt[0]
+        ? h('div', { style: { padding: '0 18px 14px' } }, h(Comments, { announcement: a.id, me: me }))
+        : null);
   }
 
   function announcementsScreen(canPost) {
@@ -1697,18 +2040,10 @@
             ? 'Post to the whole organization. Everyone can react and comment.'
             : 'Company announcements, newest first. React or comment to join in.'
         }),
-        h(Grid, null,
-          canPost ? h(Composer) : null,
+        h('div', { className: 'stack gap-4' },
+          canPost ? h(AnnouncementComposer) : null,
           rows.map(function (a) {
-            return h(Card, { key: a.id, span: 12, title: a.title,
-              aside: a.pinned ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.flag }, 'Pinned') : null },
-              h('p', { style: { fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' } }, a.body),
-              h('div', { className: 'row gap-2' },
-                h(V.Avatar, { name: authorName(a), size: 'xs' }),
-                h('span', { className: 'muted', style: { fontSize: 12 } },
-                  authorName(a) + ' \u00b7 ' + ui.dateLabel(a.on))),
-              h(Reactions, { announcement: a.id, me: me }),
-              h(Comments, { announcement: a.id, me: me }));
+            return h(PostedAnnouncement, { key: a.id, announcement: a, me: me });
           })));
     };
   }
