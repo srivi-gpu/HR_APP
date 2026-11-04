@@ -331,14 +331,17 @@
     { id: 'lt-sl', code: 'SL', name: 'Sick Leave', paid: true, annual: 12, carry: false, maxConsecutive: 7, notice: 0, docRequired: true, halfDay: true },
     { id: 'lt-el', code: 'EL', name: 'Earned Leave', paid: true, annual: 18, carry: true, maxAccrual: 45, notice: 7, docRequired: false, halfDay: true },
     { id: 'lt-ml', code: 'ML', name: 'Maternity Leave', paid: true, annual: 182, carry: false, notice: 30, docRequired: true, halfDay: false },
-    { id: 'lt-pl', code: 'PL', name: 'Paternity Leave', paid: true, annual: 10, carry: false, notice: 15, docRequired: true, halfDay: false },
-    { id: 'lt-co', code: 'CO', name: 'Compensatory Off', paid: true, annual: 0, carry: true, notice: 1, docRequired: false, halfDay: true },
-    { id: 'lt-up', code: 'UP', name: 'Unpaid Leave', paid: false, annual: 0, carry: false, notice: 7, docRequired: false, halfDay: false }
+    /* Loss of pay, where paternity used to sit. The id stays so every reference holds,
+       and the annual figure is the cap on unpaid days a year rather than an entitlement
+       — the balance machinery counts it the same way. Keeping the slot also keeps the
+       seeded random stream where it was, which the figures PRD 15 fixes depend on. */
+    { id: 'lt-pl', code: 'LOP', name: 'Loss of Pay (LOP)', paid: false, annual: 15, carry: false, notice: 7, docRequired: false, halfDay: false },
+    { id: 'lt-co', code: 'CO', name: 'Compensatory Off', paid: true, annual: 0, carry: true, notice: 1, docRequired: false, halfDay: true }
   ];
   var LEAVE_POLICIES = [
-    { id: 'lp-standard', name: 'Standard — Full-Time', appliesTo: 'Full-Time employees past probation', types: ['lt-cl', 'lt-sl', 'lt-el', 'lt-ml', 'lt-pl', 'lt-co', 'lt-up'], status: 'Active' },
-    { id: 'lp-intern', name: 'Interns', appliesTo: 'Interns and trainees', types: ['lt-cl', 'lt-sl', 'lt-up'], status: 'Active' },
-    { id: 'lp-contract', name: 'Contract & Consultant', appliesTo: 'Contract, consultant and part-time', types: ['lt-cl', 'lt-sl', 'lt-up'], status: 'Active' }
+    { id: 'lp-standard', name: 'Standard — Full-Time', appliesTo: 'Full-Time employees past probation', types: ['lt-cl', 'lt-sl', 'lt-el', 'lt-ml', 'lt-pl', 'lt-co'], status: 'Active' },
+    { id: 'lp-intern', name: 'Interns', appliesTo: 'Interns and trainees', types: ['lt-cl', 'lt-sl', 'lt-co'], status: 'Active' },
+    { id: 'lp-contract', name: 'Contract & Consultant', appliesTo: 'Contract, consultant and part-time', types: ['lt-cl', 'lt-sl', 'lt-co'], status: 'Active' }
   ];
 
   var SHIFTS = [
@@ -410,8 +413,8 @@
     'lt-cl': ['Family function', 'Personal errand', 'Short trip', 'House shifting', 'Festival at home'],
     'lt-sl': ['Fever, rest advised', 'Dental procedure', 'Viral infection', 'Medical check-up', 'Recovering from surgery'],
     'lt-el': ['Annual holiday', 'Wedding in the family', 'Travel abroad', 'Extended break', 'Visiting parents'],
-    'lt-pl': ['Paternity leave'], 'lt-ml': ['Maternity leave'],
-    'lt-co': ['Comp off for weekend release'], 'lt-up': ['Unpaid personal leave']
+    'lt-pl': ['Unpaid personal leave', 'Extended absence beyond balance'], 'lt-ml': ['Maternity leave'],
+    'lt-co': ['Comp off for weekend release']
   };
 
   var leaveRequests = [];
