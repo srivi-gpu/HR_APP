@@ -54,7 +54,7 @@
     return [
       { ico: CHECK, t: 'Active accounts', s: 'Of ' + num(users.length) + ' on the directory',
         n: users.filter(function (u) { return u.status === 'Active'; }).length },
-      { ico: XMARK, t: 'Without MFA', s: 'Sign-in protected by a password only',
+      { ico: XMARK, t: 'Without MFA', s: 'Password-only sign-in',
         n: users.filter(function (u) { return !u.mfa; }).length },
       { ico: I.gear, t: 'Open onboarding tasks', s: 'Across ' + running + ' people joining', n: s.pendingOnboardingTasks },
       { ico: WIFI, t: 'Seats in use', s: 'Of ' + sub.seats + ' on ' + sub.plan,
@@ -206,7 +206,7 @@
      head, and the marker opens that suggestion. */
   function SigninChart(p) {
     var b = p.buckets, max = Math.max.apply(null, b.map(function (x) { return x.n; }).concat([1]));
-    var W = 640, H = 200, PL = 34, PR = 8, PT = 24, PB = 24;
+    var W = 640, H = 196, PL = 34, PR = 8, PT = 22, PB = 22;
     var band = (W - PL - PR) / b.length, bw = Math.min(64, band * 0.56);
     function x(i) { return PL + band * i + band / 2; }
     function y(v) { return PT + (1 - v / max) * (H - PT - PB); }
@@ -330,9 +330,12 @@
   function pill(word, cls) { return h('span', { className: 'adm-p adm-p--' + (cls || PILL[word]) }, word); }
 
   /* ====================================================== the page */
+  var QUEUE_FOLD = 6;
+
   function AdminDashA(p) {
     var openSt = React.useState(null);
     var allSt = React.useState(false);
+    var moreSt = React.useState(false);
     var s = store.stats();
     var users = store.collection('users');
     var me = store.employeeByName(HRMS.nav.role('admin').persona);
@@ -435,12 +438,10 @@
           h('div', { className: 'adm-card__head' },
             h('div', null,
               h('h2', null, 'Sign-in activity'),
-              h('p', null, 'Every account, by when it last signed in')),
+              h('p', null, h('b', { className: 'adm-inl' }, num(active7)), ' signed in this week \u00b7 ',
+                h('b', { className: 'adm-inl' }, Math.round(active7 / (users.length || 1) * 100) + '%'), ' of the directory')),
             h('button', { type: 'button', className: 'adm-sug', onClick: function () { allSt[1](true); } },
               ARA, 'Ara suggests', h('span', { className: 'adm-sug__n' }, sugg.length))),
-          h('div', { className: 'adm-chips' },
-            h('span', { className: 'adm-chip' }, h('b', null, num(active7)), h('span', null, 'Signed in this week')),
-            h('span', { className: 'adm-chip' }, h('b', null, Math.round(active7 / (users.length || 1) * 100) + '%'), h('span', null, 'Of the directory'))),
           h(SigninChart, { buckets: buckets, flags: flags, onOpen: function (f) { openSt[1](f); } }),
           /* The top two, inline, so the card says what to do as well as what is true.
              The rest are one click away in the modal the head button opens. */
@@ -469,7 +470,9 @@
                 ['Person', 'Action', 'When', 'Status'].map(function (c, i) {
                   return h('th', { key: i }, c);
                 }))),
-              h('tbody', null, queue.map(function (r) {
+              /* The most urgent six, ordered as the queue is; the rest one click away, so
+                 the card is as tall as the work that needs doing first. */
+              h('tbody', null, (moreSt[0] ? queue : queue.slice(0, QUEUE_FOLD)).map(function (r) {
                 return h('tr', { key: r.id + r.kind },
                   h('td', null, h('span', { className: 'adm-who' },
                     h(V.Avatar, { name: r.who, size: 'sm' }),
@@ -483,7 +486,10 @@
                   h('td', { className: 'is-mut' }, r.when),
                   h('td', null, pill(r.status)));
               }))))
-            : h(ui.Empty, { icon: I.ok, title: 'Nothing waiting', body: 'No leaver, invitation or privileged account needs an admin today.' })),
+            : h(ui.Empty, { icon: I.ok, title: 'Nothing waiting', body: 'No leaver, invitation or privileged account needs an admin today.' }),
+          queue.length > QUEUE_FOLD ? h('button', { type: 'button', className: 'adm-more', 'aria-expanded': moreSt[0] ? 'true' : 'false',
+            onClick: function () { moreSt[1](!moreSt[0]); } },
+            moreSt[0] ? 'Show the first ' + QUEUE_FOLD : 'Show all ' + queue.length, moreSt[0] ? I.chevUp : I.chevron) : null),
 
         /* The alerts column, with the reference's source and target lines. */
         h('section', { className: 'adm-card' },
@@ -496,14 +502,11 @@
             return h('div', { className: 'adm-alert', key: a.t },
               h('span', { className: 'adm-ico' }, a.icon),
               h('div', { className: 'adm-alert__m' },
-                h('strong', null, a.t),
-                h('span', null, a.s),
-                h('span', { className: 'adm-alert__kv' }, h('b', null, 'Source : '), a.src),
-                h('span', { className: 'adm-alert__kv' }, h('b', null, 'Target : '), a.tgt)),
-              h('div', { className: 'stack gap-2', style: { alignItems: 'flex-end' } },
-                h('span', { className: 'adm-alert__t' }, a.at),
-                h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + a.t,
-                  onClick: function () { router.go(a.to); } }, I.right)));
+                h('span', { className: 'adm-alert__top' }, h('strong', null, a.t), h('span', { className: 'adm-alert__t' }, a.at)),
+                h('span', { className: 'adm-alert__s', title: a.s }, a.s),
+                h('span', { className: 'adm-alert__kv' }, a.src, ' \u2192 ', a.tgt)),
+              h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + a.t,
+                onClick: function () { router.go(a.to); } }, I.right));
           })))),
 
       openSt[0] ? h(SuggestionModal, { item: openSt[0], onClose: function () { openSt[1](null); } }) : null,
