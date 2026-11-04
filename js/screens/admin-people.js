@@ -672,7 +672,8 @@
         }
         T.reports.forEach(function (r) { wire('lead', 'rep-' + r.n); });
         T.reports.filter(function (r) { return r.sub.length; }).forEach(function (r) { wire('rep-out-' + r.n, 'team-' + r.n); });
-        wire('team-out', 'acts');
+        /* The actions act on the team; they are not part of its reporting line, so no
+           wire runs to them. */
         var next = { d: out, w: Math.round(W.width), h: Math.round(W.height) };
         var cur = pathSt[0];
         /* Only write when the geometry really moved — this effect has no dep array,
@@ -688,7 +689,6 @@
 
     var wires = pathSt[0] && pathSt[0].d ? pathSt[0] : { d: [], w: 0, h: 0 };
     var withSub = T.reports.filter(function (r) { return r.sub.length; });
-    var midTeam = withSub[Math.floor(withSub.length / 2)];
 
     return h('div', { className: 'tmap', ref: wrapRef },
       h('svg', { className: 'tmap__wires', viewBox: '0 0 ' + (wires.w || 1) + ' ' + (wires.h || 1), 'aria-hidden': 'true' },
@@ -699,11 +699,14 @@
         h('div', { className: 'tmap__col' },
           h('div', { className: 'mcard mcard--lead' },
             h('div', { className: 'mlead__h' }, h(V.Avatar, { name: T.lead, size: 'lg' }),
-              h('span', null, h('strong', null, T.lead), h('span', null, T.leadRole))),
+              h('span', { className: 'mlead__who' }, h('strong', null, T.lead), h('span', null, T.leadRole)),
+              h('button', { className: 'mrow__b', type: 'button', 'aria-label': 'Message ' + T.lead, title: 'Message ' + T.lead,
+                onClick: function () { toast('Message ' + T.lead + ' — prototype.'); } }, I.chat)),
+            /* Each fact as a label over its value, the way the reference sets them. */
             h('div', { className: 'mlead__f' },
-              h('div', { className: 'mlead__r' }, I.sitemap, h('em', null, 'Reports to'), h('b', null, T.reportsTo)),
-              h('div', { className: 'mlead__r' }, TEAMS, h('em', null, 'Team size'), h('b', null, T.size + ' members')),
-              h('div', { className: 'mlead__r' }, I.building, h('em', null, 'Department'), h('b', null, T.dept))),
+              h('div', { className: 'mlead__r' }, I.sitemap, h('span', null, h('em', null, 'Reports to'), h('b', null, T.reportsTo))),
+              h('div', { className: 'mlead__r' }, TEAMS, h('span', null, h('em', null, 'Team size'), h('b', null, T.size + ' members'))),
+              h('div', { className: 'mlead__r' }, I.building, h('span', null, h('em', null, 'Department'), h('b', null, T.dept)))),
             h('span', { className: 'pin pin--r', ref: setPin('lead') })),
           h('span', { className: 'tmap__cap' }, 'Reporting to')),
 
@@ -712,10 +715,10 @@
           h('div', { className: 'mcard mlist' }, T.reports.map(function (r) {
             return h('div', { className: 'mrow' + (focusSt[0] === r.n ? ' is-on' : ''), key: r.n, onClick: function () { focusSt[1](r.n); } },
               h('span', { className: 'pin pin--l', ref: setPin('rep-' + r.n) }),
-              h(V.Avatar, { name: r.n, size: 'sm' }),
+              h(V.Avatar, { name: r.n, size: 'md' }),
               h('span', { className: 'mrow__t' }, h('strong', null, r.n), h('span', null, r.r)),
-              h('button', { className: 'mrow__b', type: 'button', 'aria-label': 'Schedule with ' + r.n,
-                onClick: function (e) { e.stopPropagation(); toast('Schedule with ' + r.n + ' — prototype.'); } }, I.calendar),
+              h('button', { className: 'mrow__b', type: 'button', 'aria-label': 'Message ' + r.n, title: 'Message ' + r.n,
+                onClick: function (e) { e.stopPropagation(); toast('Message ' + r.n + ' — prototype.'); } }, I.chat),
               r.sub.length ? h('span', { className: 'pin pin--r', ref: setPin('rep-out-' + r.n) }) : null);
           })),
           h('span', { className: 'tmap__cap' }, 'Direct reports (' + T.reports.length + ')')),
@@ -738,14 +741,13 @@
                       h('small', null, SUBROLE[m] || 'Designer'));
                   }))
                 : h('div', { className: 'mteam__faces' }, r.sub.map(function (m) { return h(V.Avatar, { key: m, name: m, size: 'sm' }); })),
-              r === midTeam ? h('span', { className: 'pin pin--r', ref: setPin('team-out') }) : null);
+              null);
           }),
           h('span', { className: 'tmap__cap' }, 'Team members (' + T.size + ')')),
 
         /* 4 · actions */
         h('div', { className: 'tmap__col' },
           h('div', { style: { position: 'relative' } },
-            h('span', { className: 'pin pin--l', ref: setPin('acts'), style: { top: 38 } }),
             h('div', { className: 'tt__acts' },
               h('button', { type: 'button', className: 'tt__act tt__act--pri', onClick: function () { p.onAction('add'); } }, ADDP, 'Add team member'),
               h('button', { type: 'button', className: 'tt__act', onClick: function () { p.onAction('reassign'); } }, I.sitemap, 'Reassign reporting'),

@@ -83,3 +83,65 @@
   .ovt-tier { padding: 12px 10px; }
 }
 }
+
+/* ---------------------------------------------------------------- the teams tree
+   The first two columns as the Teams Tree reference sets them: a soft lavender stage,
+   white rounded cards, each of the lead's facts as a brand icon beside a muted label
+   over a bold value, report rows with a larger avatar and a round outline button, and
+   the column names as lavender pills underneath. */
+@layer tl {
+.tmap { background: linear-gradient(180deg, var(--brand-softer) 0%, var(--bg-page) 100%); border-color: var(--brand-border); }
+.tmap__wires path { stroke: var(--brand-solid); stroke-opacity: .45; stroke-width: 1.6; }
+.tmap .mcard { border-radius: 22px; border-color: transparent; box-shadow: 0 1px 2px #5733c10d, 0 8px 24px #5733c114; }
+.tmap__cap { height: 30px; padding: 0 18px; border: 0; background: var(--brand-soft); color: var(--text-primary); font-size: 13px; font-weight: 500; box-shadow: none; }
+
+.mcard--lead { gap: 6px; padding: 18px 18px 8px; }
+.mlead__h { gap: 13px; padding-bottom: 6px; }
+.mlead__h .vi-avatar { box-shadow: 0 0 0 3px var(--bg-surface), 0 0 0 4px var(--brand-border); }
+.mlead__who { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mlead__who strong { font-size: 16px; }
+.mlead__r { align-items: center; gap: 13px; padding: 12px 0; }
+.mlead__r > svg { width: 22px; height: 22px; color: var(--brand-solid); }
+.mlead__r > span { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.mlead__r em { font-size: 12px; color: var(--text-muted); }
+.mlead__r b { margin-left: 0; text-align: left; font-size: 14px; }
+
+.mlist { padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+.mrow { gap: 12px; padding: 10px 12px; border-radius: 16px; }
+.mrow .vi-avatar { flex: none; }
+.mrow__t strong { font-size: 14.5px; font-weight: 600; }
+.mrow__t span { font-size: 12.5px; color: var(--text-muted); }
+/* The round outline button, where the reference had a calendar. */
+.mrow__b { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-default); background: var(--bg-surface); color: var(--text-secondary); }
+.mrow__b:hover { border-color: var(--brand-solid); color: var(--brand-solid); background: var(--brand-softer); }
+.mrow__b:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.mrow__b svg { width: 16px; height: 16px; }
+.mrow.is-on { background: var(--brand-softer); border-color: var(--brand-border); }
+}
+
+/* ---------------------------------------------------------------- the assets hero
+   The isometric illustration and the headline number. Faces take token colours, top
+   lightest, so the drawing follows the accent and reads in dark mode too. */
+@layer tl {
+.ast-hero { grid-template-columns: minmax(0, 1.1fr) minmax(260px, auto) auto; }
+.ast-hero__art { width: 320px; height: 220px; }
+.ast-iso { width: 100%; height: 100%; display: block; overflow: visible; }
+.ast-iso__shadow { fill: var(--brand-solid); opacity: .09; }
+.iso--slab .iso__t { fill: var(--bg-surface); } .iso--slab .iso__l { fill: var(--brand-soft); } .iso--slab .iso__r { fill: var(--brand-border); }
+.iso--slab polygon { stroke: var(--brand-border); stroke-width: .6; }
+.iso--grey .iso__t { fill: var(--bg-muted); } .iso--grey .iso__l { fill: var(--border-default); } .iso--grey .iso__r { fill: var(--border-strong); }
+.iso--dark .iso__t { fill: #8f73df; } .iso--dark .iso__l { fill: var(--brand-solid); } .iso--dark .iso__r { fill: #3d2496; }
+.iso--warm .iso__t { fill: #fde9d9; } .iso--warm .iso__l { fill: #f8b98a; } .iso--warm .iso__r { fill: #e2894c; }
+.ast-iso__tape { fill: none; stroke: #fff; stroke-opacity: .7; stroke-width: 2.4; }
+.ast-iso__bar { fill: #ffffff; opacity: .55; }
+.ast-iso__bar.is-hi { fill: var(--priority-high); opacity: 1; }
+.ast-iso__spark { fill: var(--brand-solid); opacity: .75; }
+.ast-iso__dot { fill: var(--priority-high); opacity: .7; }
+
+.ast-hero__n { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
+.ast-hero__n b { font-family: var(--font-flex); font-size: clamp(44px, 4.4vw, 60px); line-height: 1; font-weight: 700; letter-spacing: -.03em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ast-hero__n > span { display: flex; flex-direction: column; gap: 3px; }
+.ast-hero__n strong { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.ast-hero__n small { font-size: 13px; color: var(--text-secondary); }
+@media (max-width: 1240px) { .ast-hero__art { width: 240px; height: 170px; } }
+}
