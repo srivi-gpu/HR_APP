@@ -1299,21 +1299,139 @@
       h(V.TextArea, Object.assign({ label: 'Description', rows: 2, placeholder: 'What belongs in here' }, form.field('description'))));
   }
 
+  /* One Upload button that asks what is being uploaded, rather than two buttons the
+     eye has to tell apart. Violet has no menu component, so this is the picker's
+     pattern: an absolutely positioned list that closes on an outside click or Escape. */
+  function UploadMenu(p) {
+    var openSt = React.useState(false);
+    var ref = React.useRef(null);
+    React.useEffect(function () {
+      if (!openSt[0]) return;
+      function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) openSt[1](false); }
+      function onKey(e) { if (e.key === 'Escape') openSt[1](false); }
+      document.addEventListener('mousedown', onDoc);
+      document.addEventListener('keydown', onKey);
+      return function () {
+        document.removeEventListener('mousedown', onDoc);
+        document.removeEventListener('keydown', onKey);
+      };
+    }, [openSt[0]]);
+
+    function pick(mode) { openSt[1](false); p.onPick(mode); }
+    var items = [
+      { mode: 'file', icon: I.file, label: 'Files', hint: 'Into the folder you are in' },
+      { mode: 'folder', icon: I.folder, label: 'Folder', hint: 'Creates the folder and fills it' }
+    ];
+
+    return h('span', { className: 'menu', ref: ref },
+      h(V.Button, {
+        variant: 'primary', className: 'vi-btn--sm', iconStart: I.up, iconEnd: I.chevron,
+        'aria-haspopup': 'menu', 'aria-expanded': openSt[0] ? 'true' : 'false',
+        onClick: function () { openSt[1](!openSt[0]); }
+      }, 'Upload'),
+      openSt[0] ? h('ul', { className: 'menu__list', role: 'menu' }, items.map(function (it) {
+        return h('li', { key: it.mode, role: 'none' },
+          h('button', {
+            type: 'button', role: 'menuitem', className: 'menu__item',
+            onClick: function () { pick(it.mode); }
+          },
+            h('span', { className: 'empty__mark', style: { width: 26, height: 26 } }, it.icon),
+            h('span', { className: 'menu__text' },
+              h('span', { className: 'menu__label' }, it.label),
+              h('span', { className: 'menu__hint' }, it.hint))));
+      })) : null);
+  }
+
+  /* A drop target that also opens the file picker. Real files: the browser hands over
+     name and size, so what is staged is what was actually dropped rather than typed.
+     `directory` swaps the picker for a folder picker, where each file carries the
+     relative path it came in under. */
+  function DropZone(p) {
+    var overSt = React.useState(false);
+    var inputRef = React.useRef(null);
+
+    function take(list) {
+      var files = [].slice.call(list || []);
+      if (files.length) p.onFiles(files);
+    }
+    return h('div', null,
+      h('div', {
+        className: 'dropzone' + (overSt[0] ? ' is-over' : ''),
+        role: 'button', tabIndex: 0,
+        onClick: function () { if (inputRef.current) inputRef.current.click(); },
+        onKeyDown: function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (inputRef.current) inputRef.current.click(); }
+        },
+        onDragOver: function (e) { e.preventDefault(); overSt[1](true); },
+        onDragEnter: function (e) { e.preventDefault(); overSt[1](true); },
+        onDragLeave: function () { overSt[1](false); },
+        onDrop: function (e) {
+          e.preventDefault(); overSt[1](false);
+          take(e.dataTransfer && e.dataTransfer.files);
+        }
+      },
+        h('span', { className: 'dropzone__mark' }, p.directory ? I.folder : I.up),
+        h('span', { className: 'dropzone__title' },
+          p.directory ? 'Drop a folder here' : 'Drop files here'),
+        h('span', { className: 'dropzone__hint' },
+          'or click to browse' + (p.directory ? ' for a folder' : ''))),
+      h('input', Object.assign({
+        ref: inputRef, type: 'file', multiple: true, className: 'visually-hidden',
+        'aria-label': p.directory ? 'Choose a folder' : 'Choose files',
+        onChange: function (e) { take(e.target.files); e.target.value = ''; }
+      }, p.directory ? { webkitdirectory: '', directory: '' } : {})));
+  }
+
+  function prettyBytes(n) {
+    if (n == null) return '—';
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return Math.round(n / 1024) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
   /* Upload. `mode` is 'file' or 'folder': a folder upload creates the folder and files
      it in one step, which is what dropping a folder in from a desktop would do. */
   function UploadModal(p) {
     var multi = p.mode === 'folder';
+    /* Staged files, as the browser handed them over: real names and real sizes. */
+    var filesSt = React.useState([]);
     var form = ui.useForm({
-      name: '', folderName: '', kind: 'Policy', version: 'v1.0',
+      folderName: '', kind: 'Policy', version: 'v1.0',
       audience: 'All employees', ack: false, expiry: ''
     }, function (v) {
       var errs = {};
       if (multi && !String(v.folderName || '').trim()) errs.folderName = 'Name the folder being uploaded';
-      if (!String(v.name || '').trim()) errs.name = multi ? 'List at least one file' : 'Give the document a name';
       return errs;
     });
 
+    function addFiles(list) {
+      var mapped = list.map(function (f) {
+        /* A folder pick carries the path it came in under; its first segment is the
+           folder's own name, which saves asking for it. */
+        var rel = f.webkitRelativePath || '';
+        return { name: f.name, size: f.size, rel: rel };
+      });
+      filesSt[1](function (cur) {
+        var seen = {};
+        cur.forEach(function (f) { seen[f.name + '|' + f.size] = true; });
+        return cur.concat(mapped.filter(function (f) {
+          var k = f.name + '|' + f.size;
+          if (seen[k]) return false;
+          seen[k] = true;
+          return true;
+        }));
+      });
+      if (multi && !String(form.values.folderName || '').trim()) {
+        var withPath = mapped.filter(function (f) { return f.rel && f.rel.indexOf('/') > 0; })[0];
+        if (withPath) form.set('folderName', withPath.rel.split('/')[0]);
+      }
+    }
+    function removeFile(i) {
+      filesSt[1](filesSt[0].filter(function (_, n) { return n !== i; }));
+    }
+
     function save() {
+      if (!filesSt[0].length) { ui.toast(multi ? 'Drop a folder to upload' : 'Drop at least one file', 'error'); return; }
       var res = form.submit(function (v) {
         var target = p.parent || null;
         var folderLabel = p.parentName || 'the library';
@@ -1326,42 +1444,67 @@
           target = created.id;
           folderLabel = fname;
         }
-        /* One file per line, so a folder upload reads like the listing it came from. */
-        var names = String(v.name).split('\n').map(function (x) { return x.trim(); })
-          .filter(function (x) { return x.length; });
-        names.forEach(function (name, i) {
+        var staged = filesSt[0];
+        staged.forEach(function (f, i) {
           store.add('policies', {
             id: 'doc-' + Date.now().toString(36) + '-' + i,
-            name: name, version: v.version || 'v1.0', kind: v.kind,
+            name: f.name, version: v.version || 'v1.0', kind: v.kind,
             category: p.parentName || 'Uncategorised', folder: target,
-            size: '—', ack: !!v.ack, published: today(),
+            size: prettyBytes(f.size), ack: !!v.ack, published: today(),
             audience: v.audience || 'All employees',
             expiry: v.expiry || null, uploaded: true
           });
         });
-        store.log('uploaded ' + names.length + ' document' + (names.length === 1 ? '' : 's') + ' to ' + folderLabel, 'User activity');
-        ui.toast(names.length + ' file' + (names.length === 1 ? '' : 's') + ' uploaded to ' + folderLabel, 'success');
+        store.log('uploaded ' + staged.length + ' document' + (staged.length === 1 ? '' : 's') + ' to ' + folderLabel, 'User activity');
+        ui.toast(staged.length + ' file' + (staged.length === 1 ? '' : 's') + ' uploaded to ' + folderLabel, 'success');
         return { ok: true };
       });
       if (res && res.ok) p.onClose();
     }
 
+    var staged = filesSt[0];
+    var totalBytes = staged.reduce(function (n, f) { return n + (f.size || 0); }, 0);
+
     return h(ui.Modal, {
-      title: multi ? 'Upload a folder' : 'Upload a document',
+      title: multi ? 'Upload a folder' : 'Upload files',
+      wide: true,
       description: multi
-        ? 'Creates the folder' + (p.parentName ? ' inside ' + p.parentName : '') + ' and files everything listed into it.'
+        ? 'Creates the folder' + (p.parentName ? ' inside ' + p.parentName : '') + ' and files everything in it.'
         : 'Into ' + (p.parentName || 'the top of the library') + '.',
       onClose: p.onClose,
       footer: h(React.Fragment, null,
+        staged.length
+          ? h('span', { className: 'muted', style: { fontSize: 12, marginRight: 'auto' } },
+            staged.length + ' file' + (staged.length === 1 ? '' : 's') + ' · ' + prettyBytes(totalBytes))
+          : null,
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
-        h(V.Button, { variant: 'primary', iconStart: I.up, onClick: save }, multi ? 'Upload folder' : 'Upload'))
+        h(V.Button, { variant: 'primary', iconStart: I.up, onClick: save },
+          multi ? 'Upload folder' : 'Upload'))
     },
-      multi ? h(V.TextField, Object.assign({ label: 'Folder name', placeholder: 'e.g. Insurance 2027-28' }, form.field('folderName'))) : null,
-      multi
-        ? h(V.TextArea, Object.assign({
-          label: 'Files', rows: 4, placeholder: 'One file per line\nGroup Mediclaim 2027.pdf\nNetwork Hospitals.pdf'
-        }, form.field('name', { hint: form.errors.name || 'One file per line' })))
-        : h(V.TextField, Object.assign({ label: 'Document name', placeholder: 'e.g. Group Mediclaim — Policy Schedule' }, form.field('name'))),
+      h(DropZone, { directory: multi, onFiles: addFiles }),
+
+      staged.length ? h(ui.FormSection, {
+        title: 'Ready to upload',
+        description: 'Everything here is filed with the settings below.'
+      },
+        h('div', { className: 'checks' }, staged.map(function (f, i) {
+          return h('div', { className: 'checks__row', key: f.name + i },
+            h('span', { className: 'empty__mark', style: { width: 28, height: 28 } }, I.file),
+            h('div', { className: 'checks__main' },
+              h('span', { className: 'checks__name' }, f.name),
+              h('span', { className: 'checks__meta' },
+                prettyBytes(f.size) + (f.rel && f.rel.indexOf('/') > 0 ? ' · ' + f.rel : ''))),
+            h(V.IconButton, {
+              icon: I.close, 'aria-label': 'Remove ' + f.name,
+              onClick: function () { removeFile(i); }
+            }));
+        }))) : null,
+
+      multi ? h(V.TextField, Object.assign({
+        label: 'Folder name', placeholder: 'e.g. Insurance 2027-28',
+        hint: form.errors.folderName || 'Taken from the folder you dropped, if it has one'
+      }, form.field('folderName'))) : null,
+
       h(ui.FieldRow, { cols: 3 },
         h(V.Select, Object.assign({ label: 'Type', options: DOC_KINDS }, form.select('kind'))),
         h(V.TextField, Object.assign({ label: 'Version' }, form.field('version'))),
@@ -1486,33 +1629,18 @@
       })
       : filesIn(here);
 
-    var needsAck = all.filter(function (d) { return d.ack; });
-    var outstanding = needsAck.reduce(function (n, d) { var c = coverage(d); return n + (c.total - c.done); }, 0);
-    var expiring = all.filter(function (d) { return d.expiry && daysAway(d.expiry) != null && daysAway(d.expiry) <= 90; });
-
     function go(id) { hereSt[1](id); qSt[1](''); }
 
+    /* No stat row: this is a file browser, and four counters above it only pushed the
+       folders below the fold. What they measured lives on the documents themselves. */
     return h(React.Fragment, null,
-      h(Stats, null,
-        h(Stat, { key: 1, label: 'Documents', value: all.length, sub: 'Across ' + docFolders().length + ' folders' }),
-        h(Stat, { key: 2, label: 'Need acknowledgement', value: needsAck.length, sub: 'Tracked per person' }),
-        h(Stat, { key: 3, label: 'Signatures outstanding', value: outstanding,
-          sub: outstanding ? 'Across every tracked document' : 'Everyone is up to date',
-          tone: outstanding ? 'warn' : 'good' }),
-        h(Stat, { key: 4, label: 'Expiring in 90 days', value: expiring.length,
-          sub: expiring.length ? 'Needs renewing' : 'Nothing lapses soon',
-          tone: expiring.length ? 'warn' : 'good' })),
-
       h(Card, {
         title: 'Documents & policies',
         description: 'PRD 4.24–4.27: the company library. Create folders, upload into them, and open a document for its audience, acknowledgement and expiry. Employee documents live on the employee’s profile.',
         aside: h('span', { className: 'row gap-2' },
           h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.folder,
             onClick: function () { newFolderSt[1](true); } }, 'New folder'),
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.up,
-            onClick: function () { uploadSt[1]('folder'); } }, 'Upload folder'),
-          h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
-            onClick: function () { uploadSt[1]('file'); } }, 'Upload'))
+          h(UploadMenu, { onPick: function (mode) { uploadSt[1](mode); } }))
       },
         /* Breadcrumb */
         h('div', { className: 'row gap-2', style: { flexWrap: 'wrap', marginBottom: 12 } },
