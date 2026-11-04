@@ -30,8 +30,20 @@
   var DEFAULTS = { role: 'hr', signedIn: false, theme: 'system', railCollapsed: false,
     readNotifications: [], setupComplete: false };
 
-  function pref(key) { return patch.prefs && patch.prefs[key] !== undefined ? patch.prefs[key] : DEFAULTS[key]; }
+  /* Being signed in lasts as long as the tab does. Everything else about a session is
+     worth remembering — which workspace, which theme, whether the rail is collapsed —
+     but remembering the sign-in itself meant a reload dropped you straight into a
+     workspace, and the front door was only ever seen once. It is held in memory, so the
+     app opens on sign-in every time without forgetting anything else. */
+  var SESSION_ONLY = { signedIn: true };
+  var session = {};
+
+  function pref(key) {
+    if (SESSION_ONLY[key]) return session[key] !== undefined ? session[key] : DEFAULTS[key];
+    return patch.prefs && patch.prefs[key] !== undefined ? patch.prefs[key] : DEFAULTS[key];
+  }
   function setPref(key, value) {
+    if (SESSION_ONLY[key]) { session[key] = value; notify(); return; }
     patch.prefs = patch.prefs || {};
     patch.prefs[key] = value;
     write(); notify();

@@ -511,24 +511,8 @@
   /* A dismissable prompt above the tab's cards. It is the one place either tab makes a
      recommendation, and it always carries the number behind it — an admin should be
      able to disagree with it from the banner alone. */
-  function Nudge(p) {
-    var goneSt = React.useState(false);
-    if (goneSt[0]) return null;
-    return h('div', { className: 'ai-note' },
-      h('span', { className: 'ai-note__mark' }, I.leo),
-      h('div', { className: 'ai-note__body' },
-        h('span', { className: 'ai-note__eyebrow' }, 'Assistant'),
-        h('strong', { style: { fontSize: 15 } }, p.title),
-        h('p', { className: 'ai-note__text' }, p.why),
-        h('div', { className: 'ai-note__acts' },
-          h(V.Button, {
-            variant: 'primary', className: 'vi-btn--sm',
-            onClick: function () { p.apply(); goneSt[1](true); }
-          }, p.label),
-          h(V.Button, {
-            variant: 'ghost', className: 'vi-btn--sm', onClick: function () { goneSt[1](true); }
-          }, 'Dismiss'))));
-  }
+  /* Nudge now lives in ui, because the holiday calendar wants the same thing. */
+  var Nudge = ui.Nudge;
 
   /* A minus/value/plus control. A plain number field invites a typo that becomes a
      charge, so the only way to change the quantity is one step at a time. */
@@ -1915,8 +1899,6 @@
     var head = headOffice();
     var prefLoc = store.pref('orgLoc');
     var pickSt = React.useState(all.some(function (l) { return l.id === prefLoc; }) ? prefLoc : (head ? head.id : null));
-    var addSt = React.useState(false);
-    var holForm = ui.useForm({ scope: 'all' });
 
     var L = all.filter(function (l) { return l.id === pickSt[0]; })[0] || head || all[0];
     if (!L) return h(ui.Empty, { icon: I.world, title: 'No offices yet', body: 'Add one under Locations and it gets a tab here.' });
@@ -1941,18 +1923,6 @@
         : DAYS7.filter(function (x) { return days.indexOf(x) >= 0 || x === d; });
       if (!next.length) { ui.toast('An office needs at least one working day', 'error'); return; }
       setDays(next);
-    }
-    function addHoliday() {
-      var res = holForm.submit(function (v) {
-        if (!v.date || !v.name) return { ok: false, message: 'A holiday needs a date and a name' };
-        store.add('holidays', {
-          id: 'hol-' + Date.now(), date: v.date, name: v.name, type: 'Public',
-          locs: v.scope === 'all' ? 'all' : [L.id]
-        });
-        store.log('added the holiday ' + v.name + (v.scope === 'all' ? '' : ' for ' + L.name), 'Organization');
-        return { ok: true, message: v.name + ' added' };
-      });
-      if (res && res.ok) { addSt[1](false); holForm.reset({ scope: 'all' }); }
     }
 
     return h(React.Fragment, null,
@@ -2001,46 +1971,26 @@
             + (inherit ? ' Same as the head office.' : '')
             + ' Attendance, leave and payroll cut-offs skip everything else.')),
 
+      /* The calendar itself is HR's: they own leave, and a holiday is a day that does
+         not come out of a balance. This says what this office observes and sends you
+         there to change it, rather than keeping a second place to edit it from. */
       h(Card, {
         title: 'Holidays' + (multi ? ' · ' + L.name : ''),
-        aside: h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
-          h('span', { className: 'muted' }, list.length + (list.length === 1 ? ' day' : ' days') + ' in 2026'),
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus,
-            onClick: function () { addSt[1](true); } }, 'Add a holiday'))
+        description: 'Set by HR, on the holiday calendar. ' + L.name + ' observes '
+          + list.length + (list.length === 1 ? ' day' : ' days') + ' in 2026.',
+        aside: h(V.Button, {
+          variant: 'outline', className: 'vi-btn--sm', iconStart: I.calendar,
+          onClick: function () { router.goAs('hr/holidays'); }
+        }, 'Open the holiday calendar')
       },
-        h(ui.DataTable, {
-          exportName: 'holidays', label: 'Holidays', rows: list, pageSize: 12,
-          search: function (x) { return x.name + ' ' + x.date; },
-          searchPlaceholder: 'Search holidays',
-          columns: [
-            { key: 'date', header: 'Date', sortable: true, cell: function (x) { return ui.fmtDate ? ui.fmtDate(x.date) : x.date; } },
-            { key: 'name', header: 'Holiday', sortable: true },
-            { key: 'type', header: 'Type', cell: function (x) { return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft' }, x.type); } },
-            { key: 'scope', header: 'Applies to', cell: function (x) {
-              return !x.locs || x.locs === 'all'
-                ? h('span', { className: 'muted' }, 'Every office')
-                : h('span', null, L.name + ' only');
-            } }
-          ],
-          emptyIcon: I.calendar, emptyTitle: 'No holidays for ' + L.name,
-          emptyBody: 'Add one, or let this office inherit the organisation calendar.'
-        })),
-
-      addSt[0] ? h(ui.Modal, {
-        title: 'Add a holiday', description: 'A day nobody is expected to work.',
-        onClose: function () { addSt[1](false); },
-        footer: h(React.Fragment, null,
-          h(V.Button, { variant: 'outline', onClick: function () { addSt[1](false); } }, 'Cancel'),
-          h(V.Button, { variant: 'primary', onClick: addHoliday }, 'Add holiday'))
-      },
-        h(ui.FieldRow, null,
-          h(V.TextField, Object.assign({ label: 'Date', required: true, type: 'date' }, holForm.field('date'))),
-          h(V.TextField, Object.assign({ label: 'Name', required: true, placeholder: 'e.g. Founders Day' }, holForm.field('name')))),
-        h(V.Select, Object.assign({ label: 'Applies to', options: [
-          { value: 'all', label: 'Every office' },
-          { value: 'one', label: L.name + ' only' }
-        ] }, holForm.select('scope')))) : null);
+        h('div', { className: 'row gap-2 wrap' },
+          list.slice(0, 8).map(function (hd) {
+            return h(V.Chip, { key: hd.date + hd.name, size: 'sm', shape: 'tag', variant: 'soft' },
+              ui.dateLabel(hd.date) + ' · ' + hd.name);
+          }),
+          list.length > 8 ? h('span', { className: 'muted' }, '+' + (list.length - 8) + ' more') : null)));
   }
+
 
 
   /* ====================================================== Security

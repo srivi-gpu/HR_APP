@@ -1043,3 +1043,35 @@ html.lenis, html.lenis body { height: auto; }
 .sug__t span { font-size: 12.5px; color: var(--text-secondary); }
 @media (max-width: 1000px) { .sug { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 620px) { .sug { grid-template-columns: minmax(0, 1fr); } }
+
+/* Cards in a dashboard row share the row's height, so their bottoms line up rather
+   than each stopping wherever its own content ends. */
+.agrid { align-items: stretch; }
+.agrid > .dash__card { height: 100%; }
+/* The lists inside them take the slack, so the card grows from its body rather than
+   leaving a gap under the last row. */
+.dash__card > .lrows { flex: 1; }
+.dash__card > .donut { flex: 1; align-content: center; }
+.dash__card > .dash__qa { flex: 1; align-content: center; }
+.dash__card > .chart { flex: 1; display: flex; align-items: center; }
+.dash__card > .chart svg { max-height: none; }
+
+/* Ara on a card: a small control in the head, never a panel that grows the card. */
+.dash__ara-b { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px 0 5px; border-radius: var(--tl-radius-pill); border: 1px solid var(--brand-border); background: var(--brand-softer); font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--text-brand); font-variant-numeric: tabular-nums; }
+.dash__ara-b:hover { background: var(--brand-soft); }
+.dash__ara-b:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.ara--xs { width: 18px; height: 18px; }
+
+/* ----------------------------------------------- achievements in the org-tree sheet */
+.sheet__cap { padding: 16px 0 8px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.ach { display: flex; flex-direction: column; gap: 12px; }
+.ach--empty { padding: 10px 0; }
+.ach__row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.ach__b { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: var(--tl-radius-pill); background: var(--brand-soft); color: var(--text-brand); font-size: 12.5px; font-weight: 600; }
+.ach__b svg { width: 14px; height: 14px; }
+.ach__b--tenure { background: var(--warning-bg); color: var(--warning-fg); }
+.ach__list { display: flex; flex-direction: column; gap: 8px; }
+.ach__q { padding: 11px 13px; border-radius: 13px; background: var(--bg-subtle); border-left: 3px solid var(--brand-border); }
+.ach__q__v { display: inline-block; margin-bottom: 4px; font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--text-brand); }
+.ach__q p { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-primary); }
+.ach__q small { display: block; margin-top: 5px; font-size: 12px; color: var(--text-secondary); }

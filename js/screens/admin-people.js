@@ -10,7 +10,7 @@
 (function () {
   var HRMS = window.HRMS;
   var React = window.React, h = React.createElement, V = window.Violet, I = window.Icons;
-  var ui = HRMS.ui, router = HRMS.router;
+  var ui = HRMS.ui, router = HRMS.router, store = HRMS.store;
   var useState = React.useState;
 
   /* The page kept a toast of its own. The application already hosts one, so a message
@@ -151,22 +151,37 @@
           } }, cfg.ok))));
   }
 
-  /* ---------- Org tree + teams ---------- */
-  var TREE = [
-    { id: 'Priya Sharma', r: 'Managing Director', d: 'Leadership', k: null },
-    { id: 'Meera Nair', r: 'Head of People', d: 'People & Culture', k: 'Priya Sharma' },
-    { id: 'Divya Menon', r: 'HR Business Partner', d: 'People & Culture', k: 'Meera Nair' },
-    { id: 'Sana Qureshi', r: 'HR Executive', d: 'People & Culture', k: 'Meera Nair' },
-    { id: 'Arun Kumar', r: 'Head of Design', d: 'Design', k: 'Priya Sharma' },
-    { id: 'Vignesh S', r: 'Product Designer', d: 'Design', k: 'Arun Kumar' },
-    { id: 'Kavya R', r: 'UX Designer', d: 'Design', k: 'Arun Kumar' },
-    { id: 'Rahul N', r: 'UI Designer', d: 'Design', k: 'Arun Kumar' },
-    { id: 'Meena P', r: 'Design Analyst', d: 'Design', k: 'Arun Kumar' },
-    { id: 'Karthik Menon', r: 'VP Engineering', d: 'Engineering', k: 'Priya Sharma' },
-    { id: 'Rahul Verma', r: 'Engineering Manager', d: 'Engineering', k: 'Karthik Menon' },
-    { id: 'Rohit Shetty', r: 'Finance Controller', d: 'Finance', k: 'Priya Sharma' }
-  ];
-  function kidsOf(id) { return TREE.filter(function (n) { return n.k === id; }); }
+  /* ---------- Org tree + teams ----------
+     The chart ran on a hand-written list of a dozen people. Ten of the thirteen were
+     not in the directory at all, so selecting one showed a card with nothing behind it:
+     no record, no recognition, no tenure — the reporting line was the only true thing
+     on screen. It is built from the directory now, which is 248 live people under one
+     root, with their real managers, designations and departments.
+
+     Size costs nothing here: the chart fetches and lays out only the branch somebody
+     has expanded, so the tree is as big as the organisation and as heavy as the part
+     being looked at. Names key the chart because that is what it draws; the directory
+     has no two live people sharing one, and the lookup back to a record is by name for
+     the same reason. */
+  function deptNames() {
+    var out = {};
+    store.collection('departments').forEach(function (d) { out[d.id] = d.name; });
+    return out;
+  }
+
+  var staffMemo = null;
+  function staff() {
+    if (staffMemo) return staffMemo;
+    var live = store.collection('employees').filter(function (e) { return e.status !== 'Exited'; });
+    var byId = {}, dept = deptNames();
+    live.forEach(function (e) { byId[e.id] = e; });
+    staffMemo = live.map(function (e) {
+      var m = e.manager && byId[e.manager];
+      return { id: e.name, r: e.designation, d: dept[e.department] || '—', k: m ? m.name : null };
+    });
+    return staffMemo;
+  }
+  function kidsOf(id) { return staff().filter(function (n) { return n.k === id; }); }
 
   var ALL_MEMBERS = [
     { n: 'Arun Kumar', r: 'Head of Design', n2: 8 },
@@ -204,25 +219,82 @@
      Two calls with latency, standing in for a server. The tree only ever holds the
      branches somebody expanded, so the team panel re-queries subtree() on every
      selection rather than walking what happens to be in memory. */
-  /* Where someone stands: on probation, serving notice, or neither. */
-  var STATUS = {
-    'Dev P': { k: 'prob', t: 'Probation', d: 'ends 30 Nov' },
-    'Neha S': { k: 'prob', t: 'Probation', d: 'ends 05 Dec' },
-    'Sana Qureshi': { k: 'prob', t: 'Probation', d: 'ends 07 Nov' },
-    'Rahul N': { k: 'notice', t: 'Notice', d: 'last day 21 Nov' },
-    'Kiran B': { k: 'notice', t: 'Notice', d: 'last day 14 Nov' }
-  };
-  function statusOf(id) { return STATUS[id] || null; }
+  /* Where someone stands: on probation, serving notice, or neither. Read off the
+     record, so the chips agree with the rest of the product instead of being a second
+     list that drifts from it. */
+  var statusMemo = null;
+  function statuses() {
+    if (statusMemo) return statusMemo;
+    statusMemo = {};
+    store.collection('employees').forEach(function (e) {
+      if (e.status === 'Probation') statusMemo[e.name] = { k: 'prob', t: 'Probation', d: 'joined ' + (e.joinedLabel || e.joined) };
+      else if (e.status === 'Notice Period') statusMemo[e.name] = { k: 'notice', t: 'Notice', d: e.lastWorkingDay ? 'last day ' + e.lastWorkingDay : 'serving notice' };
+      else if (e.status === 'Onboarding') statusMemo[e.name] = { k: 'prob', t: 'Onboarding', d: 'joined ' + (e.joinedLabel || e.joined) };
+    });
+    return statusMemo;
+  }
+  function statusOf(id) { return statuses()[id] || null; }
 
-  var STAFF = TREE.concat([
-    { id: 'Imran Q', r: 'QA Engineer', d: 'Engineering', k: 'Rahul Verma' },
-    { id: 'Neha S', r: 'Software Engineer', d: 'Engineering', k: 'Rahul Verma' },
-    { id: 'Dev P', r: 'Software Engineer', d: 'Engineering', k: 'Rahul Verma' },
-    { id: 'Kiran B', r: 'Accounts Executive', d: 'Finance', k: 'Rohit Shetty' }
-  ]);
+  /* ------------------------------------------------------- what a person has earned
+     The chart draws names and reporting lines; the directory holds the record behind
+     them. Joining the two is what lets the sheet show recognition and tenure beside
+     the tree rather than a card with nothing under it. */
+  var VALUE_TONE = { Ownership: 'primary', Craft: 'info', Teamwork: 'success', 'Customer first': 'warning' };
+
+  function achievements(name) {
+    var e = store.employeeByName(name);
+    if (!e) return null;
+    var got = store.collection('recognition').filter(function (r) { return r.to === e.id; });
+    var byValue = {};
+    got.forEach(function (r) { byValue[r.value] = (byValue[r.value] || 0) + 1; });
+    var badges = Object.keys(byValue).map(function (k) { return { value: k, n: byValue[k] }; })
+      .sort(function (a, b) { return b.n - a.n; });
+    var years = null;
+    if (e.joined) {
+      var ms = Date.now() - new Date(e.joined + 'T00:00').getTime();
+      years = Math.max(0, Math.floor(ms / (365.25 * 86400000)));
+    }
+    return {
+      emp: e, total: got.length, badges: badges, years: years,
+      recent: got.slice(-3).reverse().map(function (r) {
+        var from = store.employee(r.from);
+        return { value: r.value, note: r.note, from: from ? from.name : 'A colleague' };
+      })
+    };
+  }
+
+  function Achievements(p) {
+    var a = p.data;
+    if (!a) {
+      return h('div', { className: 'ach ach--empty' },
+        h('span', { className: 'muted' }, 'No directory record for ' + p.name + ' yet.'));
+    }
+    return h('div', { className: 'ach' },
+      h('div', { className: 'ach__row' },
+        a.years !== null
+          ? h('span', { className: 'ach__b ach__b--tenure' }, I.star,
+              a.years < 1 ? 'First year' : a.years + (a.years === 1 ? ' year' : ' years'))
+          : null,
+        a.total
+          ? h('span', { className: 'ach__b' }, I.leo, a.total + ' recognition' + (a.total === 1 ? '' : 's'))
+          : null,
+        a.badges.map(function (b) {
+          return h(V.Chip, { key: b.value, size: 'sm', shape: 'tag', variant: 'soft', tone: VALUE_TONE[b.value] || 'primary' },
+            b.value + ' × ' + b.n);
+        })),
+      a.recent.length
+        ? h('div', { className: 'ach__list' }, a.recent.map(function (r, i) {
+            return h('div', { className: 'ach__q', key: i },
+              h('span', { className: 'ach__q__v' }, r.value),
+              h('p', null, '“' + r.note + '”'),
+              h('small', null, '— ' + r.from));
+          }))
+        : h('span', { className: 'muted' }, 'No recognition yet.'));
+  }
+
   function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
   var directory = {
-    childrenOf: function (id) { return STAFF.filter(function (n) { return n.k === id; }); },
+    childrenOf: function (id) { return kidsOf(id); },
     /* direct reports only */
     children: function (id) { return wait(220).then(function () { return directory.childrenOf(id); }); },
     /* everyone below a person, however deep */
@@ -263,8 +335,8 @@
     return { nodes: nodes, w: w + 48, h: hgt + 48 };
   }
   function ancestorsOf(id) {
-    var out = [], cur = STAFF.find(function (n) { return n.id === id; });
-    while (cur && cur.k) { out.unshift(cur.k); cur = STAFF.find(function (n) { return n.id === cur.k; }); }
+    var out = [], cur = staff().find(function (n) { return n.id === id; });
+    while (cur && cur.k) { out.unshift(cur.k); cur = staff().find(function (n) { return n.id === cur.k; }); }
     return out;
   }
 
@@ -317,7 +389,7 @@
     }, [p.selected]);
 
     var L = layout(p.rootId, visibleKids);
-    var byId = {}; STAFF.forEach(function (n) { byId[n.id] = n; });
+    var byId = {}; staff().forEach(function (n) { byId[n.id] = n; });
     var anc = ancestorsOf(p.selected);
     var onPath = {}; anc.concat([p.selected]).forEach(function (id) { onPath[id] = true; });
 
@@ -367,23 +439,37 @@
 
     /* Pan with pointer capture, so a drag that starts on a card still pans and keeps
        tracking when the pointer leaves the canvas. A drag past a few pixels swallows the
-       click underneath, so panning never selects somebody by accident. */
+       click underneath, so panning never selects somebody by accident.
+
+       The capture is taken when the pan actually starts, not on pointer-down. While a
+       pointer is captured the browser retargets the click to the capturing element, so
+       capturing up front meant a plain click on a card was delivered to the canvas and
+       the card's own handler never ran: the chart could be panned and zoomed but nobody
+       could be selected with a mouse at all. Keyboard and programmatic clicks were
+       unaffected, which is what kept it hidden. */
     function down(e) {
       var v = viewRef.current; if (!v || e.button !== 0) return;
       if (e.target.closest && e.target.closest('.ocn__grab, .ocn__tw, .oc__tools')) return;
-      dragRef.current = { x: e.clientX, y: e.clientY, l: v.scrollLeft, t: v.scrollTop, moved: 0 };
-      try { v.setPointerCapture(e.pointerId); } catch (err) {}
-      v.classList.add('is-drag');
+      dragRef.current = { x: e.clientX, y: e.clientY, l: v.scrollLeft, t: v.scrollTop, moved: 0, held: false };
     }
     function move(e) {
       var d = dragRef.current, v = viewRef.current; if (!d || !v) return;
       var dx = e.clientX - d.x, dy = e.clientY - d.y;
       d.moved = Math.max(d.moved, Math.abs(dx) + Math.abs(dy));
+      if (!d.held && d.moved > 4) {
+        d.held = true;
+        try { v.setPointerCapture(e.pointerId); } catch (err) {}
+        v.classList.add('is-drag');
+      }
+      if (!d.held) return;
       v.scrollLeft = d.l - dx; v.scrollTop = d.t - dy;
     }
     function up(e) {
       var d = dragRef.current, v = viewRef.current;
-      if (v) { v.classList.remove('is-drag'); try { v.releasePointerCapture(e.pointerId); } catch (err) {} }
+      if (v && d && d.held) {
+        v.classList.remove('is-drag');
+        try { v.releasePointerCapture(e.pointerId); } catch (err) {}
+      }
       draggedRef.current = !!(d && d.moved > 4);
       dragRef.current = null;
     }
@@ -491,7 +577,7 @@
   function OrgOutline(p) {
     var rows = [];
     (function walk(id, depth) {
-      var n = STAFF.find(function (x) { return x.id === id; }); if (!n) return;
+      var n = staff().find(function (x) { return x.id === id; }); if (!n) return;
       rows.push({ n: n, depth: depth });
       directory.childrenOf(id).forEach(function (k) { walk(k.id, depth + 1); });
     })(p.rootId, 0);
@@ -675,8 +761,9 @@
               kids.length ? h('span', { className: 'onode__n' }, kids.length + ' report' + (kids.length === 1 ? '' : 's')) : null),
             kids.length && isOpen ? h('ul', null, kids.map(function (k) { return cssNode(k, depth + 1); })) : null);
         }
-        var root = STAFF.find(function (n) { return !n.k; });
-        var sel = STAFF.find(function (n) { return n.id === focusSt[0]; }) || root;
+        var all = staff();
+        var root = all.filter(function (n) { return !n.k; })[0];
+        var sel = all.filter(function (n) { return n.id === focusSt[0]; })[0] || root;
         var team = teamRowsSt[0];
 
         return h('div', { className: 'stack gap-4' },
@@ -689,7 +776,7 @@
               : h('span', { className: 'astat__ok' }, 'In step'),
             (function () {
               var pr = 0, nt = 0;
-              STAFF.forEach(function (n) { var st = statusOf(n.id); if (st) { if (st.k === 'prob') pr++; else nt++; } });
+              staff().forEach(function (n) { var st = statusOf(n.id); if (st) { if (st.k === 'prob') pr++; else nt++; } });
               return h('span', { className: 'astat__i' }, I.person,
                 h('span', { className: 'chip-st st--prob' }, pr + ' on probation'),
                 h('span', { className: 'chip-st st--notice' }, nt + ' on notice'));
@@ -709,11 +796,11 @@
                 onSelect: function (id) { focusSt[1](id); sheetSt[1](true); },
                 onCount: function (n) { loadedSt[1](n); },
                 onMove: function (who, to) {
-                  var p1 = STAFF.find(function (x) { return x.id === who; });
+                  var p1 = staff().find(function (x) { return x.id === who; });
                   if (!p1 || who === to) return;
                   /* refuse a move that would put someone under their own report */
-                  var cur = STAFF.find(function (x) { return x.id === to; });
-                  while (cur) { if (cur.id === who) { toast('That would put ' + who + ' under their own report.'); return; } cur = STAFF.find(function (x) { return x.id === cur.k; }); }
+                  var cur = staff().find(function (x) { return x.id === to; });
+                  while (cur) { if (cur.id === who) { toast('That would put ' + who + ' under their own report.'); return; } cur = staff().find(function (x) { return x.id === cur.k; }); }
                   p1.k = to;
                   moveKeySt[1](moveKeySt[0] + 1);
                   loadedSt[1](1);
@@ -750,6 +837,10 @@
                   h('div', { className: 'mlead__r' }, I.users, h('em', null, 'Everyone below'),
                     h('b', null, team.loading ? '…' : team.rows.length))),
 
+                h('div', { className: 'sheet__cap' }, 'Achievements'),
+                h(Achievements, { name: sel.id, data: achievements(sel.id) }),
+
+                h('div', { className: 'sheet__cap' }, 'Reporting line'),
                 h(V.TabGroup, { 'aria-label': 'Panel', value: panelSt[0], onChange: panelSt[1],
                   items: [{ value: 'team', label: 'Their team' }, { value: 'all', label: 'Whole structure' }] }),
 

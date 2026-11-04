@@ -26,7 +26,6 @@
   var UP = g('M7 14l5-5 5 5', 13);
   var TEAMS = g('M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20c.4-3.3 3.3-5.8 7-5.8s6.6 2.5 7 5.8M17 11.2a2.6 2.6 0 1 0 0-5.2M18 14.4c2.3.5 4 2.4 4 4.6');
   var SYNC = g('M4 10a8 8 0 0 1 13.7-5.6L20 7M20 14a8 8 0 0 1-13.7 5.6L4 17M20 4v3h-3M4 20v-3h3');
-  var CLOSE = g('M6 6l12 12M18 6L6 18', 16);
 
   var ARA_GLYPH = h('svg', { viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': 'true' },
     h('path', { d: 'M12 3.2l1.9 4.7 4.9 1.8-4.9 1.8L12 16.2l-1.9-4.7-4.9-1.8 4.9-1.8L12 3.2Z', fill: 'currentColor' }),
@@ -38,12 +37,45 @@
   }
 
   /* ---------- the card this page is built from ---------- */
+  /* A card says what it measures. What to do about it is Ara's, and it is one small
+     control in the head rather than a panel underneath: the card keeps its size and
+     the suggestions open in a modal over it. */
   function Card(p) {
     return h('section', { className: 'dash__card ' + (p.span || 'c12') },
       h('div', { className: 'dash__card__head' },
         h('h2', null, p.title),
-        p.right || null),
+        h('div', { className: 'row gap-2', style: { alignItems: 'center' } },
+          p.right || null,
+          p.ara && p.ara.length
+            ? h('button', {
+                type: 'button', className: 'dash__ara-b',
+                title: 'Ara · ' + p.ara.length + (p.ara.length === 1 ? ' suggestion' : ' suggestions'),
+                'aria-label': 'Ara has ' + p.ara.length + ' suggestion' + (p.ara.length === 1 ? '' : 's') + ' about ' + p.title,
+                onClick: function () { p.onAra(p.title, p.ara); }
+              }, h(Ara, { size: 'xs' }), h('span', null, p.ara.length))
+            : null)),
       p.children);
+  }
+
+  /* The suggestions, over the card rather than inside it. */
+  function AraModal(p) {
+    return h(ui.Modal, {
+      title: 'Ara · ' + p.title,
+      description: p.items.length + (p.items.length === 1 ? ' thing' : ' things') + ' worth doing here.',
+      onClose: p.onClose,
+      footer: h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close')
+    },
+      h('div', { className: 'cop' }, p.items.map(function (c) {
+        return h('div', { className: 'cop__i', key: c.t },
+          h('span', { className: 'cop__ico' }, c.icon),
+          h('span', { className: 'cop__m' },
+            h('strong', null, c.t),
+            h('span', null, c.s),
+            h('button', {
+              type: 'button', className: 'cop__a',
+              onClick: function () { p.onClose(); router.go(c.to); }
+            }, c.a, I.right)));
+      })));
   }
 
   /* ---------- sample series: the prototype keeps no history ---------- */
@@ -126,12 +158,15 @@
     { t: 'Data backup', s: 'Last backup 2 hrs ago', mut: true, icon: I.archive }
   ];
 
+  /* Each one is filed against the card whose number it explains, so the suggestion sits
+     next to the thing it is about rather than in a pile of its own. */
   var ARA_ITEMS = [
-    { t: '3 users are exiting tomorrow', s: 'Their access stays open until someone closes it. I can schedule it for end of day.', a: 'Schedule disable', icon: I.logout, to: 'hr/people/exited' },
-    { t: '2 accounts inactive for 30+ days', s: 'Rohit Shetty and one other. Deactivating frees two seats and closes a way in.', a: 'Review accounts', icon: I.person, to: 'admin/roles/review' },
-    { t: '5 users hold more access than they use', s: 'None has used an approval right in 90 days. Worth stepping them down a level.', a: 'Adjust access', icon: I.shield, to: 'admin/roles/modules' },
-    { t: 'Attendance sync failed 3 times yesterday', s: 'The Tally connector is timing out. Punches since Monday have not reached payroll.', a: 'Fix now', icon: SYNC, to: 'admin/integrations' }
+    { card: 'Upcoming lifecycle actions', t: '3 users are exiting tomorrow', s: 'Their access stays open until someone closes it. I can schedule it for end of day.', a: 'Schedule disable', icon: I.logout, to: 'admin/users/all' },
+    { card: 'Users by role', t: '2 accounts inactive for 30+ days', s: 'Rohit Shetty and one other. Deactivating frees two seats and closes a way in.', a: 'Review accounts', icon: I.person, to: 'admin/roles/review' },
+    { card: 'Pending access requests', t: '5 users hold more access than they use', s: 'None has used an approval right in 90 days. Worth stepping them down a level.', a: 'Adjust access', icon: I.shield, to: 'admin/roles/modules' },
+    { card: 'System health', t: 'Attendance sync failed 3 times yesterday', s: 'The Tally connector is timing out. Punches since Monday have not reached payroll.', a: 'Fix now', icon: SYNC, to: 'admin/integrations' }
   ];
+  function araFor(card) { return ARA_ITEMS.filter(function (x) { return x.card === card; }); }
 
   var REQS = [
     { t: 'New user access', n: 6, who: 'Engineering · Design', icon: I.person },
@@ -163,14 +198,13 @@
   /* ---------- the page ---------- */
   function AdminDashboard() {
     var seriesSt = useState('Users');
-    var hidSt = useState(store.pref('araHidden') === true);
-    var hidden = hidSt[0];
+    var araSt = useState(null);
 
     var me = store.employeeByName(HRMS.nav.role('admin').persona);
     var users = store.collection('users');
     var reqTotal = REQS.reduce(function (a, r) { return a + r.n; }, 0);
 
-    function hideAra(v) { hidSt[1](v); store.setPref('araHidden', v); }
+    function openAra(title, items) { araSt[1]({ title: title, items: items }); }
 
     var KPI = [
       { l: 'Total users', n: users.length, ico: I.users, d: '+5.4%', dt: 'up', sub: 'vs last month', wave: true },
@@ -185,32 +219,9 @@
         h('div', null,
           h('h1', null, greeting() + ', ', h('em', null, me ? me.name.split(' ')[0] : 'there'), ' 👋'),
           h('p', null, 'Users, access, organisation and platform health.')),
-        h('div', { className: 'row gap-2' },
-          hidden
-            ? h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.leo, onClick: function () { hideAra(false); } }, 'Show Ara')
-            : null,
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.calendar, iconEnd: I.chevron,
-            onClick: function () { ui.toast('Pick another period — not wired in the prototype.'); } },
-            'Nov 1 – Nov 30, 2026'))),
-
-      /* Ara leads: it is the only card that names work rather than measuring it. */
-      hidden ? null : h('section', { className: 'dash__card dash__ara' },
-        h('div', { className: 'dash__card__head' },
-          h('h2', { className: 'row gap-2', style: { alignItems: 'center' } }, h(Ara, { size: 'sm' }), 'Ara'),
-          h('div', { className: 'row gap-2', style: { alignItems: 'center' } },
-            h('span', { className: 'tag2 tag2--brand' }, ARA_ITEMS.length + ' to look at'),
-            h('button', {
-              type: 'button', className: 'dash__x', 'aria-label': 'Hide Ara',
-              onClick: function () { hideAra(true); ui.toast('Ara hidden. Bring it back from the top of the page.'); }
-            }, CLOSE))),
-        h('div', { className: 'cop cop--wide' }, ARA_ITEMS.map(function (c) {
-          return h('div', { className: 'cop__i', key: c.t },
-            h('span', { className: 'cop__ico' }, c.icon),
-            h('span', { className: 'cop__m' },
-              h('strong', null, c.t),
-              h('span', null, c.s),
-              h('button', { type: 'button', className: 'cop__a', onClick: function () { router.go(c.to); } }, c.a, I.right)));
-        }))),
+        h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.calendar, iconEnd: I.chevron,
+          onClick: function () { ui.toast('Pick another period — not wired in the prototype.'); } },
+          'Nov 1 – Nov 30, 2026')),
 
       h('div', { className: 'kpis' }, KPI.map(function (k) {
         return h('div', { className: 'kpi2' + (k.wave ? ' has-wave' : ''), key: k.l },
@@ -235,7 +246,7 @@
           right: h(V.SegmentedControl, { size: 'sm', value: seriesSt[0], onChange: seriesSt[1], items: ['Users', 'Storage'] }) },
           h(Trend, { series: seriesSt[0] })),
 
-        h(Card, { span: 'c4', title: 'System health',
+        h(Card, { span: 'c4', title: 'System health', ara: araFor('System health'), onAra: openAra,
           right: h('span', { className: 'state state--ok' }, CHECK, 'Operational') },
           h('div', { className: 'lrows' }, HEALTH.map(function (x) {
             return h('div', { className: 'lrow', key: x.t },
@@ -245,7 +256,7 @@
                 x.mut ? null : x.ok ? CHECK : I.warn, x.s));
           }))),
 
-        h(Card, { span: 'c6', title: 'Pending access requests',
+        h(Card, { span: 'c6', title: 'Pending access requests', ara: araFor('Pending access requests'), onAra: openAra,
           right: h('span', { className: 'tag2 tag2--warn' }, reqTotal + ' waiting') },
           h('div', { className: 'lrows' }, REQS.map(function (r) {
             return h('div', { className: 'lrow', key: r.t },
@@ -256,7 +267,7 @@
                 onClick: function () { router.go('admin/users/access'); } }, I.right));
           }))),
 
-        h(Card, { span: 'c6', title: 'Upcoming lifecycle actions',
+        h(Card, { span: 'c6', title: 'Upcoming lifecycle actions', ara: araFor('Upcoming lifecycle actions'), onAra: openAra,
           right: h('button', { type: 'button', className: 'dash__link',
             onClick: function () { router.goAs('hr/people/all'); } }, 'This week', I.right) },
           h('div', { className: 'lrows' }, LIFE.map(function (l) {
@@ -267,7 +278,7 @@
                 onClick: function () { ui.toast(l.act + ' — not wired in the prototype.'); } }, l.act));
           }))),
 
-        h(Card, { span: 'c6', title: 'Users by role',
+        h(Card, { span: 'c6', title: 'Users by role', ara: araFor('Users by role'), onAra: openAra,
           right: h('button', { type: 'button', className: 'dash__link',
             onClick: function () { router.go('admin/users/all'); } }, 'All users', I.right) },
           h(Donut)),
@@ -276,7 +287,12 @@
           h('div', { className: 'dash__qa' }, QUICK.map(function (q) {
             return h('button', { key: q.t, type: 'button', className: 'dash__qbtn',
               onClick: function () { router.go(q.to); } }, q.icon, h('span', null, q.t));
-          })))));
+          })))),
+
+      araSt[0] ? h(AraModal, {
+        title: araSt[0].title, items: araSt[0].items,
+        onClose: function () { araSt[1](null); }
+      }) : null);
   }
 
   HRMS.screens.register({ 'admin/dashboard': AdminDashboard });
