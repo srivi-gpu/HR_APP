@@ -359,8 +359,12 @@
 .bu-dot { width: 9px; height: 9px; margin-top: 6px; flex: none; border-radius: 999px; }
 
 /* the trend chart */
-.bu-chart { display: flex; flex-direction: column; gap: 10px; }
-.bu-chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.bu-chart { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+/* The box the chart measures itself against. It takes the height the card has spare,
+   and the SVG is drawn at exactly that size, so the card has no dead space under the
+   drawing and nothing is scaled to fit. */
+.bu-chart__box { flex: 1; min-height: 220px; min-width: 0; }
+.bu-chart__box svg { width: 100%; height: 100%; display: block; overflow: visible; }
 .bu-chart__ax { font-family: var(--font-sans); font-size: 11px; fill: var(--text-secondary); }
 .bu-chart__lim { font-family: var(--font-sans); font-size: 11px; font-weight: 600; fill: var(--danger-fg); }
 .bu-chart__k { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--text-secondary); }
@@ -820,4 +824,58 @@ html.lenis, html.lenis body { height: auto; }
 .faces__more { margin-left: -9px; min-width: 34px; height: 34px; padding: 0 8px; border-radius: var(--tl-round); display: grid; place-items: center;
   background: var(--bg-muted); color: var(--text-secondary); font-size: 12px; font-weight: 700; box-shadow: 0 0 0 2.5px var(--bg-surface); }
 .thead__acts { display: flex; align-items: center; gap: 8px; }
+}
+
+
+/* ---------------------------------------------------------------- admin settings rows
+   Shared by Branding, Security and the access review: a label and its description on
+   the left, the control on the right, stacking on a narrow screen. */
+.ad-row2 { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 12px 0; border-top: 1px solid var(--border-subtle); }
+.ad-row2:first-of-type { border-top: 0; }
+.ad-row2 > .stack { min-width: 0; }
+.ad-row2__c { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 720px) { .ad-row2 { flex-direction: column; align-items: stretch; } .ad-row2__c { justify-content: flex-start; } }
+
+.ad-list { display: flex; flex-direction: column; gap: 8px; }
+.ad-nest { margin: 4px 0 4px 44px; padding-left: 14px; border-left: 2px solid var(--border-subtle); }
+
+/* Branding */
+.ad-swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.ad-swatch { position: relative; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; cursor: pointer; box-shadow: inset 0 0 0 1px #0000001f; }
+.ad-swatch.is-on { box-shadow: inset 0 0 0 1px #0000001f, 0 0 0 2px var(--bg-surface), 0 0 0 4px var(--brand-solid); }
+.ad-swatch:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 3px; }
+.ad-swatch--custom { display: grid; place-items: center; background: var(--bg-subtle); color: var(--text-secondary); }
+.ad-swatch--custom svg { width: 15px; height: 15px; }
+.ad-swatch--custom input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.ad-file { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-secondary); }
+.ad-file svg { width: 15px; height: 15px; }
+.ad-upload { position: relative; cursor: pointer; }
+
+/* Email templates */
+.ad-mailrow { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: 14px; }
+.ad-mailrow__i { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; background: var(--brand-softer); color: var(--text-brand); }
+.ad-mailrow__i svg { width: 17px; height: 17px; }
+.ad-mailrow__sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ad-mail { display: flex; flex-direction: column; gap: 14px; }
+.ad-mail__head { display: flex; flex-direction: column; gap: 3px; padding-bottom: 12px; border-bottom: 1px solid var(--border-subtle); }
+.ad-mail__body { display: flex; flex-direction: column; gap: 10px; font-size: 14px; line-height: 1.6; color: var(--text-secondary); }
+.ad-mail__body p { margin: 0; }
+.ad-mail__gap { height: 2px; }
+.ad-mail__btn { align-self: flex-start; padding: 9px 16px; border-radius: var(--tl-radius-pill); background: var(--brand-solid); color: var(--brand-on-solid); font-size: 13px; font-weight: 500; }
+
+/* Security: blocked accounts and 2-step coverage */
+.ad-blk { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border-subtle); border-radius: 14px; }
+.ad-blk.is-bad { border-color: var(--danger-fg); background: var(--danger-bg); }
+.ad-blk__i { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 10px; background: var(--bg-subtle); color: var(--text-secondary); }
+.ad-blk.is-bad .ad-blk__i { background: var(--bg-surface); color: var(--danger-fg); }
+.ad-blk__i svg { width: 17px; height: 17px; }
+.ad-check { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border-subtle); font-size: 14px; }
+.ad-check:first-child { border-top: 0; }
+
+/* Access review findings */
+.ad-find { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border-subtle); border-left-width: 3px; border-radius: 14px; }
+.ad-find.is-bad { border-left-color: var(--danger-fg); }
+@media (max-width: 720px) {
+  .ad-find, .ad-blk, .ad-mailrow { flex-wrap: wrap; }
+  .ad-find > .stack, .ad-blk > .stack, .ad-mailrow > .stack { flex: 1 1 100%; }
 }

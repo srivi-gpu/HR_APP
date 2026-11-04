@@ -1608,7 +1608,7 @@
 
   /* ========================================================== Holiday calendar
      PRD 4.11: the holiday calendar HR works from, including optional holidays.
-     The global default lives on the admin side (admin/org/holidays). */
+     The global default lives on the admin side, inside Working hours. */
   function Holidays() {
     var typeSt = React.useState('');
     var today = seed.todayIso;
@@ -1646,7 +1646,7 @@
             h(ui.Filter, { label: 'Type', value: typeSt[0], onChange: typeSt[1], options: ['National', 'Public', 'Optional'] }),
             h(V.Button, {
               variant: 'outline', className: 'vi-btn--sm', iconStart: I.sitemap,
-              onClick: function () { router.goAs('admin/org/holidays'); }
+              onClick: function () { router.goAs('admin/org/workweek'); }
             }, 'Org default'))
         },
           h(ui.DataTable, {

@@ -27,9 +27,9 @@
     var aiPct = ui.pct(ai.used, ai.credits);
 
     var alerts = [
-      { tone: 'warning', title: s.invited + ' invitations unaccepted', body: 'Sent more than five days ago. Resend or revoke from User management.', to: 'admin/users/pending' },
-      { tone: 'warning', title: (seed.setupSteps.length - done) + ' setup steps remaining', body: seed.setupSteps.filter(function (x) { return !x.done; }).map(function (x) { return x.label; }).join(', ') + '.', to: 'admin/org/settings' },
-      { tone: 'info', title: 'Single sign-on not configured', body: 'Everyone signs in with email and password only.', to: 'admin/settings/auth' },
+      { tone: 'warning', title: s.invited + ' invitations unaccepted', body: 'Sent more than five days ago. Resend or revoke from User management.', to: 'admin/users/all' },
+      { tone: 'warning', title: (seed.setupSteps.length - done) + ' setup steps remaining', body: seed.setupSteps.filter(function (x) { return !x.done; }).map(function (x) { return x.label; }).join(', ') + '.', to: 'admin/org/profile' },
+      { tone: 'info', title: 'Single sign-on not configured', body: 'Everyone signs in with email and password only.', to: 'admin/settings' },
       { tone: 'info', title: 'Seat usage at ' + seatPct + '%', body: sub.seatsUsed + ' of ' + sub.seats + ' seats used on the ' + sub.plan + ' plan.', to: 'admin/billing/seats' }
     ];
 
@@ -39,7 +39,7 @@
         description: seed.org.name + ' · ' + seed.org.industry + ' · ' + s.locations + ' locations under ' + s.entities + ' legal entity.',
         actions: [
           h(V.Button, { key: 'a', variant: 'outline', iconStart: I.download }, 'Export'),
-          h(V.Button, { key: 'b', variant: 'primary', iconStart: I.plus, onClick: function () { router.go('admin/users/pending'); } }, 'Invite user')
+          h(V.Button, { key: 'b', variant: 'primary', iconStart: I.plus, onClick: function () { router.go('admin/users/all'); } }, 'Invite user')
         ]
       }),
 

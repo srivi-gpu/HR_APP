@@ -18,45 +18,40 @@
     { path: 'search', label: 'Search', icon: 'search', section: '11.1',
       note: 'People, requests, records and screens, across everything this workspace may see.' },
 
-    /* People and Users are two modules about two things, and they are kept apart.
-       People is the organization: who reports to whom, which team they sit in, who is
-       joining or leaving, who is asking for access. Users is the account: who may sign
-       in, as what, and whether the invitation was accepted. People used to open on a
-       Users tab that listed the same accounts as the Users module below, which is the
-       duplication this removes. */
-    { path: 'people', label: 'People', icon: 'users', section: '2.1', tabs: [
+    /* Admin has no People module. Who reports to whom and which team they sit in are
+       questions about the organisation, so the org tree and teams are tabs of
+       Organization; access requests are about accounts, so they are a tab of Users.
+       Lifecycle is HR's, and HR still carries it. */
+
+    /* The shape of Tracklivo's Organisation settings: who the company is, where it
+       works from, when it works, and what it looks like — with the reporting chart and
+       the teams that moved in from People. Departments and designations are HR's, in
+       Configuration → Organization structure, and are not duplicated here. */
+    { path: 'org', label: 'Organization', icon: 'building', section: '3.2', tabs: [
+      { path: 'profile', label: 'Company', section: '3.2', note: 'Name, industry, website, company size and the registered address that goes on invoices and contracts.' },
+      { path: 'locations', label: 'Locations', section: '11.2', note: 'Office locations with address, time zone, headcount and status.' },
       { path: 'org-tree', label: 'Org tree', section: '3.2', note: 'The reporting chart, pannable and zoomable, with a person’s team loaded from the directory on selection.' },
       { path: 'teams', label: 'Teams', section: '3.2', note: 'A team’s roster, lead, composition and the actions that change it.' },
-      { path: 'lifecycle', label: 'Lifecycle', section: '14.1', note: 'Joining, confirmation and exit. Exits close access automatically; confirmations go to HR to approve.' },
+      { path: 'workweek', label: 'Working hours', section: '3.2', note: 'Working days, weekly offs, default hours and the holiday calendar locations inherit.' },
+      { path: 'branding', label: 'Branding', section: '3.2', note: 'Accent colour, logo and the email header everyone sees.' },
+      { path: 'emails', label: 'Email templates', section: '7.2', note: 'The messages the product sends, each previewable and editable.' }
+    ]},
+
+    /* Active, pending, suspended and deactivated were four tabs over one table that
+       differed only by a status predicate. They are a filter on the table now, which is
+       where a reader looks for them, and leaves room for the access-request inbox. */
+    { path: 'users', label: 'Users', icon: 'users', section: '2.1', tabs: [
+      { path: 'all', label: 'Users', section: '2.1', note: 'Every user account with role, status and last sign-in, filtered by status.' },
       { path: 'access', label: 'Access requests', section: '10', note: 'One inbox for new-user, role-change, team and system access requests.' }
     ]},
 
-    { path: 'org', label: 'Organization', icon: 'building', section: '3.2', tabs: [
-      { path: 'profile', label: 'Company profile', section: '3.2', note: 'Name, logo, industry, company size, website, registration details and the office locations and branches.' },
-      { path: 'details', label: 'Organization details', section: '3.2', note: 'Time zone, default currency and regional settings.' },
-      { path: 'entities', label: 'Legal entities', section: '3.2', note: 'Registered business entities, each with its own statutory configuration.' },
-      { path: 'teams', label: 'Teams', section: '3.2', note: 'Working groups inside a department, with their lead and size.' },
-      { path: 'numbering', label: 'Employee numbering', section: '3.2', note: 'Prefix, width and next number each entity issues employee IDs from.' },
-      { path: 'workweek', label: 'Work week', section: '3.2', note: 'Organization-wide working days, weekly offs and default working hours.' },
-      { path: 'holidays', label: 'Holidays', section: '2.1', note: 'Global default holiday calendar that locations inherit.' },
-      { path: 'settings', label: 'Organization settings', section: '2.1', note: 'Org-level defaults that cascade into the HR workspace.' }
-    ]},
-
-    { path: 'users', label: 'Users', icon: 'users', section: '2.1', tabs: [
-      { path: 'all', label: 'All users', section: '2.1', note: 'Every user account with role, status and last sign-in.' },
-      { path: 'active', label: 'Active', section: '2.1', note: 'Accounts that can currently sign in.' },
-      { path: 'pending', label: 'Pending invitations', section: '2.1', note: 'Invitations sent but not yet accepted, with resend and revoke.' },
-      { path: 'suspended', label: 'Suspended', section: '2.1', note: 'Temporarily blocked accounts, with the reason and who suspended them.' },
-      { path: 'deactivated', label: 'Deactivated', section: '2.1', note: 'Closed accounts retained for audit purposes.' }
-    ]},
-
-    { path: 'roles', label: 'Roles & permissions', icon: 'shield', section: '10', tabs: [
-      { path: 'predefined', label: 'Predefined roles', section: '2.1', note: 'Built-in Admin, HR, Manager and Employee roles.' },
-      { path: 'custom', label: 'Custom roles', section: '2.1', note: 'Roles the organization defines for itself.' },
-      { path: 'groups', label: 'Permission groups', section: '2.1', note: 'Reusable bundles of permissions that roles draw from.' },
-      { path: 'modules', label: 'Module permissions', section: '10', note: 'View, create, edit, delete, approve, export and configure, per module.' },
-      { path: 'data', label: 'Data access', section: '10', note: 'Scope a role to the whole org, assigned locations, departments, team or own records.' },
-      { path: 'approvals', label: 'Approval permissions', section: '10', note: 'Which roles may approve which request types.' }
+    /* Permissions, in Tracklivo's two tabs. Access review is the standing question —
+       who holds access they should not still have — and Roles is where a role's reach
+       is changed. The four tabs that used to list roles, custom roles, permission
+       groups and data scopes were four readings of one thing: what a role may do. */
+    { path: 'roles', label: 'Permissions', icon: 'shield', section: '10', tabs: [
+      { path: 'review', label: 'Access review', section: '10', note: 'Access that looks wrong: people who have left, temporary grants about to lapse, and accounts that can still sign in.' },
+      { path: 'modules', label: 'Roles', section: '10', note: 'Pick a role, then set what it may do in each module.' }
     ]},
 
     /* Two tabs, not eleven. Billing used to carry six (plan, seats, history, invoices,
@@ -78,15 +73,10 @@
     { path: 'integrations', label: 'Integrations', icon: 'plug', section: '2.1',
       note: 'Connected providers, grouped by what they do.' },
 
-    { path: 'settings', label: 'System settings', icon: 'gear', section: '2.1', tabs: [
-      { path: 'general', label: 'General', section: '2.1', note: 'Date format, number format, week start and default language.' },
-      { path: 'auth', label: 'Authentication', section: '2.1', note: 'Sign-in methods, multi-factor enforcement and allowed domains.' },
-      { path: 'passwords', label: 'Password policy', section: '2.1', note: 'Length, complexity, rotation and reuse rules.' },
-      { path: 'security', label: 'Security', section: '2.1', note: 'IP allow-lists, device trust and lockout thresholds.' },
-      { path: 'sessions', label: 'Sessions', section: '2.1', note: 'Session lifetime, idle timeout and forced sign-out.' },
-      { path: 'notifications', label: 'Notification defaults', section: '7.3', note: 'Which channels each notification type uses by default.' },
-      { path: 'retention', label: 'Data retention', section: '2.1', note: 'How long exited employee records and logs are kept.' }
-    ]},
+    /* Security, as one page rather than seven tabs. Sign-in rules, who is blocked and
+       who has a second step are one question asked three ways, and splitting them meant
+       reading a policy on one tab to understand a lockout on another. */
+    { path: 'settings', label: 'Security', icon: 'lock', section: '2.1' },
 
     { path: 'audit', label: 'Audit logs', icon: 'history', section: '2.1', tabs: [
       { path: 'activity', label: 'User activity', section: '2.1', note: 'Who did what, where and when, across every module.' },
@@ -416,13 +406,16 @@
     ]},
     { label: 'Administration', slots: [
       { label: 'Users', icon: 'users', path: 'users' },
-      { label: 'Roles & permissions', icon: 'shield', path: 'roles' },
+      { label: 'Permissions', icon: 'shield', path: 'roles' },
       { label: 'Billing and usage', icon: 'card', path: 'billing' },
       { label: 'Integrations', icon: 'plug', path: 'integrations' },
-      { label: 'Audit logs', icon: 'history', path: 'audit' }
+      { label: 'Audit logs', icon: 'history', path: 'audit' },
+      { label: 'Security', icon: 'lock', path: 'settings' }
     ]},
     { label: 'Configuration', slots: [
-      { label: 'Configuration', icon: 'sliders', as: { admin: 'settings', hr: 'config' } }
+      /* Admin's slot here used to be `settings`, which is Security now and belongs with
+         the other administration rows. HR keeps Configuration. */
+      { label: 'Configuration', icon: 'sliders', as: { hr: 'config' } }
     ]}
   ];
 

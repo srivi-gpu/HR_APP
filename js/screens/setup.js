@@ -587,7 +587,7 @@
         return [
           h(V.Button, { key: 'b', variant: 'ghost', iconStart: I.back, onClick: function () { stepSt[1](4); } }, 'Back'),
           h('span', { className: 'osm__foot__r', key: 'r' },
-            h(V.Button, { variant: 'outline', onClick: function () { finish(); router.go('admin/people/users'); } }, 'Open People'),
+            h(V.Button, { variant: 'outline', onClick: function () { finish(); router.go('admin/users/all'); } }, 'Open users'),
             h(V.Button, { disabled: !entSt[0].name, onClick: function () { goLive(); } }, 'Go live'))
         ];
       }

@@ -95,7 +95,7 @@
       row: function (e) {
         return { avatar: e.name, title: e.name, sub: e.designation + ' · ' + deptName(e.department) + ' · ' + locName(e.location), chip: e.status };
       },
-      to: { admin: 'admin/people/users', hr: 'hr/people/all', me: 'me/profile' } },
+      to: { admin: 'admin/users/all', hr: 'hr/people/all', me: 'me/profile' } },
 
     { key: 'leave', label: 'Leave requests', icon: 'calendar', module: 'leave',
       rows: function () { return store.collection('leaveRequests'); },
@@ -178,7 +178,7 @@
       rows: function () { return store.collection('holidays'); },
       text: function (x) { return [x.name, x.type, x.date].join(' '); },
       row: function (x) { return { title: x.name, sub: x.date, chip: x.type }; },
-      to: { admin: 'admin/org/holidays', hr: 'hr/holidays' } },
+      to: { admin: 'admin/org/workweek', hr: 'hr/holidays' } },
 
     { key: 'departments', label: 'Departments', icon: 'building', module: 'departments',
       rows: function () { return store.collection('departments'); },
