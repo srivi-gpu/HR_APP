@@ -792,41 +792,7 @@
     return done('Receipt acknowledged');
   }
 
-  function requestAsset(employeeId, form) {
-    var errors = rules.required([{ key: 'category', label: 'Asset category' }, { key: 'reason', label: 'Reason' }], form);
-    if (rules.hasErrors(errors)) return fail(errors);
-    var id = store.nextId('assetRequests', 'AR');
-    var approver = (store.employeeByName('Sandeep Rao') || {}).id;
-    store.add('assetRequests', {
-      id: id, employee: employeeId, category: form.category, reason: form.reason,
-      status: 'Pending Approval', requestedOn: today(), approver: approver
-    });
-    raiseApproval({
-      id: id, kind: 'Asset Request', module: 'assets', employee: employeeId,
-      detail: form.category + ' — ' + form.reason, approver: approver, route: 'admin/assets/requests'
-    });
-    store.log('requested a ' + form.category, 'User activity');
-    return done('Request ' + id + ' submitted', { id: id });
-  }
 
-  function decideAssetRequest(id, decision, comment) {
-    var req = store.find('assetRequests', id);
-    if (!req) return fail({ _: 'That request no longer exists' });
-    if (req.status !== 'Pending Approval') return fail({ _: 'Already ' + req.status.toLowerCase() });
-    if (decision === 'Approved') {
-      var free = store.collection('assets').filter(function (a) {
-        return a.category === req.category && a.status === 'Available';
-      })[0];
-      if (!free) return fail({ _: 'No ' + req.category.toLowerCase() + ' is available in inventory' });
-      store.setOverride('assetRequests', id, { status: 'Approved', fulfilledWith: free.id });
-      allocateAsset(free.id, req.employee);
-    } else {
-      store.setOverride('assetRequests', id, { status: 'Rejected', comment: comment || null });
-    }
-    closeApproval(id, decision);
-    store.log(decision.toLowerCase() + ' asset request ' + id, 'User activity');
-    return done('Request ' + id + ' ' + decision.toLowerCase());
-  }
 
   function returnAsset(assetId, condition) {
     var asset = store.find('assets', assetId);
@@ -1350,8 +1316,6 @@
         return decision === 'Approved' ? approveLeave(id) : rejectLeave(id, comment);
       case 'Attendance Regularization':
         return decision === 'Approved' ? approveRegularization(id) : rejectRegularization(id, comment);
-      case 'Asset Request':
-        return decideAssetRequest(id, decision, comment);
       case 'Shift Swap':
         return decideShiftSwap(id, decision);
       case 'Resignation':
@@ -1405,7 +1369,7 @@
     renameFolder: renameFolder, deleteFolder: deleteFolder,
     /* Assets */
     addAsset: addAsset, allocateAsset: allocateAsset, acknowledgeAsset: acknowledgeAsset,
-    requestAsset: requestAsset, decideAssetRequest: decideAssetRequest, returnAsset: returnAsset,
+    returnAsset: returnAsset,
     /* Payroll */
     createSalaryStructure: createSalaryStructure, initiatePayroll: initiatePayroll,
     reviewPayroll: reviewPayroll, finalizePayroll: finalizePayroll, generatePayslips: generatePayslips,

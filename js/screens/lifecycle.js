@@ -2094,35 +2094,36 @@
       returnSt[0] ? h(ReturnModal, { asset: returnSt[0], onClose: function () { returnSt[1](null); } }) : null);
   }
 
-  /* The asset-request queue, as a record rather than a desk.
+  /* Asset requests, as the asset register sees them.
 
-     Requests are raised in Tracklivo and decided there, so this screen has no approve
-     and no reject: buttons that cannot do anything are worse than no buttons. What it
-     has is where each request has got to, whose desk it is on, and the reasoning behind
-     every decision on the way — which is what somebody comes to this screen to find
-     out. The chain itself is read off the reporting line, so it is right for each
-     person without being configured anywhere. */
+     Requests are raised and decided in Tracklivo. The approval is not this app's, so
+     there is no chain here, no approver and no approve or reject: what the register
+     needs to know is whether a unit is waiting to be issued. "Ready to issue" is a
+     request Tracklivo has cleared; "In Tracklivo" is one still being decided there. */
+  var REQ_WORD = { 'Pending Approval': 'In Tracklivo', Approved: 'Ready to issue', Rejected: 'Declined' };
+  var REQ_TONE = { 'Pending Approval': 'neutral', Approved: 'success', Rejected: 'error' };
+  function reqChip(status) {
+    return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: REQ_TONE[status] || 'neutral' }, REQ_WORD[status] || status);
+  }
+  HRMS.assetRequestChip = reqChip;
+
   function AssetRequests() {
     var statusSt = React.useState('');
-    var openSt = React.useState(null);
-    var flow = HRMS.assetflow;
-
     var all = store.collection('assetRequests');
-    var rows = statusSt[0] ? all.filter(function (r) { return r.status === statusSt[0]; }) : all;
+    var rows = statusSt[0] ? all.filter(function (r) { return REQ_WORD[r.status] === statusSt[0]; }) : all;
+    function count(st) { return all.filter(function (r) { return r.status === st; }).length; }
 
     return h(React.Fragment, null,
       h(Stats, null,
-        h(Stat, { key: 1, label: 'Pending approval', value: all.filter(function (r) { return r.status === 'Pending Approval'; }).length,
-          sub: 'Somewhere in the reporting line', tone: 'warn' }),
-        h(Stat, { key: 2, label: 'Approved', value: all.filter(function (r) { return r.status === 'Approved'; }).length,
-          sub: 'Cleared every desk, including IT', tone: 'good' }),
-        h(Stat, { key: 3, label: 'Rejected', value: all.filter(function (r) { return r.status === 'Rejected'; }).length, sub: 'With a reason on record' }),
-        h(Stat, { key: 4, label: 'Available to fulfil', value: store.collection('assets').filter(function (a) { return a.status === 'Available'; }).length,
-          sub: 'Units in the store across all categories' })),
+        h(Stat, { key: 1, label: 'Ready to issue', value: count('Approved'), sub: 'Cleared in Tracklivo, waiting on a unit', tone: count('Approved') ? 'warn' : 'good' }),
+        h(Stat, { key: 2, label: 'Available to issue', value: store.collection('assets').filter(function (a) { return a.status === 'Available'; }).length,
+          sub: 'Units in the store across all categories' }),
+        h(Stat, { key: 3, label: 'In Tracklivo', value: count('Pending Approval'), sub: 'Still being decided there' }),
+        h(Stat, { key: 4, label: 'Declined', value: count('Rejected'), sub: 'Nothing to issue' })),
 
       h(Card, {
         title: 'Asset requests',
-        description: 'Raised and decided in Tracklivo. This is the record: who it has reached, who signed it off and why. A request walks the requester’s own reporting line and ends with IT, who issue the unit.',
+        description: 'Raised and decided in Tracklivo. This list is what the register has to issue against.',
         aside: h('span', { className: 'atl__src' }, 'From Tracklivo')
       },
         h(ui.DataTable, {
@@ -2130,7 +2131,7 @@
           search: function (r) { return empName(r.employee) + ' ' + r.id + ' ' + r.category + ' ' + r.reason; },
           searchPlaceholder: 'Search by employee, category or reason',
           filters: h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1],
-            options: ['Pending Approval', 'Approved', 'Rejected'] }),
+            options: ['Ready to issue', 'In Tracklivo', 'Declined'] }),
           columns: [
             { key: 'id', header: 'Request', cell: function (r) { return h('span', { className: 'mono' }, r.id); } },
             { key: 'employee', header: 'Employee', sortable: true,
@@ -2140,45 +2141,21 @@
             { key: 'category', header: 'Category', sortable: true },
             { key: 'reason', header: 'Reason' },
             { key: 'requestedOn', header: 'Requested', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
-            { key: 'stage', header: 'Where it is',
-              csv: function (r) {
-                var w = flow.waitingOn(r), d = flow.decidedBy(r);
-                return w ? 'With ' + w : d ? (d.rejected ? 'Rejected by ' : 'Cleared by ') + d.who : '';
-              },
-              cell: function (r) {
-                var w = flow.waitingOn(r);
-                if (w) return h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
-                  h(V.Avatar, { name: w, size: 'xs' }), h('span', null, w));
-                var d = flow.decidedBy(r);
-                if (!d) return h('span', { className: 'muted' }, '—');
-                return h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
-                  h(V.Avatar, { name: d.who, size: 'xs' }),
-                  h('span', null, d.who),
-                  h('span', { className: 'muted' }, d.rejected ? 'rejected' : 'cleared'));
-              } },
-            { key: 'steps', header: 'Approvals', align: 'right', numeric: true,
-              csv: function (r) {
-                var t = flow.timeline(r);
-                return t.filter(function (x) { return x.state === 'approved'; }).length + '/' + (t.length - 1);
-              },
-              cell: function (r) {
-                var t = flow.timeline(r).filter(function (x) { return x.kind !== 'raised'; });
-                var done = t.filter(function (x) { return x.state === 'approved'; }).length;
-                return h('span', { className: 'muted mono' }, done + ' / ' + t.length);
-              } },
-            { key: 'status', header: 'Status', cell: function (r) { return h(ui.StatusChip, { status: r.status }); } },
+            { key: 'status', header: 'Status', csv: function (r) { return REQ_WORD[r.status] || r.status; },
+              cell: function (r) { return reqChip(r.status); } },
             { key: 'actions', header: '', align: 'right',
               cell: function (r) {
-                return h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.history,
-                  onClick: function () { openSt[1](r); } }, 'Timeline');
+                return r.status === 'Approved'
+                  ? h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.package,
+                      onClick: function () { router.go('admin/assets/allocations'); } }, 'Issue a unit')
+                  : null;
               } }
           ],
           emptyIcon: I.checklist, emptyTitle: 'No asset requests',
-          emptyBody: 'Requests raised in Tracklivo arrive here with the approval chain they are walking.'
-        })),
-
-      openSt[0] ? h(HRMS.assetTimeline, { request: openSt[0], onClose: function () { openSt[1](null); } }) : null);
+          emptyBody: 'Requests raised in Tracklivo arrive here once they exist.'
+        })));
   }
+
 
 
   function Returns() {

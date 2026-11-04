@@ -774,7 +774,10 @@
     var loadedSt = useState(1), teamRowsSt = useState({ loading: true, rows: [] }), panelSt = useState('team');
     var lifeSt = useState(LIFE_SEED.map(function (r) { return Object.assign({}, r); }));
     var moveKeySt = useState(0), actSt = useState(null), bigSt = useState(false), sheetSt = useState(false);
-    var viewSt = useState(store.pref('orgView') || 'cards');   /* cards | horizontal | network */
+    /* cards | vertical | network. A stored 'horizontal' is from before the tree turned
+       upright, and reads as the vertical view rather than as nothing. */
+    var savedView = store.pref('orgView');
+    var viewSt = useState(savedView === 'horizontal' ? 'vertical' : (savedView || 'cards'));
 
     /* The chart holds only what was expanded, so the team always comes from the directory. */
     React.useEffect(function () {
@@ -837,10 +840,10 @@
               h('div', { className: 'dash__card__head', style: { padding: '18px 20px 10px' } },
                 h('h2', null, 'Reporting chart'),
                 h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
-                  /* Three readings of one reporting line: cards to change it, horizontal
-                     to follow it, network to see its shape. */
+                  /* Three readings of one reporting line: cards to change it, a vertical
+                     tree to follow it, network to see its shape. */
                   h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'Chart view' },
-                    [['cards', 'Cards'], ['horizontal', 'Horizontal'], ['network', 'Network']].map(function (v) {
+                    [['cards', 'Cards'], ['vertical', 'Vertical'], ['network', 'Network']].map(function (v) {
                       return h('button', {
                         key: v[0], type: 'button', role: 'tab',
                         'aria-selected': viewSt[0] === v[0] ? 'true' : 'false',
@@ -859,9 +862,9 @@
                 ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
                     h(HRMS.orgcharts.AmChart, {
                       key: viewSt[0] + ':' + moveKeySt[0] + ':' + (bigSt[0] ? 'full' : 'inline'),
-                      view: viewSt[0], epoch: moveKeySt[0], tall: viewSt[0] === 'horizontal',
-                      label: viewSt[0] === 'horizontal' ? 'Reporting hierarchy, left to right' : 'Reporting network',
-                      draw: (viewSt[0] === 'horizontal' ? HRMS.orgcharts.drawHorizontal : HRMS.orgcharts.drawNetwork)(
+                      view: viewSt[0], epoch: moveKeySt[0],
+                      label: viewSt[0] === 'vertical' ? 'Reporting hierarchy, top to bottom' : 'Reporting network',
+                      draw: (viewSt[0] === 'vertical' ? HRMS.orgcharts.drawVertical : HRMS.orgcharts.drawNetwork)(
                         HRMS.orgcharts.treeData(all, root.id),
                         function (id) { focusSt[1](id); sheetSt[1](true); }
                       )

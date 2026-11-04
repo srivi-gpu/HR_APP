@@ -206,7 +206,7 @@
      head, and the marker opens that suggestion. */
   function SigninChart(p) {
     var b = p.buckets, max = Math.max.apply(null, b.map(function (x) { return x.n; }).concat([1]));
-    var W = 640, H = 270, PL = 34, PR = 8, PT = 26, PB = 26;
+    var W = 640, H = 200, PL = 34, PR = 8, PT = 24, PB = 24;
     var band = (W - PL - PR) / b.length, bw = Math.min(64, band * 0.56);
     function x(i) { return PL + band * i + band / 2; }
     function y(v) { return PT + (1 - v / max) * (H - PT - PB); }
@@ -330,7 +330,7 @@
   function pill(word, cls) { return h('span', { className: 'adm-p adm-p--' + (cls || PILL[word]) }, word); }
 
   /* ====================================================== the page */
-  function AdminDashboard() {
+  function AdminDashA(p) {
     var openSt = React.useState(null);
     var allSt = React.useState(false);
     var s = store.stats();
@@ -373,7 +373,8 @@
             h('i', null),
             h('span', null, 'Read on ' + seed.todayLabel),
             h('i', null),
-            h('span', null, me ? 'Signed in as ' + me.name : 'Administrator')))),
+            h('span', null, me ? 'Signed in as ' + me.name : 'Administrator'))),
+        p.switcher),
 
       /* Four numbers on one card, divided by rules. */
       h('section', { className: 'adm-card', style: { padding: 0 }, 'aria-label': 'Key figures' },
@@ -410,7 +411,9 @@
           h('div', { className: 'adm-card__head' },
             h('div', null,
               h('h2', null, 'Privileged access'),
-              h('p', null, 'Admin and HR rights'))),
+              h('p', null, 'Admin and HR rights')),
+            h('button', { type: 'button', className: 'dash__link',
+              onClick: function () { router.go('admin/roles/modules'); } }, 'Roles', I.right)),
           h('div', { className: 'adm-priv__top' },
             h('span', { className: 'adm-priv__n' }, priv.length),
             h('span', { className: 'adm-priv__cap' },
@@ -420,14 +423,12 @@
           h('div', { className: 'adm-priv__list' }, priv.map(function (u) {
             var e = store.employee(u.employee);
             return h('div', { className: 'adm-priv__r', key: u.id },
-              h(V.Avatar, { name: e ? e.name : u.email, size: 'sm' }),
+              h(V.Avatar, { name: e ? e.name : u.email, size: 'xs' }),
               h('span', { className: 'adm-priv__m' },
                 h('strong', null, e ? e.name : u.email),
                 h('span', null, ROLE_NAME[u.role])),
               u.mfa ? pill('MFA on', 'ok') : pill('No MFA', 'fail'));
-          })),
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconEnd: I.right, style: { alignSelf: 'flex-start', marginTop: 'auto' },
-            onClick: function () { router.go('admin/roles/modules'); } }, 'Review roles')),
+          }))),
 
         /* How recently people sign in, with Ara's reading pinned to it. */
         h('section', { className: 'adm-card' },
@@ -441,9 +442,9 @@
             h('span', { className: 'adm-chip' }, h('b', null, num(active7)), h('span', null, 'Signed in this week')),
             h('span', { className: 'adm-chip' }, h('b', null, Math.round(active7 / (users.length || 1) * 100) + '%'), h('span', null, 'Of the directory'))),
           h(SigninChart, { buckets: buckets, flags: flags, onOpen: function (f) { openSt[1](f); } }),
-          /* The top three, inline, so the card says what to do as well as what is true.
+          /* The top two, inline, so the card says what to do as well as what is true.
              The rest are one click away in the modal the head button opens. */
-          h('div', { className: 'adm-tips' }, sugg.slice(0, 3).map(function (x) {
+          h('div', { className: 'adm-tips' }, sugg.slice(0, 2).map(function (x) {
             return h('button', { key: x.k, type: 'button', className: 'adm-tip ' + TONE_CLASS[x.tone],
               onClick: function () { openSt[1](x); } },
               h('span', { className: 'adm-tip__i' }, x.icon),
@@ -507,6 +508,37 @@
 
       openSt[0] ? h(SuggestionModal, { item: openSt[0], onClose: function () { openSt[1](null); } }) : null,
       allSt[0] ? h(AllSuggestions, { items: sugg, onClose: function () { allSt[1](false); } }) : null);
+  }
+
+  /* ====================================================== A or B
+     Two options for the same route, so they can be compared on the same data without a
+     rebuild in between. Option B lives in admin-dash-b.js and takes this page's styles.
+     The choice is remembered; a value stored by an older build falls back to A. */
+  var OPTIONS = [
+    { k: 'a', label: 'Option A', title: 'Accounts and access' },
+    { k: 'b', label: 'Option B', title: 'System overview' }
+  ];
+
+  function Switcher(p) {
+    return h('div', { className: 'dsw', role: 'group', 'aria-label': 'Dashboard option' },
+      OPTIONS.map(function (o) {
+        return h('button', {
+          key: o.k, type: 'button', title: o.title,
+          className: 'dsw__b' + (p.value === o.k ? ' is-on' : ''),
+          'aria-pressed': p.value === o.k,
+          onClick: function () { p.onChange(o.k); }
+        }, o.label);
+      }));
+  }
+
+  function AdminDashboard() {
+    var saved = store.pref('adminDashOption');
+    var optSt = React.useState(saved === 'b' && HRMS.adminDashB ? 'b' : 'a');
+    function pick(k) { optSt[1](k); store.setPref('adminDashOption', k); }
+    var switcher = h(Switcher, { value: optSt[0], onChange: pick });
+    return optSt[0] === 'b'
+      ? h(HRMS.adminDashB, { switcher: switcher })
+      : h(AdminDashA, { switcher: switcher });
   }
 
   HRMS.screens.register({ 'admin/dashboard': AdminDashboard });

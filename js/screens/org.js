@@ -441,7 +441,6 @@
       ['Leave Request', 'Reporting Manager', 'HR Administrator', 'Sequential'],
       ['Attendance Regularization', 'Reporting Manager', 'HR Administrator', 'Sequential'],
       ['Shift Swap', 'Reporting Manager', '—', 'Single'],
-      ['Asset Request', 'IT Administrator', 'HR Administrator', 'Sequential'],
       ['Profile Change', 'HR Administrator', '—', 'Single'],
       ['Payroll', 'Finance Controller', 'Organization Admin', 'Sequential'],
       ['Document Verification', 'HR Administrator', '—', 'Single'],
