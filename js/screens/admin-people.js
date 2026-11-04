@@ -853,18 +853,27 @@
                     })),
                   h('span', { className: 'anote' }, viewSt[0] === 'cards'
                     ? 'Drag to pan \u00b7 click a person to load their team'
+                    : viewSt[0] === 'vertical' ? 'Click a card to open their team'
                     : 'Scroll to zoom \u00b7 drag to pan \u00b7 click to open a branch'),
                   h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: bigSt[0] ? I.shrink : I.expand,
                     onClick: function () { bigSt[1](!bigSt[0]); } }, bigSt[0] ? 'Exit full screen' : 'Full screen'))),
               bigSt[0] ? h('div', { className: 'oc__scrim', onClick: function () { bigSt[1](false); } }) : null,
 
-              viewSt[0] !== 'cards' && HRMS.orgcharts && HRMS.orgcharts.ready()
+              viewSt[0] === 'vertical' && HRMS.orgcharts
+                ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
+                    h(HRMS.orgcharts.VerticalTree, {
+                      key: 'vertical:' + moveKeySt[0], staff: all, rootId: root.id, big: bigSt[0],
+                      onSelect: function (id) { focusSt[1](id); sheetSt[1](true); }
+                    }))
+                : null,
+
+              viewSt[0] === 'network' && HRMS.orgcharts && HRMS.orgcharts.ready()
                 ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
                     h(HRMS.orgcharts.AmChart, {
                       key: viewSt[0] + ':' + moveKeySt[0] + ':' + (bigSt[0] ? 'full' : 'inline'),
                       view: viewSt[0], epoch: moveKeySt[0],
-                      label: viewSt[0] === 'vertical' ? 'Reporting hierarchy, top to bottom' : 'Reporting network',
-                      draw: (viewSt[0] === 'vertical' ? HRMS.orgcharts.drawVertical : HRMS.orgcharts.drawNetwork)(
+                      label: 'Reporting network',
+                      draw: HRMS.orgcharts.drawNetwork(
                         HRMS.orgcharts.treeData(all, root.id),
                         function (id) { focusSt[1](id); sheetSt[1](true); }
                       )

@@ -4,9 +4,12 @@
    right shape for changing something. It is the wrong shape for seeing the whole
    organisation at once: 248 people in boxes is a map you have to walk.
 
-   Vertical is the tree, top to bottom: the root at the head of the page, each level
-   below the one it reports to, the way an org chart is read on paper. It opens one
-   level deep and every click opens the next one down the branch being read.
+   Vertical is a reporting path, read top to bottom: the person at the head of the
+   organisation, then their reports as a panel of cards, then — for whichever of
+   those you open — that person's reports in the next panel down. One branch is open
+   at a time, so the page grows downwards and never sideways, however wide a team is.
+   It is plain React and CSS rather than a chart: it is a list of people, and a list
+   of people reads best as cards with names on them.
 
    Network is a collapsible force-directed tree, built the way amCharts' own demo of
    one is built (and the way Tracklivo draws its force-directed chart): people as
@@ -94,123 +97,119 @@
   }
 
   /* -------------------------------------------------------------------- vertical */
-  /* amCharts' Tree spaces siblings by the size of everything under them, folded or not,
-     so a director with forty reports claimed forty slots of width while leaf reports
-     were crushed together at the far end. This tree is therefore handed only the
-     branches that are open, and does its own opening and closing: a click rebuilds the
-     data with that branch toggled, and the layout spaces what is actually on screen. */
-  function prune(node, open) {
-    var out = { id: node.id, name: node.name, role: node.role, dept: node.dept, mark: node.mark, value: 1,
-      more: (node.children || []).length };
-    if (node.children && open[node.id]) {
-      out.children = node.children.map(function (c) { return prune(c, open); });
-      out.more = 0;
-    }
-    return out;
+  /* The department decides the colour, from the avatar tones the rest of the app uses,
+     so a person is the same colour here as on their profile chip. */
+  var TONES = ['violet', 'blue', 'green', 'peach', 'grey'];
+  function toneFor(dept, depts) {
+    var i = depts.indexOf(dept);
+    return TONES[(i < 0 ? 0 : i) % TONES.length];
   }
 
-  function depthOf(node) {
-    return 1 + Math.max.apply(null, [0].concat((node.children || []).map(depthOf)));
-  }
-  function widestLevel(node) {
-    var counts = [];
-    (function walk(n, d) {
-      counts[d] = (counts[d] || 0) + 1;
-      (n.children || []).forEach(function (c) { walk(c, d + 1); });
-    })(node, 0);
-    return Math.max.apply(null, counts);
-  }
-
-  /* A branch opening or closing redraws the tree on the same root. Adding nodes to a
-     Tree that is already drawn leaves them hidden, and a fresh draw is also what lets
-     the layout space the new shape properly rather than squeezing it into the old one. */
-  function drawVertical(data, onSelect, openState) {
-    return function draw(root, am5, am5hierarchy) {
-      var open = openState || {};
-      if (!openState && data[0]) open[data[0].id] = true;   // the root opens on its direct reports
-      var shown = data[0] ? prune(data[0], open) : null;
-
-      /* Each level gets a fixed height rather than a share of the card, so two levels
-         sit close together instead of being stretched to the bottom edge; and a name
-         wraps to the width its sibling slot actually has. */
-      var levels = shown ? depthOf(shown) : 1;
-      var width = (root.dom && root.dom.clientWidth) || 1100;
-      var slot = width / Math.max(1, shown ? widestLevel(shown) : 1);
-      var labelWidth = Math.max(60, Math.min(130, slot - 18));
-
-      var chart = root.container.children.push(am5.SerialChartContainer.new(root, {
-        width: am5.p100, height: am5.p100
-      }));
-      chart.zoomableContainer.setAll({ wheelable: true, pinchZoom: true, maxZoomLevel: 6, minZoomLevel: 0.3 });
-      chart.set('zoomTools', am5.ZoomTools.new(root, {}));
-
-      var series = chart.series.push(am5hierarchy.Tree.new(root, {
-        singleBranchOnly: false,
-        downDepth: 1,
-        initialDepth: 99,
-        valueField: 'value',
-        categoryField: 'name',
-        childDataField: 'children',
-        idField: 'id',
-        orientation: 'vertical',
-        height: Math.min(((root.dom && root.dom.clientHeight) || 700) - 20, 60 + levels * 170),
-        paddingTop: 34, paddingBottom: 96, paddingLeft: 50, paddingRight: 50
-      }));
-
-      series.get('colors').set('colors', palette());
-      series.circles.template.setAll({ radius: 22, strokeWidth: 3, stroke: am5.color(cssVar('--bg-surface', '#ffffff')) });
-      series.outerCircles.template.setAll({ forceHidden: true });
-      series.links.template.setAll({ strokeWidth: 1.5, strokeOpacity: 0.35 });
-
-      series.labels.template.setAll({
-        text: '{mark}', fontSize: 13, fontWeight: '600',
-        fill: am5.color(0xffffff), centerX: am5.p50, centerY: am5.p50, populateText: true
-      });
-      series.bullets.push(function (rt, se, dataItem) {
-        var d = dataItem.dataContext || {};
-        return am5.Bullet.new(rt, {
-          locationY: 0,
-          sprite: am5.Label.new(rt, {
-            text: '[bold]' + (d.name || '') + '[/]\n[fontSize:10px]' + (d.role || '') +
-              (d.more ? '\n[#5733c1]+' + d.more + (d.more === 1 ? ' report' : ' reports') + '[/]' : '') + '[/]',
-            fill: am5.color(cssVar('--text-secondary', '#555555')),
-            fontSize: slot < 100 ? 10 : 11.5, textAlign: 'center', centerX: am5.p50, centerY: am5.p0,
-            dy: 30, maxWidth: labelWidth, oversizedBehavior: 'wrap'
-          })
-        });
-      });
-
-      series.nodes.template.setAll({ tooltipText: '[bold]{category}[/]\n{role} · {dept}', toggleKey: 'none' });
-      series.nodes.template.events.on('click', function (ev) {
-        var d = ev.target.dataItem && ev.target.dataItem.dataContext;
-        if (!d) return;
-        var src = find(data[0], d.id);
-        if (src && src.children && src.children.length) {
-          open[d.id] = !open[d.id];
-          /* Defer past this click's own handling before tearing the chart down. */
-          setTimeout(function () {
-            root.container.children.clear();
-            drawVertical(data, onSelect, open)(root, am5, am5hierarchy);
-          }, 0);
-        } else if (onSelect) {
-          onSelect(d.id);   // a leaf has nothing to open, so a click opens the person
-        }
-      });
-
-      function find(node, id) {
-        if (!node) return null;
-        if (node.id === id) return node;
-        for (var i = 0; i < (node.children || []).length; i++) {
-          var hit = find(node.children[i], id);
-          if (hit) return hit;
-        }
-        return null;
+  function VerticalTree(p) {
+    var staff = p.staff;
+    var byManager = React.useMemo(function () {
+      var m = {};
+      staff.forEach(function (n) { (m[n.k || '\u0000'] = m[n.k || '\u0000'] || []).push(n); });
+      Object.keys(m).forEach(function (k) { m[k].sort(function (a, b) { return a.id < b.id ? -1 : 1; }); });
+      return m;
+    }, [staff]);
+    var depts = React.useMemo(function () {
+      return staff.map(function (n) { return n.d; }).filter(function (d, i, a) { return a.indexOf(d) === i; }).sort();
+    }, [staff]);
+    /* Everyone under a person, at any depth: the number a manager is usually asked. */
+    var under = React.useMemo(function () {
+      var memo = {};
+      function count(id) {
+        if (memo[id] != null) return memo[id];
+        var kids = byManager[id] || [];
+        return (memo[id] = kids.reduce(function (a, k) { return a + 1 + count(k.id); }, 0));
       }
+      staff.forEach(function (n) { count(n.id); });
+      return memo;
+    }, [staff, byManager]);
 
-      series.data.setAll(shown ? [shown] : []);
-      series.set('selectedDataItem', series.dataItems[0]);
-      series.appear(500, 50);
-    };
+    var root = staff.filter(function (n) { return n.id === p.rootId; })[0] || (byManager['\u0000'] || [])[0];
+    var pathSt = React.useState(root ? [root.id] : []);
+    var path = pathSt[0];
+    if (!root) return null;
+
+    function find(id) { return staff.filter(function (n) { return n.id === id; })[0]; }
+    function open(level, id) {
+      /* Opening a person at a level replaces everything below it; opening the person
+         who is already open there folds their team away again. */
+      var next = path.slice(0, level + 1);
+      if (path[level + 1] !== id) next.push(id);
+      pathSt[1](next);
+    }
+
+    /* A plain function, not a component: defined inside the render, a component would
+       be a new type every time and every card would remount, losing focus on click. */
+    function person(q) {
+      var n = q.n, kids = (byManager[n.id] || []).length, tone = toneFor(n.d, depts);
+      return h('button', {
+        key: n.id, type: 'button',
+        className: 'ovt-card ovt--' + tone + (q.on ? ' is-on' : '') + (q.lead ? ' ovt-card--lead' : ''),
+        'aria-expanded': kids ? (q.on ? 'true' : 'false') : null,
+        title: kids ? (q.on ? 'Fold ' : 'Open ') + n.id + '’s team' : 'Open ' + n.id,
+        onClick: function () {
+          if (kids && !q.lead) open(q.level, n.id);
+          else if (p.onSelect) p.onSelect(n.id);
+        }
+      },
+        h('span', { className: 'ovt-av' }, initials(n.id)),
+        h('span', { className: 'ovt-card__m' },
+          h('strong', null, n.id),
+          h('span', null, n.r || '—'),
+          h('small', null, n.d)),
+        kids ? h('span', { className: 'ovt-count', 'aria-hidden': 'true' },
+          kids, h('svg', { viewBox: '0 0 12 12', width: 10, height: 10 },
+            h('path', { d: q.on ? 'M3 7.5L6 4.5 9 7.5' : 'M3 4.5L6 7.5 9 4.5', stroke: 'currentColor', strokeWidth: 1.6, fill: 'none', strokeLinecap: 'round', strokeLinejoin: 'round' })))
+          : null);
+    }
+
+    var levels = path.map(function (id, i) {
+      var who = find(id), kids = byManager[id] || [];
+      return { i: i, who: who, kids: kids };
+    });
+
+    return h('div', { className: 'ovt' + (p.big ? ' ovt--big' : '') },
+      /* Where you are, and a way back to any step of it. */
+      h('nav', { className: 'ovt-crumbs', 'aria-label': 'Reporting path' },
+        path.map(function (id, i) {
+          var last = i === path.length - 1;
+          return h(React.Fragment, { key: id },
+            i ? h('span', { className: 'ovt-crumbs__sep', 'aria-hidden': 'true' }, '›') : null,
+            h('button', {
+              type: 'button', className: 'ovt-crumbs__b' + (last ? ' is-on' : ''),
+              'aria-current': last ? 'step' : null,
+              onClick: function () { pathSt[1](path.slice(0, i + 1)); }
+            }, id));
+        }),
+        path.length > 1 ? h('button', { type: 'button', className: 'ovt-crumbs__reset',
+          onClick: function () { pathSt[1]([root.id]); } }, 'Fold all') : null),
+
+      /* The head of the organisation. */
+      h('div', { className: 'ovt-head' },
+        person({ n: root, lead: true, level: -1 }),
+        h('span', { className: 'ovt-head__meta' }, (byManager[root.id] || []).length + ' direct reports · ' + under[root.id] + ' in the organisation')),
+
+      levels.map(function (lv) {
+        if (!lv.kids.length) return null;
+        return h(React.Fragment, { key: lv.who.id },
+          h('span', { className: 'ovt-stem', 'aria-hidden': 'true' }),
+          h('section', { className: 'ovt-tier', 'aria-label': 'Reports to ' + lv.who.id },
+            h('header', { className: 'ovt-tier__h' },
+              h('span', { className: 'ovt-av ovt-av--sm ovt--' + toneFor(lv.who.d, depts) }, initials(lv.who.id)),
+              h('span', null, 'Reports to ', h('b', null, lv.who.id)),
+              h('span', { className: 'ovt-tier__n' }, lv.kids.length + (lv.kids.length === 1 ? ' person' : ' people') +
+                (under[lv.who.id] > lv.kids.length ? ' · ' + under[lv.who.id] + ' in the branch' : ''))),
+            h('div', { className: 'ovt-grid' }, lv.kids.map(function (k) {
+              return person({ n: k, level: lv.i, on: path[lv.i + 1] === k.id });
+            }))));
+      }),
+
+      h('p', { className: 'ovt-hint' },
+        'Open a card with a count to see that person’s team below it. A card without one opens the person.'));
   }
 
   /* ------------------------------------------------------------------- network */
@@ -273,7 +272,7 @@
   HRMS.orgcharts = {
     AmChart: AmChart,
     treeData: treeData,
-    drawVertical: drawVertical,
+    VerticalTree: VerticalTree,
     drawNetwork: drawNetwork,
     ready: function () { return !!(window.am5 && window.am5hierarchy); }
   };
