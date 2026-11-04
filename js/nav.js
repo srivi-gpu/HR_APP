@@ -111,6 +111,7 @@
       { path: 'dashboard', label: 'Dashboard', section: '4.6', note: 'Yet to start, in progress, pending verification, completed and overdue tasks.' },
       { path: 'cases', label: 'In progress', section: '4.9', note: 'Each new joiner with task progress and the current blocker.' },
       { path: 'verification', label: 'Document verification', section: '4.8', note: 'Review uploaded documents and accept or reject each one.' },
+      { path: 'completed', label: 'Completed', section: '4.9', note: 'Finished onboardings, with the full record of tasks, owners and documents.' },
       { path: 'templates', label: 'Templates', section: '4.7', note: 'Onboarding templates per employee type, department and location.' }
     ]},
     { path: 'offboarding', label: 'Offboarding', icon: 'logout', section: '4.48', tabs: [

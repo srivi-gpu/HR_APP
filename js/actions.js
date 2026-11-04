@@ -1010,31 +1010,59 @@
   }
 
   /* ====================================================== Onboarding (4.7–4.8) */
-  function initiateOnboarding(employeeId, templateId) {
+  /* `opts.joiningDate` moves the whole checklist in front of the start date: onboarding
+     is pre-joining work, so the last task falls the day before the joiner arrives rather
+     than a day after. Omit it and the employee's own joining date is used. */
+  function initiateOnboarding(employeeId, templateId, opts) {
+    opts = opts || {};
     var employee = store.employee(employeeId);
     if (!employee) return fail({ _: 'Employee not found' });
     var existing = store.collection('onboarding').filter(function (o) { return o.employee === employeeId; })[0];
     if (existing) return fail({ _: nameOf(employeeId) + ' already has an onboarding case' });
+
+    var joining = opts.joiningDate || employee.joined;
+    var errors = rules.validOnboardingStart({ joiningDate: joining, template: templateId });
+    if (rules.hasErrors(errors)) return fail(errors);
+
+    var joinDate = new Date(joining + 'T00:00');
     var names = seed.onboardingTaskNames;
     var hr = (store.persona('hr') || {}).id;
     var it = (store.employeeByName('Sandeep Rao') || {}).id;
     var id = store.nextId('onboarding', 'ONB');
+    var total = names.length;
     store.add('onboarding', {
       id: id, employee: employeeId, template: templateId || 'tpl-standard',
-      startDate: employee.joined, startDateLabel: employee.joinedLabel,
-      tasksTotal: names.length, tasksDone: 0, pending: names.length, overdue: 0,
+      startDate: joining, startDateLabel: pretty(joinDate),
+      source: employee.source || 'Direct',
+      invitedOn: today(),
+      tasksTotal: total, tasksDone: 0, pending: total, overdue: 0,
       stage: 'Yet to Start',
       tasks: names.map(function (t, i) {
         return {
           name: t, done: false,
           assignee: /IT|Asset/.test(t) ? it : /Manager|Department/.test(t) ? employee.manager : hr,
-          due: iso(addDays(new Date(employee.joined + 'T00:00'), i + 1)),
+          /* Counted back from the joining date: the last task is due the day before. */
+          due: iso(addDays(joinDate, -(total - i))),
           mandatory: i < 8
         };
       })
     });
-    store.log('started onboarding for ' + employee.name, 'User activity');
-    return done('Onboarding started for ' + employee.name, { id: id });
+
+    /* The invitation itself. The prototype has no mail transport, so it is recorded as a
+       notification to the joiner and in the audit trail rather than silently claimed. */
+    var to = employee.personalEmail || employee.workEmail;
+    store.add('notifications', {
+      id: store.nextId('notifications', 'n'),
+      kind: 'Onboarding Invitation',
+      title: 'Your onboarding for ' + pretty(joinDate) + ' is open',
+      body: total + ' tasks to complete before you join · first due ' + pretty(addDays(joinDate, -total)),
+      on: new Date().toISOString().slice(0, 16), read: false,
+      route: 'me/documents/mine', roles: ['me'], employee: employeeId
+    });
+    store.log('started onboarding for ' + employee.name + ' and emailed ' + to, 'User activity');
+
+    return done('Onboarding started for ' + employee.name + ' · invitation emailed to ' + to,
+      { id: id, mailedTo: to });
   }
 
   function completeOnboardingTask(caseId, taskName, doneFlag) {

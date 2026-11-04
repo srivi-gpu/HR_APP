@@ -229,7 +229,10 @@
       manager: null,                       // filled in once everyone exists
       bank: { name: pick(['HDFC Bank', 'ICICI Bank', 'State Bank of India', 'Axis Bank', 'Kotak Mahindra Bank']),
         account: 'XXXXXX' + String(1000 + Math.floor(r() * 8999)), ifsc: 'HDFC000' + String(1000 + Math.floor(r() * 8999)) },
-      emergency: { name: nextEmergencyName(name), relation: pick(['Spouse', 'Parent', 'Sibling']), phone: '+91 9' + String(100000000 + Math.floor(r() * 899999999)).slice(0, 9) }
+      emergency: { name: nextEmergencyName(name), relation: pick(['Spouse', 'Parent', 'Sibling']), phone: '+91 9' + String(100000000 + Math.floor(r() * 899999999)).slice(0, 9) },
+      /* Where the hire came from. Derived from the sequence rather than drawn from r(),
+         because every figure PRD 15 fixes depends on the random stream staying put. */
+      source: (seq % 5 === 0 || seq % 5 === 3) ? 'PsyHire' : 'Direct'
     };
   }
   function nextEmergencyName(of) { return pick(FIRST) + ' ' + of.split(' ').slice(-1)[0]; }
@@ -684,6 +687,42 @@
   /* Scenario 3: Pranav Hegde is awaiting document verification. */
   var pranav = onboarding.filter(function (o) { return o.employee === id('Pranav Hegde'); })[0];
   if (pranav) { pranav.stage = 'Pending Verification'; pranav.docsPending = 3; }
+
+  /* The open cases are the ones a demo starts from, so the PsyHire mix among them is
+     pinned rather than left to the id sequence, which could have made all six Direct. */
+  onbPeople.forEach(function (e, n) { byId[e.id].source = n % 3 === 2 ? 'Direct' : 'PsyHire'; });
+
+  /* Finished onboardings, so the completed-records view has history on first load. These
+     are active employees who joined recently: every task done, nothing left pending, so
+     they add 0 to the open-task figure PRD 15 fixes at 16. */
+  var donePeople = live.filter(function (e) {
+    return e.status === 'Active' && e.joined >= iso(addDays(TODAY, -210));
+  }).sort(function (a, b) { return a.joined < b.joined ? 1 : -1; }).slice(0, 9);
+  donePeople.forEach(function (e, n) {
+    var joinedDate = new Date(e.joined + 'T00:00');
+    var total = ONB_TASKS.length;
+    byId[e.id].source = n % 3 === 1 ? 'Direct' : 'PsyHire';
+    onboarding.push({
+      id: 'ONB' + (120 + n), employee: e.id,
+      template: e.type === 'Intern' ? 'tpl-intern' : e.department === 'dep-eng' ? 'tpl-eng' : 'tpl-standard',
+      startDate: e.joined, startDateLabel: e.joinedLabel,
+      tasksTotal: total, tasksDone: total, pending: 0, overdue: 0,
+      stage: 'Completed',
+      /* Closed the day before joining: the checklist is pre-joining work. */
+      completedOn: iso(addDays(joinedDate, -1)),
+      completedOnLabel: pretty(addDays(joinedDate, -1)),
+      invitedOn: iso(addDays(joinedDate, -(total + 2))),
+      tasks: ONB_TASKS.map(function (t, ti) {
+        return {
+          name: t, done: true,
+          assignee: /IT|Asset/.test(t) ? id('Sandeep Rao') : /Manager|Department/.test(t) ? byId[e.id].manager : id('Priya Sharma'),
+          due: iso(addDays(joinedDate, -(total - ti))),
+          completedOn: iso(addDays(joinedDate, -(total - ti))),
+          mandatory: ti < 8
+        };
+      })
+    });
+  });
 
   var ONB_TEMPLATES = [
     { id: 'tpl-standard', name: 'Standard onboarding', employeeType: 'Full-Time', department: 'All', tasks: ONB_TASKS.length, status: 'Active' },

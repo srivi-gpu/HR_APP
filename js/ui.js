@@ -442,7 +442,10 @@
               h(V.Avatar, { name: e.name, size: 'xs' }),
               h('span', { className: 'picker__text' },
                 h('span', { className: 'picker__name' }, e.name),
-                h('span', { className: 'picker__meta' }, e.designation + ' · ' + e.id))));
+                h('span', { className: 'picker__meta' }, e.designation + ' · ' + e.id)),
+              /* Optional per-row marker, so a caller can label where a candidate
+                 came from without every picker in the app growing a chip. */
+              p.badge ? p.badge(e) : null));
         }) : h('li', { className: 'picker__none muted' }, 'No match'),
         p.allowNone ? h('li', null, h('button', {
           type: 'button', className: 'picker__item',
