@@ -1815,6 +1815,59 @@
         h('span', null, 'Assigned')));
   }
 
+  /* ---------- the hero's isometric illustration ----------
+     A desk-top platform holding the register's kinds of thing — a laptop with a chart on
+     it, a monitor, a stack of boxes, a phone — drawn as isometric cuboids. Every face is
+     a token colour (top light, left mid, right dark), so it follows the accent and works
+     in dark mode. Decoration: it carries no data, so it is hidden from the reading order. */
+  var ISO_C = Math.cos(Math.PI / 6), ISO_S = 0.5;
+  function isoPt(x, y, z) { return [(x - y) * ISO_C, (x + y) * ISO_S - z]; }
+  function isoPoly(pts) { return pts.map(function (q) { var v = isoPt(q[0], q[1], q[2]); return v[0].toFixed(1) + ',' + v[1].toFixed(1); }).join(' '); }
+  /* One box: x,y on the floor, z up; w along x, d along y, ht up. */
+  function cuboid(key, x, y, z, w, d, ht, tone) {
+    var X = x + w, Y = y + d, Z = z + ht;
+    return h('g', { key: key, className: 'iso iso--' + tone },
+      h('polygon', { className: 'iso__l', points: isoPoly([[x, Y, z], [X, Y, z], [X, Y, Z], [x, Y, Z]]) }),
+      h('polygon', { className: 'iso__r', points: isoPoly([[X, y, z], [X, Y, z], [X, Y, Z], [X, y, Z]]) }),
+      h('polygon', { className: 'iso__t', points: isoPoly([[x, y, Z], [X, y, Z], [X, Y, Z], [x, Y, Z]]) }));
+  }
+  /* A flat panel standing on its back edge (a screen), facing the viewer's left. */
+  function panel(key, x, y, z, w, ht, tone) {
+    return h('g', { key: key, className: 'iso iso--' + tone },
+      h('polygon', { className: 'iso__l', points: isoPoly([[x, y, z], [x + w, y, z], [x + w, y, z + ht], [x, y, z + ht]]) }),
+      h('polygon', { className: 'iso__r', points: isoPoly([[x + w, y - 3, z], [x + w, y, z], [x + w, y, z + ht], [x + w, y - 3, z + ht]]) }),
+      h('polygon', { className: 'iso__t', points: isoPoly([[x, y - 3, z + ht], [x + w, y - 3, z + ht], [x + w, y, z + ht], [x, y, z + ht]]) }));
+  }
+  function AssetIso() {
+    var bars = [14, 22, 17, 28];
+    return h('svg', { className: 'ast-iso', viewBox: '-128 -104 256 176', 'aria-hidden': 'true' },
+      h('ellipse', { cx: 0, cy: 66, rx: 118, ry: 16, className: 'ast-iso__shadow' }),
+      /* the platform */
+      cuboid('base', -70, -70, 0, 140, 140, 10, 'slab'),
+      /* boxes, back right */
+      cuboid('b1', 30, -58, 10, 34, 34, 30, 'warm'),
+      cuboid('b2', 30, -22, 10, 34, 30, 22, 'warm'),
+      cuboid('b3', 34, -54, 40, 26, 26, 22, 'warm'),
+      h('polyline', { className: 'ast-iso__tape', points: isoPoly([[47, -58, 40], [47, -58, 10]]) }),
+      /* monitor, back left */
+      cuboid('mstand', -48, -50, 10, 16, 12, 4, 'grey'),
+      cuboid('mneck', -43, -46, 14, 5, 4, 20, 'grey'),
+      panel('mon', -60, -40, 30, 40, 30, 'dark'),
+      /* laptop, front */
+      cuboid('lbase', -34, 4, 10, 52, 36, 3, 'grey'),
+      panel('lscr', -34, 4, 13, 52, 32, 'dark'),
+      bars.map(function (bh, i) {
+        var x0 = -28 + i * 11;
+        return h('polygon', { key: 'bar' + i, className: 'ast-iso__bar' + (i === 3 ? ' is-hi' : ''),
+          points: isoPoly([[x0, 3.6, 17], [x0 + 6, 3.6, 17], [x0 + 6, 3.6, 17 + bh * 0.8], [x0, 3.6, 17 + bh * 0.8]]) });
+      }),
+      /* phone, front right */
+      cuboid('phone', 30, 30, 10, 14, 24, 2, 'dark'),
+      /* a sparkle, floating */
+      h('path', { className: 'ast-iso__spark', d: 'M96 -88l4 9.5 9.5 3.5-9.5 3.5-4 9.5-4-9.5-9.5-3.5 9.5-3.5 4-9.5Z' }),
+      h('circle', { className: 'ast-iso__dot', cx: -104, cy: -36, r: 4 }));
+  }
+
   function AssetsDashboard() {
     var assets = store.collection('assets');
     var requests = store.collection('assetRequests');
@@ -1857,11 +1910,12 @@
         h('div', { className: 'ast-hero__copy' },
           h('span', { className: 'ast-hero__eyebrow' }, 'Asset operations'),
           h('h1', null, 'Your asset ecosystem ', h('em', null, 'at a glance.')),
-          h('p', null, 'Track, manage, and keep your organization’s assets available, secure and productive.')),
-        h('div', { className: 'ast-hero__art', 'aria-hidden': 'true' },
-          h('span', { className: 'ast-hero__card ast-hero__card--3' }),
-          h('span', { className: 'ast-hero__card ast-hero__card--2' }),
-          h('span', { className: 'ast-hero__card ast-hero__card--1' }, I.package)),
+          /* The headline number: the size of the register, and what it is worth. */
+          h('div', { className: 'ast-hero__n' },
+            h('b', null, num(total)),
+            h('span', null, h('strong', null, 'assets on the register'),
+              h('small', null, num(assigned.length) + ' in use \u00b7 ' + ui.inr(value, { short: true }) + ' in value')))),
+        h('div', { className: 'ast-hero__art', 'aria-hidden': 'true' }, h(AssetIso)),
         h('div', { className: 'ast-hero__pills' },
           [['In use', assigned.length, 'is-on'], ['Available', available.length, 'is-free'], ['Service', service.length, 'is-svc']]
             .map(function (x) {
