@@ -9,10 +9,9 @@
 
    What each card holds is the admin's job, which is accounts and access:
 
-   - the first card is MFA coverage by role, privileged roles first, because an account
-     that can change everyone else's is the one a password alone protects worst;
-   - the second is the plan: seats and AI credits against what is paid for, and where
-     the credits went;
+   - the first card has two tabs: MFA coverage by role, privileged roles first, because
+     an account that can change everyone else's is the one a password alone protects
+     worst; and the plan, seats and AI credits against what is paid for;
    - the wide card is how recently people actually sign in, with Ara's suggestions read
      off the same records and pinned to the bar they are about;
    - the bottom row is charts: the access work queued against the admin as a donut by
@@ -169,7 +168,7 @@
      head, and the marker opens that suggestion. */
   function SigninChart(p) {
     var b = p.buckets, max = Math.max.apply(null, b.map(function (x) { return x.n; }).concat([1]));
-    var W = 640, H = 196, PL = 34, PR = 8, PT = 22, PB = 22;
+    var W = 640, H = 196, PL = 34, PR = 8, PT = 40, PB = 22;
     var band = (W - PL - PR) / b.length, bw = Math.min(64, band * 0.56);
     function x(i) { return PL + band * i + band / 2; }
     function y(v) { return PT + (1 - v / max) * (H - PT - PB); }
@@ -202,7 +201,7 @@
         return h('button', {
           key: s.k, type: 'button', className: 'adm-pin',
           title: 'Ara on ' + s.t, 'aria-label': 'What Ara suggests about ' + s.t,
-          style: { left: (x(i) / W * 100) + '%', top: ((y(s.n) - 24) / H * 100) + '%' },
+          style: { left: (x(i) / W * 100) + '%', top: ((y(s.n) - 34) / H * 100) + '%' },
           onClick: function () { p.onOpen(f); }
         }, ARA);
       }));
@@ -362,7 +361,13 @@
   }
 
   /* ====================================================== the page */
+  var TABS = [{ k: 'mfa', t: 'MFA coverage' }, { k: 'plan', t: 'Plan usage' }];
+
   function AdminDashA(p) {
+    var savedTab = store.pref('adminDashTab');
+    var tabSt = React.useState(savedTab === 'plan' ? 'plan' : 'mfa');
+    var tab = tabSt[0];
+    function pickTab(k) { tabSt[1](k); store.setPref('adminDashTab', k); }
     var openSt = React.useState(null);
     var allSt = React.useState(false);
     var s = store.stats();
@@ -431,14 +436,26 @@
         }))),
 
       h('div', { className: 'adm-mid' },
-        /* Who signs in with a second factor, by role. */
-        h('section', { className: 'adm-card' },
+        /* Two readings an admin owns, MFA coverage and the plan, in one card with a tab
+           each. The tab picked is remembered, so the card opens where it was left. */
+        h('section', { className: 'adm-card adm-tabbed' },
           h('div', { className: 'adm-card__head' },
-            h('div', null,
-              h('h2', null, 'MFA coverage'),
-              h('p', null, h('b', { className: 'adm-inl' }, num(mfaOn)), ' of ' + num(users.length) + ' accounts · ',
-                h('b', { className: 'adm-inl' }, Math.round(mfaOn / (users.length || 1) * 100) + '%'))),
-            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/settings'); } }, 'Security', I.right)),
+            h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'Account health' },
+              TABS.map(function (t) {
+                return h('button', {
+                  key: t.k, type: 'button', role: 'tab', id: 'admtab-' + t.k,
+                  'aria-selected': tab === t.k ? 'true' : 'false', 'aria-controls': 'admpanel-' + t.k,
+                  className: 'ad-seg__b' + (tab === t.k ? ' is-on' : ''),
+                  onClick: function () { pickTab(t.k); }
+                }, t.t);
+              })),
+            tab === 'mfa'
+              ? h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/settings'); } }, 'Security', I.right)
+              : h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/billing/usage'); } }, 'Usage', I.right)),
+          tab === 'mfa'
+            ? h('div', { className: 'adm-tabbed__p', role: 'tabpanel', id: 'admpanel-mfa', 'aria-labelledby': 'admtab-mfa' },
+                h('p', { className: 'adm-tabbed__s' }, h('b', { className: 'adm-inl' }, num(mfaOn)), ' of ' + num(users.length) + ' accounts on MFA \u00b7 ',
+                  h('b', { className: 'adm-inl' }, Math.round(mfaOn / (users.length || 1) * 100) + '%')),
           h('div', { className: 'adm-legend' },
             h('span', null, h('i', { style: { background: 'var(--success-fg)' } }), 'MFA on'),
             h('span', null, h('i', { style: { background: 'var(--danger-fg)', opacity: .35 } }), 'Password only')),
@@ -453,15 +470,9 @@
                 r.n - r.on ? h('i', { style: { width: (100 - pct) + '%', background: 'var(--danger-fg)', opacity: .35 } }) : null),
               h('b', { className: pct < 50 ? 'is-low' : null }, Math.round(pct) + '%'));
           })),
-          h('p', { className: 'adm-card__foot' }, 'Privileged roles first: their accounts can change everyone else’s.')),
-
-        /* What the plan includes, and how much of it is spent. */
-        h('section', { className: 'adm-card' },
-          h('div', { className: 'adm-card__head' },
-            h('div', null,
-              h('h2', null, 'Plan usage'),
-              h('p', null, sub.plan + ' · renews ' + sub.renewsLabel)),
-            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/billing/usage'); } }, 'Usage', I.right)),
+          h('p', { className: 'adm-card__foot' }, 'Privileged roles first: their accounts can change everyone else’s.'))
+            : h('div', { className: 'adm-tabbed__p', role: 'tabpanel', id: 'admpanel-plan', 'aria-labelledby': 'admtab-plan' },
+                h('p', { className: 'adm-tabbed__s' }, sub.plan + ' plan \u00b7 renews ' + sub.renewsLabel),
           h('div', { className: 'adm-gauges' },
             h(Gauge, { pct: sub.seatsUsed / sub.seats * 100, color: 'var(--brand-solid)', t: 'Seats',
               s: num(sub.seatsUsed) + ' of ' + num(sub.seats) }),
@@ -473,7 +484,7 @@
               h('span', { className: 'adm-stack__l', title: m.module }, m.module),
               h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (m.credits / aiMax * 100) + '%', background: 'var(--priority-high)' } })),
               h('b', null, (m.credits / 1000).toFixed(1) + 'k'));
-          }))),
+          })))),
 
         /* How recently people sign in, with Ara's reading pinned to it. */
         h('section', { className: 'adm-card' },
