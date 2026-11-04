@@ -602,6 +602,65 @@
     return done(doc.name + ' ' + decision.toLowerCase());
   }
 
+  /* ------------------------------------------- Company library (documents & folders)
+     Renaming and deleting are HR's, so the library can be kept tidy rather than only
+     added to. A delete is a tombstone in the store, so a seeded row goes too. */
+  function renameDocument(id, name) {
+    var doc = store.find('policies', id);
+    if (!doc) return fail({ _: 'That document no longer exists' });
+    var clean = String(name || '').trim();
+    if (!clean) return fail({ name: 'Give the document a name' });
+    if (clean === doc.name) return done('Name unchanged');
+    var clash = store.collection('policies').filter(function (d) {
+      return d.id !== id && (d.folder || null) === (doc.folder || null)
+        && d.name.toLowerCase() === clean.toLowerCase();
+    })[0];
+    if (clash) return fail({ name: 'Another document in this folder already has that name' });
+    store.setOverride('policies', id, { name: clean });
+    store.log('renamed "' + doc.name + '" to "' + clean + '"', 'User activity');
+    return done('Renamed to ' + clean);
+  }
+  function deleteDocument(id) {
+    var doc = store.find('policies', id);
+    if (!doc) return fail({ _: 'That document no longer exists' });
+    store.remove('policies', id);
+    store.log('deleted the document "' + doc.name + '"', 'User activity');
+    return done(doc.name + ' deleted');
+  }
+  function renameFolder(id, name) {
+    var folder = store.find('docFolders', id);
+    if (!folder) return fail({ _: 'That folder no longer exists' });
+    var clean = String(name || '').trim();
+    if (!clean) return fail({ name: 'Give the folder a name' });
+    if (clean === folder.name) return done('Name unchanged');
+    var clash = store.collection('docFolders').filter(function (f) {
+      return f.id !== id && (f.parent || null) === (folder.parent || null)
+        && f.name.toLowerCase() === clean.toLowerCase();
+    })[0];
+    if (clash) return fail({ name: 'A folder with that name is already here' });
+    store.setOverride('docFolders', id, { name: clean });
+    store.log('renamed the folder "' + folder.name + '" to "' + clean + '"', 'User activity');
+    return done('Renamed to ' + clean);
+  }
+  /* Everything inside goes with it, which is why the dialog counts it first. */
+  function deleteFolder(id) {
+    var folder = store.find('docFolders', id);
+    if (!folder) return fail({ _: 'That folder no longer exists' });
+    var all = store.collection('docFolders');
+    var ids = [];
+    (function walk(fid) {
+      ids.push(fid);
+      all.filter(function (f) { return (f.parent || null) === fid; })
+        .forEach(function (f) { walk(f.id); });
+    })(id);
+    var docs = store.collection('policies').filter(function (d) { return ids.indexOf(d.folder) >= 0; });
+    docs.forEach(function (d) { store.remove('policies', d.id); });
+    ids.forEach(function (fid) { store.remove('docFolders', fid); });
+    store.log('deleted the folder "' + folder.name + '" with ' + docs.length + ' document(s)', 'User activity');
+    return done(folder.name + ' deleted'
+      + (docs.length ? ', with ' + docs.length + ' document' + (docs.length === 1 ? '' : 's') : ''));
+  }
+
   function publishPolicy(form) {
     var errors = rules.required([{ key: 'name', label: 'Policy name' }, { key: 'category', label: 'Category' }], form);
     if (rules.hasErrors(errors)) return fail(errors);
@@ -1270,6 +1329,8 @@
     /* Documents */
     uploadDocument: uploadDocument, verifyDocument: verifyDocument,
     publishPolicy: publishPolicy, acknowledgePolicy: acknowledgePolicy,
+    renameDocument: renameDocument, deleteDocument: deleteDocument,
+    renameFolder: renameFolder, deleteFolder: deleteFolder,
     /* Assets */
     addAsset: addAsset, allocateAsset: allocateAsset, acknowledgeAsset: acknowledgeAsset,
     requestAsset: requestAsset, decideAssetRequest: decideAssetRequest, returnAsset: returnAsset,
