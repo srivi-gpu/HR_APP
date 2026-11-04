@@ -9,10 +9,10 @@
 
    What each card holds is the admin's job, which is accounts and access:
 
-   - the first card is the audit log, newest first, so "who changed that?" is answered
-     on the page that opens;
-   - the square card is the handful of people who can change everything, and whether
-     their sign-in is protected;
+   - the first card is MFA coverage by role, privileged roles first, because an account
+     that can change everyone else's is the one a password alone protects worst;
+   - the second is the plan: seats and AI credits against what is paid for, and where
+     the credits went;
    - the wide card is how recently people actually sign in, with Ara's suggestions read
      off the same records and pinned to the bar they are about;
    - the bottom row is charts: the access work queued against the admin as a donut by
@@ -63,26 +63,6 @@
       { ico: WIFI, t: 'Seats in use', s: 'Of ' + sub.seats + ' on ' + sub.plan,
         n: Math.round(sub.seatsUsed / sub.seats * 100), unit: '%' }
     ];
-  }
-
-  /* ====================================================== recent changes
-     The audit log, newest first: who changed what, and when. It is the record an admin
-     is most often asked about ("who turned that off?"), and the app writes to it on
-     every action, so the card is live rather than a summary of the seed. */
-  var AUDIT_ICON = { Security: 'lock', Configuration: 'gear', Permissions: 'shield', 'User activity': 'person' };
-  var AUDIT_ROUTE = { Security: 'admin/audit/security', Configuration: 'admin/audit/config',
-    Permissions: 'admin/audit/permissions', 'User activity': 'admin/audit/activity' };
-  function recentChanges(n) {
-    return store.collection('audit').slice()
-      .sort(function (a, b) { return a.on < b.on ? 1 : a.on > b.on ? -1 : 0; })
-      .slice(0, n);
-  }
-  function when(on) {
-    var d = daysBetween(on.slice(0, 10), seed.todayIso);
-    if (d <= 0) return 'Today ' + on.slice(11, 16);
-    if (d === 1) return 'Yesterday';
-    if (d < 7) return d + ' days ago';
-    return ui.dateLabel(on.slice(0, 10));
   }
 
   /* ====================================================== privileged access
@@ -354,6 +334,33 @@
     return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.n - a.n; });
   }
 
+  /* ====================================================== MFA coverage, by role
+     Who signs in with a second factor, per role, privileged roles first — the gap that
+     matters most is the one at the top of this list. */
+  var MFA_ROLES = [['admin', 'Admins'], ['hr', 'HR'], ['manager', 'Managers'], ['me', 'Employees']];
+  function mfaByRole(users) {
+    return MFA_ROLES.map(function (r) {
+      var all = users.filter(function (u) { return u.role === r[0]; });
+      return { k: r[0], t: r[1], n: all.length, on: all.filter(function (u) { return u.mfa; }).length };
+    }).filter(function (r) { return r.n; });
+  }
+
+  /* ====================================================== plan usage
+     What the plan includes and how much of it is spent: seats against the plan, AI
+     credits against the month, and where the credits went. Read from the subscription
+     and the AI usage the billing screens use. */
+  function Gauge(p) {
+    var R = 34, C = 2 * Math.PI * R, on = Math.max(0, Math.min(100, p.pct)) / 100 * C;
+    return h('div', { className: 'adm-gauge' },
+      h('span', { className: 'adm-gauge__ring' },
+        h('svg', { viewBox: '0 0 84 84', 'aria-hidden': 'true' },
+          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 9 }),
+          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: p.color, strokeWidth: 9, strokeLinecap: 'round',
+            strokeDasharray: on + ' ' + (C - on), transform: 'rotate(-90 42 42)' })),
+        h('b', null, Math.round(p.pct) + '%')),
+      h('span', { className: 'adm-gauge__m' }, h('strong', null, p.t), h('span', null, p.s)));
+  }
+
   /* ====================================================== the page */
   function AdminDashA(p) {
     var openSt = React.useState(null);
@@ -362,8 +369,10 @@
     var users = store.collection('users');
     var me = store.employeeByName(HRMS.nav.role('admin').persona);
 
-    var changes = recentChanges(4);
-    var priv = privileged(users), privMfa = priv.filter(function (u) { return u.mfa; }).length;
+    var mfa = mfaByRole(users);
+    var mfaOn = mfa.reduce(function (a, r) { return a + r.on; }, 0);
+    var sub = seed.subscription, ai = seed.aiUsage;
+    var aiMax = Math.max.apply(null, ai.byModule.map(function (m) { return m.credits; }).concat([1]));
     var buckets = signins(users);
     var queue = accessQueue(users);
     var queueRows = QUEUE_KINDS.map(function (k) {
@@ -422,45 +431,48 @@
         }))),
 
       h('div', { className: 'adm-mid' },
-        /* What has changed lately, and who changed it. */
-        h('section', { className: 'adm-card adm-log' },
+        /* Who signs in with a second factor, by role. */
+        h('section', { className: 'adm-card' },
           h('div', { className: 'adm-card__head' },
             h('div', null,
-              h('h2', null, 'Recent changes'),
-              h('p', null, 'Audit log, newest first')),
-            h('button', { type: 'button', className: 'dash__link',
-              onClick: function () { router.go('admin/audit/activity'); } }, 'Audit log', I.right)),
-          changes.length ? h('div', { className: 'adm-log__list' }, changes.map(function (c) {
-            return h('button', { type: 'button', className: 'adm-log__r', key: c.id,
-              onClick: function () { router.go(AUDIT_ROUTE[c.category] || 'admin/audit/activity'); } },
-              h('span', { className: 'adm-ico adm-ico--sm' }, I[AUDIT_ICON[c.category]] || I.history),
-              h('span', { className: 'adm-log__m' },
-                h('span', { className: 'adm-log__t' }, h('b', null, nameOf(c.actor)), ' ', c.action),
-                h('span', { className: 'adm-log__w' }, c.category, ' \u00b7 ', when(c.on))));
-          })) : h(ui.Empty, { icon: I.history, title: 'Nothing logged yet', body: 'Changes made in the app appear here as they happen.' })),
+              h('h2', null, 'MFA coverage'),
+              h('p', null, h('b', { className: 'adm-inl' }, num(mfaOn)), ' of ' + num(users.length) + ' accounts · ',
+                h('b', { className: 'adm-inl' }, Math.round(mfaOn / (users.length || 1) * 100) + '%'))),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/settings'); } }, 'Security', I.right)),
+          h('div', { className: 'adm-legend' },
+            h('span', null, h('i', { style: { background: 'var(--success-fg)' } }), 'MFA on'),
+            h('span', null, h('i', { style: { background: 'var(--danger-fg)', opacity: .35 } }), 'Password only')),
+          h('div', { className: 'adm-stack adm-stack--mfa' }, mfa.map(function (r) {
+            var pct = r.n ? r.on / r.n * 100 : 0;
+            return h('button', { type: 'button', className: 'adm-stack__r', key: r.k,
+              title: r.on + ' of ' + r.n + ' ' + r.t.toLowerCase() + ' on MFA',
+              onClick: function () { router.go('admin/settings'); } },
+              h('span', { className: 'adm-stack__l' }, r.t, h('small', null, num(r.n))),
+              h('span', { className: 'adm-stack__bar' },
+                r.on ? h('i', { style: { width: pct + '%', background: 'var(--success-fg)' } }) : null,
+                r.n - r.on ? h('i', { style: { width: (100 - pct) + '%', background: 'var(--danger-fg)', opacity: .35 } }) : null),
+              h('b', { className: pct < 50 ? 'is-low' : null }, Math.round(pct) + '%'));
+          })),
+          h('p', { className: 'adm-card__foot' }, 'Privileged roles first: their accounts can change everyone else’s.')),
 
-        /* The few accounts that can change everything. */
-        h('section', { className: 'adm-card adm-priv' },
+        /* What the plan includes, and how much of it is spent. */
+        h('section', { className: 'adm-card' },
           h('div', { className: 'adm-card__head' },
             h('div', null,
-              h('h2', null, 'Privileged access'),
-              h('p', null, 'Admin and HR rights')),
-            h('button', { type: 'button', className: 'dash__link',
-              onClick: function () { router.go('admin/roles/modules'); } }, 'Roles', I.right)),
-          h('div', { className: 'adm-priv__top' },
-            h('span', { className: 'adm-priv__n' }, priv.length),
-            h('span', { className: 'adm-priv__cap' },
-              h('b', null, privMfa + ' of ' + priv.length + ' on MFA'),
-              h('span', { className: 'adm-priv__meter' },
-                h('i', { style: { width: (priv.length ? privMfa / priv.length * 100 : 0) + '%' } })))),
-          h('div', { className: 'adm-priv__list' }, priv.map(function (u) {
-            var e = store.employee(u.employee);
-            return h('div', { className: 'adm-priv__r', key: u.id },
-              h(V.Avatar, { name: e ? e.name : u.email, size: 'xs' }),
-              h('span', { className: 'adm-priv__m' },
-                h('strong', null, e ? e.name : u.email),
-                h('span', null, ROLE_NAME[u.role])),
-              u.mfa ? pill('MFA on', 'ok') : pill('No MFA', 'fail'));
+              h('h2', null, 'Plan usage'),
+              h('p', null, sub.plan + ' · renews ' + sub.renewsLabel)),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/billing/usage'); } }, 'Usage', I.right)),
+          h('div', { className: 'adm-gauges' },
+            h(Gauge, { pct: sub.seatsUsed / sub.seats * 100, color: 'var(--brand-solid)', t: 'Seats',
+              s: num(sub.seatsUsed) + ' of ' + num(sub.seats) }),
+            h(Gauge, { pct: ai.used / ai.credits * 100, color: 'var(--priority-high)', t: 'AI credits',
+              s: num(ai.used) + ' of ' + num(ai.credits) })),
+          h('span', { className: 'adm-sub' }, 'Where the credits went this month'),
+          h('div', { className: 'adm-stack adm-stack--wide' }, ai.byModule.map(function (m) {
+            return h('div', { className: 'adm-stack__r adm-stack__r--static', key: m.module },
+              h('span', { className: 'adm-stack__l', title: m.module }, m.module),
+              h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (m.credits / aiMax * 100) + '%', background: 'var(--priority-high)' } })),
+              h('b', null, (m.credits / 1000).toFixed(1) + 'k'));
           }))),
 
         /* How recently people sign in, with Ara's reading pinned to it. */
