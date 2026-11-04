@@ -372,6 +372,21 @@
 .checks__row.is-done .checks__name { color: var(--text-secondary); text-decoration: line-through; text-decoration-color: var(--border-strong); }
 .checks__meta { font-size: 12px; color: var(--text-secondary); }
 
+/* ---------- Library toolbar: breadcrumbs left, search and actions right ---------- */
+.libbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin: 0 0 14px;
+}
+.libbar__crumbs { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.libbar__tools { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-left: auto; }
+/* The field sits on the same line as the buttons, so it loses its stacked label slot. */
+.libbar__search { width: 260px; }
+.libbar__search .vi-field__label { display: none; }
+@media (max-width: 860px) {
+  .libbar__tools { margin-left: 0; width: 100%; }
+  .libbar__search { width: 100%; flex: 1 1 180px; }
+}
+
 /* ---------- Dropdown menu (the Upload split button) ---------- */
 .menu { position: relative; display: inline-flex; }
 .menu__list {

@@ -35,6 +35,25 @@ jobs:
         with:
           enablement: true
 
+      # Every script and stylesheet is referenced by a bare path, so a browser that has
+      # already loaded the site serves the previous app from cache and a deploy looks
+      # like it did nothing. Stamping the commit onto each local asset URL gives every
+      # deploy fresh URLs. Done here rather than in the source so the checked-in files
+      # stay clean; external URLs (the React CDN) are left alone.
+      - name: Stamp local assets with the commit
+        run: |
+          V="$(git rev-parse --short HEAD)"
+          echo "Cache-busting assets with ?v=$V"
+          find . -name '*.html' -not -path './.git/*' -not -path './.github/*' -print0 \
+            | xargs -0 --no-run-if-empty sed -i -E \
+              's#(src|href)="((js|css|design-system)/[^"?]+)"#\1="\2?v='"$V"'"#g'
+          # @import inside the design system's index.css is a second hop the stamp above
+          # cannot reach, so the imported sheets are stamped where they are named.
+          find design-system/css -name '*.css' -print0 \
+            | xargs -0 --no-run-if-empty sed -i -E \
+              "s#@import url\('([^')?]+)'\)#@import url('\1?v=$V')#g"
+          grep -m3 -n 'v=' index.html || true
+
       # The prototype is already static: the repository root is the site.
       # The action excludes .git and .github from the artifact.
       - name: Upload the site
