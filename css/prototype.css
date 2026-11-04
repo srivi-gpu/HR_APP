@@ -372,6 +372,32 @@
 .checks__row.is-done .checks__name { color: var(--text-secondary); text-decoration: line-through; text-decoration-color: var(--border-strong); }
 .checks__meta { font-size: 12px; color: var(--text-secondary); }
 
+/* ---------- Leave balance strip (the employee leave screen) ---------- */
+.lbal {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px;
+  overflow: hidden;
+}
+/* Also a button, so it beats .linklike's left alignment and link colouring. */
+.lbal__cell { padding: 18px 20px; text-align: center; border-left: 1px solid var(--border-subtle); }
+.lbal__cell.linklike { text-align: center; color: inherit; border-radius: 0; }
+.lbal__cell.linklike:hover { background: var(--bg-hover); text-decoration: none; }
+.lbal__cell.linklike:hover .lbal__t { color: var(--text-brand); }
+.lbal__cell:first-child { border-left: 0; }
+.lbal__n { font: 300 30px/1.1 var(--font-flex); color: var(--text-brand); font-variant-numeric: tabular-nums; }
+.lbal__n small { font-size: 20px; color: var(--text-muted); }
+.lbal__t { display: block; margin-top: 4px; font-size: 14px; color: var(--text-primary); }
+.lbal__s { display: block; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
+.lbal__s b { font: 400 17px/1 var(--font-flex); color: var(--text-primary); margin-left: 4px; font-variant-numeric: tabular-nums; }
+@media (max-width: 720px) {
+  .lbal__cell { border-left: 0; border-top: 1px solid var(--border-subtle); }
+  .lbal__cell:first-child { border-top: 0; }
+}
+
+/* The status column carries its decision underneath, so a row says who approved it. */
+.lstatus { display: flex; flex-direction: column; gap: 2px; }
+.lstatus__by { font-size: 12px; color: var(--text-secondary); }
+
 /* ---------- Announcement composer ---------- */
 .composer {
   background: var(--bg-surface); border: 1px solid var(--border-subtle);

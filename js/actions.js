@@ -384,6 +384,31 @@
     if (!comment || String(comment).trim().length < 3) return fail({ comment: 'Give a reason for the rejection' });
     return decideLeave(id, 'Rejected', comment);
   }
+  /* Changing a request nobody has decided yet. Once it is approved the dates are
+     somebody else's plan too, so an approved request can only be cancelled. The balance
+     is untouched: a pending request never took days out of it. */
+  function updateLeaveRequest(id, form) {
+    var req = store.find('leaveRequests', id);
+    if (!req) return fail({ _: 'That request no longer exists' });
+    if (!/pending/i.test(req.status)) return fail({ _: 'Only a request still awaiting a decision can be changed' });
+    var employee = store.employee(req.employee);
+    if (!employee) return fail({ _: 'Employee not found' });
+    /* `id` is excluded from the overlap check: a request does not clash with itself. */
+    var errors = rules.validateLeave({
+      type: req.type, from: form.from, to: form.to, reason: form.reason, halfDay: req.halfDay
+    }, employee, id);
+    if (rules.hasErrors(errors)) return fail(errors);
+    var days = rules.countLeaveDays(form.from, form.to, req.halfDay).total;
+    store.setOverride('leaveRequests', id, {
+      from: form.from, to: form.to,
+      fromLabel: pretty(new Date(form.from + 'T00:00')),
+      toLabel: pretty(new Date(form.to + 'T00:00')),
+      days: days, reason: form.reason || req.reason
+    });
+    store.log('updated leave request ' + id, 'User activity');
+    return done('Request ' + id + ' updated to ' + days + ' day' + (days === 1 ? '' : 's'));
+  }
+
   function cancelLeave(id) {
     var req = store.find('leaveRequests', id);
     if (!req) return fail({ _: 'That request no longer exists' });
@@ -1184,7 +1209,7 @@
       title: 'Your onboarding for ' + pretty(joinDate) + ' is open',
       body: total + ' tasks to complete before you join · first due ' + pretty(addDays(joinDate, -total)),
       on: new Date().toISOString().slice(0, 16), read: false,
-      route: 'me/documents/mine', roles: ['me'], employee: employeeId
+      route: 'me/documents', roles: ['me'], employee: employeeId
     });
     store.log('started onboarding for ' + employee.name + ' and emailed ' + to, 'User activity');
 
@@ -1358,6 +1383,7 @@
     /* Leave */
     createLeaveType: createLeaveType, createLeavePolicy: createLeavePolicy,
     applyLeave: applyLeave, approveLeave: approveLeave, rejectLeave: rejectLeave, cancelLeave: cancelLeave,
+    updateLeaveRequest: updateLeaveRequest,
     /* Attendance */
     checkIn: checkIn, checkOut: checkOut, requestRegularization: requestRegularization,
     approveRegularization: approveRegularization, rejectRegularization: rejectRegularization,

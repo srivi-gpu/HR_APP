@@ -241,7 +241,7 @@
     me: [
       { t: 'My profile', s: 'Personal, employment and bank details', to: 'me/profile/personal', icon: 'person' },
       { t: 'Payslips', s: 'Every payslip, newest first', to: 'me/payroll/payslips', icon: 'card' },
-      { t: 'My documents', s: 'Policies to read and acknowledge', to: 'me/documents/mine', icon: 'file' },
+      { t: 'Documents & policies', s: 'The company library', to: 'me/documents', icon: 'file' },
       { t: 'My goals', s: 'What this cycle is measured on', to: 'me/performance/goals', icon: 'target' },
       { t: 'My assets', s: 'What is assigned to you', to: 'me/assets/assigned', icon: 'package' },
       { t: 'Announcements', s: 'What the company has said lately', to: 'me/announcements', icon: 'flag' }

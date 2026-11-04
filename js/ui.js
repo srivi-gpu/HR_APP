@@ -189,19 +189,25 @@
       });
     }
 
-    var groups = [];
-    item.tabs.forEach(function (t) { if (t.group && groups.indexOf(t.group) < 0) groups.push(t.group); });
-    if (groups.length < 2) return row(item.tabs, 'underline', active, item.label);
+    /* A hidden tab still has a route — screens link straight to it — but it is not a
+       place in the tab row, so it is kept out of what is drawn while staying in the
+       lookup that decides which group is open. */
+    var visible = item.tabs.filter(function (t) { return !t.hidden; });
+    if (!visible.length) return null;
 
-    var activeTab = item.tabs.filter(function (t) { return t.path === active; })[0] || item.tabs[0];
-    var inGroup = item.tabs.filter(function (t) { return t.group === activeTab.group; });
+    var groups = [];
+    visible.forEach(function (t) { if (t.group && groups.indexOf(t.group) < 0) groups.push(t.group); });
+    if (groups.length < 2) return row(visible, 'underline', active, item.label);
+
+    var activeTab = item.tabs.filter(function (t) { return t.path === active; })[0] || visible[0];
+    var inGroup = visible.filter(function (t) { return t.group === activeTab.group; });
     /* The master row is keyed on its group's first tab, so selecting a group and
        landing on that tab are the same act and the row needs no state of its own. */
     var masters = groups.map(function (g) {
-      var first = item.tabs.filter(function (t) { return t.group === g; })[0];
+      var first = visible.filter(function (t) { return t.group === g; })[0];
       return { path: first.path, label: g, route: first.route };
     });
-    var currentMaster = item.tabs.filter(function (t) { return t.group === activeTab.group; })[0].path;
+    var currentMaster = (visible.filter(function (t) { return t.group === activeTab.group; })[0] || visible[0]).path;
 
     return h('div', { className: 'mtabs' },
       row(masters, 'underline', currentMaster, item.label),
