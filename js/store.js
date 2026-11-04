@@ -203,7 +203,9 @@
     designation: function (id) { return HRMS.seed.designations.filter(function (d) { return d.id === id; })[0] || null; },
     location: function (id) { return HRMS.seed.locations.filter(function (l) { return l.id === id; })[0] || null; },
     leaveType: function (id) { return HRMS.seed.leaveTypes.filter(function (t) { return t.id === id; })[0] || null; },
-    shift: function (id) { return HRMS.seed.shifts.filter(function (s) { return s.id === id; })[0] || null; },
+    /* Through the collection, not the seed: a shift created in this session has to
+       resolve by name wherever one is shown, or the roster renders it as a dash. */
+    shift: function (id) { return find('shifts', id); },
     /* Leave balances are keyed by employee rather than row id, so they get their own
        patch bucket instead of going through overrides. */
     balancesFor: function (id) {

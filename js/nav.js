@@ -144,10 +144,12 @@
       { path: 'types', route: 'hr/leave/types', group: 'Leave', label: 'Types', section: '4.11', note: 'Casual, sick, earned and custom types with their full rule set.' },
       { path: 'leave-policies', route: 'hr/leave/policies', group: 'Leave', label: 'Policies', section: '4.11', note: 'Policies scoped by employee type, department, location and tenure.' }
     ]},
+    /* No dashboard. The three things this module is for — defining a shift, putting
+       people on one, and deciding swaps — are each a screen; a fourth that only
+       counted them was a stop on the way to the screen you wanted. */
     { path: 'shifts', label: 'Shifts', icon: 'hourglass', section: '4.20', tabs: [
-      { path: 'dashboard', label: 'Dashboard', section: '4.23', note: 'Coverage per shift, unassigned employees and open swap requests.' },
-      { path: 'templates', label: 'Templates', section: '4.20', note: 'Shift definitions with timing, break, grace period and night flag.' },
-      { path: 'roster', label: 'Roster', section: '4.21', note: 'Weekly and monthly roster with bulk and rotational assignment.' },
+      { path: 'templates', label: 'Shifts', section: '4.20', note: 'Shift definitions with timing, break, grace period and night flag.' },
+      { path: 'roster', label: 'Roster', section: '4.21', note: 'Weekly roster with bulk assignment, and bulk change of the shift an employee is on.' },
       { path: 'swaps', label: 'Swap requests', section: '4.22', note: 'Swap requests needing the replacement employee and manager to confirm.' }
     ]},
     { path: 'holidays', label: 'Holiday calendar', icon: 'star', section: '4.11',

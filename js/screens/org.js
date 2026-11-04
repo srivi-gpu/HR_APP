@@ -170,7 +170,7 @@
           ['Full day threshold', '8 hours']
         ]}),
         h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
-          onClick: function () { router.goAs('hr/shifts/templates'); } }, 'Shift templates')));
+          onClick: function () { router.goAs('hr/shifts/templates'); } }, 'Shifts')));
   }
 
   function OrgHolidays() {
