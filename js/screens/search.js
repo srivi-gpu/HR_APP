@@ -165,7 +165,7 @@
     { key: 'announcements', label: 'Announcements', icon: 'bell', module: 'engagement',
       rows: function () { return store.collection('announcements'); },
       text: function (a) { return [a.title, a.body, a.byName].join(' '); },
-      row: function (a) { return { title: a.title, sub: a.byName + ' · ' + a.on, chip: a.pinned ? 'Pinned' : null }; },
+      row: function (a) { return { title: a.title || a.body, sub: a.byName + ' · ' + a.on, chip: a.pinned ? 'Pinned' : null }; },
       to: { me: 'me/announcements' } },
 
     { key: 'recognition', label: 'Recognition', icon: 'star', module: 'engagement',

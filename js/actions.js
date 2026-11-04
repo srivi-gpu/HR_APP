@@ -1109,16 +1109,20 @@
 
   function postAnnouncement(form) {
     if (!canPostAnnouncements()) return fail({ _: 'Only HR can post an announcement' });
-    var errors = rules.required([{ key: 'title', label: 'Title' }, { key: 'body', label: 'Announcement' }], form);
+    /* The title is optional: the composer posts without one, and the card then leads
+       with the body. `body` stays plain text for the dashboard, search and anything
+       else that reads it; `html` carries the formatting when there is any. */
+    var errors = rules.required([{ key: 'body', label: 'Announcement' }], form);
     if (rules.hasErrors(errors)) return fail(errors);
     var author = store.persona('hr');
     var id = store.nextId('announcements', 'an-');
+    var title = String(form.title || '').trim();
     store.add('announcements', {
-      id: id, title: form.title, body: form.body,
+      id: id, title: title, body: form.body, html: form.html || null,
       by: author ? author.id : null, byName: author ? author.name : 'HR',
       on: today(), pinned: !!form.pinned
     });
-    store.log('posted the announcement "' + form.title + '"', 'User activity');
+    store.log('posted the announcement "' + (title || form.body.slice(0, 40)) + '"', 'User activity');
     return done('Announcement posted', { id: id });
   }
 
