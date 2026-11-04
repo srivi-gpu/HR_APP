@@ -966,7 +966,7 @@
       footer: h(React.Fragment, null,
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close'),
         h(V.Button, { variant: 'primary', iconStart: I.package,
-          onClick: function () { p.onClose(); router.goAs('hr/assets/returns'); } }, 'Record asset returns'))
+          onClick: function () { p.onClose(); router.goAs('admin/assets/returns'); } }, 'Record asset returns'))
     },
       h('div', { className: 'row gap-3 wrap' },
         h(ui.StatusChip, { status: c.status, size: 'md' }),
@@ -978,7 +978,7 @@
         title: 'Outstanding before settlement', items: outstanding,
         actions: held.length
           ? h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
-              onClick: function () { p.onClose(); router.goAs('hr/assets/returns'); } }, held.length + ' asset(s) to return')
+              onClick: function () { p.onClose(); router.goAs('admin/assets/returns'); } }, held.length + ' asset(s) to return')
           : null
       }),
       h('div', { className: 'stack gap-2' },
@@ -1772,9 +1772,9 @@
           ]}),
           h('div', { className: 'row gap-2 wrap' },
             h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.checklist,
-              onClick: function () { router.goAs('hr/assets/requests'); } }, 'Requests'),
+              onClick: function () { router.goAs('admin/assets/requests'); } }, 'Requests'),
             h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.package,
-              onClick: function () { router.goAs('hr/assets/returns'); } }, 'Returns')))));
+              onClick: function () { router.goAs('admin/assets/returns'); } }, 'Returns')))));
   }
 
   function Inventory() {
@@ -2748,12 +2748,14 @@
 
     'hr/documents': DocumentsLibrary,
 
-    'hr/assets/dashboard': AssetsDashboard,
-    'hr/assets/inventory': Inventory,
-    'hr/assets/allocations': Allocations,
-    'hr/assets/requests': AssetRequests,
-    'hr/assets/returns': Returns,
-    'hr/assets/maintenance': Maintenance,
+    /* The asset register is admin's module now. Its screens are unchanged; only the
+       workspace they hang off has moved. */
+    'admin/assets/dashboard': AssetsDashboard,
+    'admin/assets/inventory': Inventory,
+    'admin/assets/allocations': Allocations,
+    'admin/assets/requests': AssetRequests,
+    'admin/assets/returns': Returns,
+    'admin/assets/maintenance': Maintenance,
 
     'hr/config/onboarding': OnboardingConfig,
     'hr/config/offboarding': OffboardingConfig,

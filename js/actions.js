@@ -674,7 +674,7 @@
     });
     raiseApproval({
       id: id, kind: 'Asset Request', module: 'assets', employee: employeeId,
-      detail: form.category + ' — ' + form.reason, approver: approver, route: 'hr/assets/requests'
+      detail: form.category + ' — ' + form.reason, approver: approver, route: 'admin/assets/requests'
     });
     store.log('requested a ' + form.category, 'User activity');
     return done('Request ' + id + ' submitted', { id: id });

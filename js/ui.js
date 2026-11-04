@@ -318,6 +318,28 @@
     };
   }
 
+  /* An assistant's suggestion: what it noticed, why, and the one thing it would do.
+     Dismissing it is per-render and deliberate — a suggestion that cannot be waved
+     away is a demand. */
+  function Nudge(p) {
+    var goneSt = React.useState(false);
+    if (goneSt[0]) return null;
+    return h('div', { className: 'ai-note' },
+      h('span', { className: 'ai-note__mark' }, I.leo),
+      h('div', { className: 'ai-note__body' },
+        h('span', { className: 'ai-note__eyebrow' }, p.eyebrow || 'Assistant'),
+        h('strong', { style: { fontSize: 15 } }, p.title),
+        h('p', { className: 'ai-note__text' }, p.why),
+        h('div', { className: 'ai-note__acts' },
+          h(V.Button, {
+            variant: 'primary', className: 'vi-btn--sm',
+            onClick: function () { p.apply(); goneSt[1](true); }
+          }, p.label),
+          h(V.Button, {
+            variant: 'ghost', className: 'vi-btn--sm', onClick: function () { goneSt[1](true); }
+          }, 'Dismiss'))));
+  }
+
   /* A row of fields that wraps to one column on a narrow screen. */
   function FieldRow(p) { return el('div', { className: 'fieldrow' + (p.cols ? ' fieldrow--' + p.cols : '') }, p.children); }
   function FormSection(p) {
@@ -555,7 +577,7 @@
     DataTable: DataTable, Bars: Bars, Timeline: Timeline,
     Modal: Modal, Drawer: Drawer, Confirm: Confirm,
     useForm: useForm, FieldRow: FieldRow, FormSection: FormSection,
-    EmployeePicker: EmployeePicker, Filter: Filter,
+    EmployeePicker: EmployeePicker, Filter: Filter, Nudge: Nudge,
     toast: toast, report: report, ToastHost: ToastHost
   };
 })();

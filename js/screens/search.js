@@ -132,7 +132,7 @@
       row: function (a) {
         return { title: a.name, sub: a.serial + ' · ' + a.category + (a.assignedTo ? ' · ' + empName(a.assignedTo) : ' · unassigned'), chip: a.status };
       },
-      to: { hr: 'hr/assets/inventory', me: 'me/assets' } },
+      to: { hr: 'admin/assets/inventory', me: 'me/assets' } },
 
     { key: 'documents', label: 'Documents', icon: 'file', module: 'documents',
       rows: function () { return store.collection('employeeDocuments'); },
@@ -215,6 +215,48 @@
   ];
 
   /* The sources this role may search at all, already narrowed to the records it may see. */
+
+  /* ---------------------------------------------------------------- Suggestions
+     An empty search box used to say nothing at all, which left the reader to guess
+     both what is in here and how to phrase it. These are the jumps each workspace
+     reaches for and the questions Ara can actually answer from the seed, so the first
+     thing the box offers is a way in rather than a blank list. */
+  var JUMPS = {
+    admin: [
+      { t: 'Users', s: 'Every account, with role and status', to: 'admin/users/all', icon: 'users' },
+      { t: 'Access review', s: 'Access that looks wrong', to: 'admin/roles/review', icon: 'shield' },
+      { t: 'Security', s: 'Sign-in rules and blocked accounts', to: 'admin/settings', icon: 'lock' },
+      { t: 'Organization', s: 'Company, offices and working hours', to: 'admin/org/profile', icon: 'building' },
+      { t: 'Billing and usage', s: 'Plan, invoices and AI credits', to: 'admin/billing/billing', icon: 'card' },
+      { t: 'Audit logs', s: 'Who did what, and when', to: 'admin/audit/activity', icon: 'history' }
+    ],
+    hr: [
+      { t: 'Employees', s: 'The roster, filtered and exportable', to: 'hr/people/all', icon: 'users' },
+      { t: 'Approval inbox', s: 'Everything waiting on you', to: 'hr/approvals', icon: 'checklist' },
+      { t: 'Payroll', s: 'The current run and its cut-off', to: 'hr/payroll/dashboard', icon: 'card' },
+      { t: 'Onboarding', s: 'Who is joining, and what is blocking them', to: 'hr/onboarding/dashboard', icon: 'person' },
+      { t: 'Documents & policies', s: 'What people have to read and sign', to: 'hr/documents/policies', icon: 'file' },
+      { t: 'Configuration', s: 'Departments, policies and workflows', to: 'hr/config/structure', icon: 'sliders' }
+    ],
+    me: [
+      { t: 'My profile', s: 'Personal, employment and bank details', to: 'me/profile/personal', icon: 'person' },
+      { t: 'Payslips', s: 'Every payslip, newest first', to: 'me/payroll/payslips', icon: 'card' },
+      { t: 'My documents', s: 'Policies to read and acknowledge', to: 'me/documents/mine', icon: 'file' },
+      { t: 'My goals', s: 'What this cycle is measured on', to: 'me/performance/goals', icon: 'target' },
+      { t: 'My assets', s: 'What is assigned to you', to: 'me/assets/assigned', icon: 'package' },
+      { t: 'Announcements', s: 'What the company has said lately', to: 'me/announcements', icon: 'flag' }
+    ]
+  };
+
+  var ASKS = {
+    admin: ['Who has admin access?', 'Which accounts have no second step?', 'How many AI credits are left?'],
+    hr: ['Who is on probation?', 'What is waiting in my approvals?', 'When is the payroll cut-off?'],
+    me: ['When is my next payslip?', 'Which policies have I not signed?', 'What assets are assigned to me?']
+  };
+
+  function jumpsFor(role) { return JUMPS[role] || JUMPS.me; }
+  function asksFor(role) { return ASKS[role] || ASKS.me; }
+
   function sourcesFor(role) {
     return SOURCES.filter(function (s) {
       return !s.module || perms.can(role, s.module, 'view');
@@ -349,6 +391,20 @@
             h('div', { className: 'row gap-2 wrap' }, catalogue.map(function (b) {
               return h(V.Chip, { key: b.src.key, size: 'sm', shape: 'tag', variant: 'soft' },
                 b.src.label + ' · ' + b.rows.length);
+            })),
+            h('div', { className: 'palette__cap' }, 'Jump to'),
+            h('div', { className: 'sug' }, jumpsFor(role).map(function (j) {
+              return h('button', { key: j.to, type: 'button', className: 'sug__b',
+                onClick: function () { router.go(j.to); } },
+                h('span', { className: 'sug__i' }, I[j.icon] || I.right),
+                h('span', { className: 'sug__t' },
+                  h('strong', null, j.t),
+                  h('span', null, j.s)));
+            })),
+            h('div', { className: 'palette__cap' }, 'Ask Ara'),
+            h('div', { className: 'row gap-2 wrap' }, asksFor(role).map(function (a) {
+              return h(V.Chip, { key: a, size: 'sm', shape: 'tag', variant: 'soft',
+                onClick: function () { qSt[1](a); } }, a);
             })))
         : found
           ? h(React.Fragment, null,
@@ -485,6 +541,36 @@
                 h('span', { className: 'palette__label' }, 'Ask Ara — “' + q + '”'),
                 h('span', { className: 'palette__context' }, 'Answers from this prototype only')),
               h('span', { className: 'palette__path mono' }, 'Enter'))
+          : null,
+
+        !q && !busySt[0] && !ansSt[0]
+          ? h(React.Fragment, null,
+              h('div', { className: 'palette__cap' }, 'Jump to'),
+              h('ul', { className: 'palette__list' }, jumpsFor(role).slice(0, 5).map(function (j) {
+                return h('li', { key: j.to },
+                  h('button', {
+                    type: 'button', className: 'palette__item',
+                    onClick: function () { p.onClose(); router.go(j.to); }
+                  },
+                    h('span', { className: 'palette__icon' }, I[j.icon] || I.right),
+                    h('span', { className: 'palette__text' },
+                      h('span', { className: 'palette__label' }, j.t),
+                      h('span', { className: 'palette__context' }, j.s)),
+                    h('span', { className: 'palette__path mono' }, j.to)));
+              })),
+              h('div', { className: 'palette__cap' }, 'Ask Ara'),
+              h('ul', { className: 'palette__list' }, asksFor(role).map(function (a) {
+                return h('li', { key: a },
+                  h('button', {
+                    type: 'button', className: 'palette__item',
+                    onClick: function () { qSt[1](a); }
+                  },
+                    h('span', { className: 'palette__icon' }, ARA_GLYPH),
+                    h('span', { className: 'palette__text' },
+                      h('span', { className: 'palette__label' }, a),
+                      h('span', { className: 'palette__context' }, 'Answered from this prototype')),
+                    h('span', { className: 'palette__path mono' }, 'Enter')));
+              })))
           : null,
 
         rows.length

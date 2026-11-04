@@ -34,7 +34,9 @@
     { id: 'attendance',   label: 'Attendance',           admin: 'viewOnly', hr: 'full',        me: 'own',      meScope: 'own' },
     { id: 'shifts',       label: 'Shifts',               admin: 'viewOnly', hr: 'full',        me: 'participate', meScope: 'own' },
     { id: 'documents',    label: 'Documents & policies', admin: 'viewOnly', hr: 'full',        me: 'participate', meScope: 'own' },
-    { id: 'assets',       label: 'Asset management',     admin: 'viewOnly', hr: 'full',        me: 'participate', meScope: 'own' },
+    /* Admin runs the register; HR reads it, because offboarding raises the return
+       tasks and needs to see what somebody is holding. */
+    { id: 'assets',       label: 'Asset management',     admin: 'full',     hr: 'viewOnly',    me: 'participate', meScope: 'own' },
     { id: 'payroll',      label: 'Payroll',              admin: 'viewOnly', hr: 'full',        me: 'viewOnly', meScope: 'own', confidential: true },
     { id: 'engagement',   label: 'Engagement',           admin: 'viewOnly', hr: 'full',        me: 'participate', meScope: 'own' },
     { id: 'performance',  label: 'Performance',          admin: 'viewOnly', hr: 'full',        me: 'participate', meScope: 'own' },

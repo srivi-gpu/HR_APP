@@ -1610,6 +1610,76 @@
   /* ========================================================== Holiday calendar
      PRD 4.11: the holiday calendar HR works from, including optional holidays.
      The global default lives on the admin side, inside Working hours. */
+  /* ------------------------------------------------- what the leave book already says
+     A holiday nobody declared still shows up in the data: everyone books the same day
+     off. This reads the approved leave the HR team has already granted, counts how many
+     people each working day costs, and names the days that stand out against a normal
+     one. Nothing is assumed about the calendar — if HR approves more leave on a date,
+     the next render says so, and if the day is made a holiday it drops out of the list
+     because it is no longer leave anybody has to spend. */
+  /* Dates here are calendar days, not instants: toISOString would roll a local
+     midnight back a day anywhere west of UTC and quietly mis-count the cluster. */
+  function isoLocal(d) {
+    return d.getFullYear() + '-'
+      + ('0' + (d.getMonth() + 1)).slice(-2) + '-'
+      + ('0' + d.getDate()).slice(-2);
+  }
+
+  function leaveByDay() {
+    var holiday = {};
+    store.collection('holidays').forEach(function (hd) { holiday[hd.date] = true; });
+
+    var count = {}, names = {};
+    store.collection('leaveRequests').forEach(function (r) {
+      if (r.status !== 'Approved') return;
+      var d = new Date(r.from + 'T00:00'), end = new Date(r.to + 'T00:00');
+      while (d <= end) {
+        var key = isoLocal(d);
+        if (!holiday[key] && !rules.isWeekend(d)) {
+          count[key] = (count[key] || 0) + 1;
+          var who = store.employee(r.employee);
+          (names[key] = names[key] || []).push(who ? who.name : r.employee);
+        }
+        d = new Date(d.getTime() + 86400000);
+      }
+    });
+
+    var days = Object.keys(count).map(function (k) { return { date: k, n: count[k], who: names[k] }; });
+    if (!days.length) return { days: [], typical: 0, top: null };
+    var total = days.reduce(function (a, x) { return a + x.n; }, 0);
+    var typical = Math.max(1, Math.round(total / days.length));
+    days.sort(function (a, b) { return b.n - a.n || (a.date < b.date ? -1 : 1); });
+    /* "Stands out" is three times a normal day and at least five people: one team
+       booking the same Friday is a team, not a public holiday. */
+    var top = days.filter(function (x) { return x.n >= Math.max(5, typical * 3); })[0] || null;
+    return { days: days, typical: typical, top: top };
+  }
+
+  function HolidayNudge(p) {
+    var hit = p.hit, typical = p.typical;
+    var when = new Date(hit.date + 'T00:00');
+    var label = DAY_NAMES[when.getDay()] + ' ' + ui.dateLabel(hit.date);
+    var sample = hit.who.slice(0, 3).join(', ') + (hit.who.length > 3 ? ' and ' + (hit.who.length - 3) + ' more' : '');
+
+    return h(ui.Nudge, {
+      title: hit.n + ' people already have leave approved on ' + label,
+      why: 'A normal working day costs ' + typical + '. This one is '
+        + Math.round(hit.n / typical) + ' times that — ' + sample
+        + ' — and it is not on the holiday calendar, so every one of those days comes out of '
+        + 'somebody’s balance. Making it a company holiday gives ' + hit.n
+        + ' leave ' + (hit.n === 1 ? 'day' : 'days') + ' back and stops the rest of the team booking it too.',
+      label: 'Make it a holiday',
+      apply: function () {
+        store.add('holidays', {
+          id: 'hol-' + hit.date, date: hit.date,
+          name: 'Company holiday', type: 'Public', locs: 'all'
+        });
+        store.log('made ' + hit.date + ' a company holiday, on ' + hit.n + ' approved leave requests', 'Leave');
+        ui.toast('Added to the calendar — ' + hit.n + ' leave ' + (hit.n === 1 ? 'day' : 'days') + ' credited back', 'success');
+      }
+    });
+  }
+
   function Holidays() {
     var typeSt = React.useState('');
     var today = seed.todayIso;
@@ -1629,7 +1699,13 @@
       byMonth[m] = (byMonth[m] || 0) + 1;
     });
 
+    var lv = leaveByDay();
+
     return h(React.Fragment, null,
+      /* The holiday calendar is HR's, so the suggestion about it belongs here rather
+         than in the Admin workspace, which owns the working week and nothing else. */
+      lv.top ? h(HolidayNudge, { hit: lv.top, typical: lv.typical }) : null,
+
       h(Stats, null,
         h(Stat, { label: 'Holidays this year', value: all.length, sub: optional.length + ' of them optional' }),
         h(Stat, { label: 'Still ahead', value: ahead.length, sub: next ? 'Next: ' + next.name : 'None left this year' }),
