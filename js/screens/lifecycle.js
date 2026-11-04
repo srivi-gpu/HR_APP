@@ -1457,11 +1457,11 @@
         footer: h(React.Fragment, null,
           /* Plain outline, not the solid danger fill: the destructive moment is the
              confirm dialog, and two filled buttons in one footer compete. */
-          h(V.Button, {
+          p.readOnly ? null : h(V.Button, {
             variant: 'outline', iconStart: I.trash, style: { marginRight: 'auto' },
             onClick: function () { confirmSt[1](true); }
           }, 'Delete'),
-          h(V.Button, { variant: 'outline', iconStart: I.pencil,
+          p.readOnly ? null : h(V.Button, { variant: 'outline', iconStart: I.pencil,
             onClick: function () { renameSt[1](true); } }, 'Rename'),
           h(V.Button, { variant: 'primary', iconStart: I.download,
             onClick: function () { ui.toast(d.name + ' ' + d.version + ' download started', 'success'); } }, 'Download'))
@@ -1514,7 +1514,13 @@
       }, form.field('name'))));
   }
 
-  function DocumentsLibrary() {
+  /* `readOnly` is the employee's view of the same library: browse, open and download,
+     with nothing that writes. The alternative was a second screen that would drift. */
+  function documentsLibrary(readOnly) {
+    return function () { return h(DocumentsLibrary, { readOnly: readOnly }); };
+  }
+  function DocumentsLibrary(props) {
+    var readOnly = !!(props && props.readOnly);
     var hereSt = React.useState(null);              // current folder id, null = top
     var openSt = React.useState(null);              // open document
     var newFolderSt = React.useState(false);
@@ -1550,8 +1556,10 @@
     return h(React.Fragment, null,
       h(ui.PageHead, {
         title: 'Documents & policies',
-        description: 'Company documents in folders — the handbook, insurance, compliance, templates and the rest. '
-          + 'An employee’s own documents are on their profile.'
+        description: readOnly
+          ? 'Company documents and policies, in folders. Open one to read or download it.'
+          : 'Company documents in folders — the handbook, insurance, compliance, templates and the rest. '
+            + 'An employee’s own documents are on their profile.'
       }),
 
       /* One row: where you are, what you are looking for, and what you can add. */
@@ -1577,13 +1585,13 @@
             placeholder: 'Search every folder',
             value: qSt[0], onChange: function (e) { qSt[1](e.target.value); }
           }),
-          here ? h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.pencil,
+          here && !readOnly ? h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.pencil,
             onClick: function () { renameFolderSt[1](here); } }, 'Rename') : null,
-          here ? h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.trash,
+          here && !readOnly ? h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.trash,
             onClick: function () { deleteFolderSt[1](here); } }, 'Delete') : null,
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.folder,
+          readOnly ? null : h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.folder,
             onClick: function () { newFolderSt[1](true); } }, 'New folder'),
-          h(UploadMenu, { onPick: function (mode) { uploadSt[1](mode); } }))),
+          readOnly ? null : h(UploadMenu, { onPick: function (mode) { uploadSt[1](mode); } }))),
 
       q ? h('p', { className: 'muted', style: { fontSize: 12, margin: '0 0 10px' } },
         files.length + ' match' + (files.length === 1 ? '' : 'es') + ' across the whole library') : null,
@@ -1604,9 +1612,9 @@
                 inside + ' document' + (inside === 1 ? '' : 's')
                 + (subs ? ' · ' + subs + ' subfolder' + (subs === 1 ? '' : 's') : '')
                 + (f.description ? ' · ' + f.description : ''))),
-            h(V.IconButton, { icon: I.pencil, 'aria-label': 'Rename ' + f.name,
+            readOnly ? null : h(V.IconButton, { icon: I.pencil, 'aria-label': 'Rename ' + f.name,
               onClick: function () { renameFolderSt[1](f.id); } }),
-            h(V.IconButton, { icon: I.trash, 'aria-label': 'Delete ' + f.name,
+            readOnly ? null : h(V.IconButton, { icon: I.trash, 'aria-label': 'Delete ' + f.name,
               onClick: function () { deleteFolderSt[1](f.id); } }),
             h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.arrow,
               onClick: function () { go(f.id); } }, 'Open'));
@@ -1616,7 +1624,9 @@
          an empty table under them. */
       !q && !files.length && folders.length ? null : h(ui.FormSection, {
         title: q ? 'Search results' : (hereName ? 'Documents in ' + hereName : 'Documents at the top level'),
-        description: q ? null : 'Open a document to rename, download or remove it.'
+        description: q ? null : readOnly
+          ? 'Open a document to read or download it.'
+          : 'Open a document to rename, download or remove it.'
       },
         h(ui.DataTable, {
           exportName: 'company-documents', label: 'Documents', rows: files, pageSize: 10, onExport: true,
@@ -1655,8 +1665,10 @@
           emptyTitle: q ? 'Nothing matches "' + qSt[0].trim() + '"' : 'This folder is empty',
           emptyBody: q
             ? 'Try a shorter search, or clear it to browse the folders.'
-            : 'Upload a document here, or create a folder to organise this part of the library.',
-          emptyActions: q ? null : h(V.Button, { variant: 'primary', iconStart: I.up,
+            : readOnly
+              ? 'Nothing has been filed here yet.'
+              : 'Upload a document here, or create a folder to organise this part of the library.',
+          emptyActions: q || readOnly ? null : h(V.Button, { variant: 'primary', iconStart: I.up,
             onClick: function () { uploadSt[1]('file'); } }, 'Upload a document')
         })),
 
@@ -1690,7 +1702,7 @@
         },
         onClose: function () { deleteFolderSt[1](null); }
       }) : null,
-      openSt[0] ? h(DocumentDrawer, { id: openSt[0], onClose: function () { openSt[1](null); } }) : null);
+      openSt[0] ? h(DocumentDrawer, { id: openSt[0], readOnly: readOnly, onClose: function () { openSt[1](null); } }) : null);
   }
 
   /* ========================================================= Assets (PRD 4.29–4.33) */
@@ -2795,7 +2807,8 @@
     'hr/offboarding/clearance': Clearance,
     'hr/offboarding/settlement': Settlement,
 
-    'hr/documents': DocumentsLibrary,
+    'hr/documents': documentsLibrary(false),
+    'me/documents': documentsLibrary(true),
 
     /* The asset register is admin's module now. Its screens are unchanged; only the
        workspace they hang off has moved. */

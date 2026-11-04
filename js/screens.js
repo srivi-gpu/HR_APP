@@ -252,7 +252,7 @@
     var myAssessment = seed.assessments.filter(function (a) { return a.employee === me.id; })[0];
 
     var tasks = [
-      { label: 'Acknowledge Information Security Policy v5.0', due: 'Due 15 Nov', tone: 'warning', to: 'me/documents/acknowledgements' },
+      { label: 'Read the Information Security Policy v5.0', due: 'Due 15 Nov', tone: 'warning', to: 'me/documents' },
       { label: 'Complete Q4 engagement pulse', due: 'Closes 14 Nov', tone: 'info', to: 'me/engagement/surveys' },
       { label: 'Submit tax declaration for FY 2026-27', due: 'Due 31 Dec', tone: 'neutral', to: 'me/payroll/tax' },
       { label: 'Self-appraisal for H2 FY2026', due: 'Opens 15 Nov', tone: 'neutral', to: 'me/performance/self' }

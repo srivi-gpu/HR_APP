@@ -1044,7 +1044,7 @@
   /* ------------------------------------------------------------ Notifications */
   var notifications = [
     { id: 'n1', kind: 'Leave Request', title: 'Sneha Kulkarni applied for Sick Leave', body: '2 days from 4 Nov 2026 · awaiting your approval', on: '2026-11-03T09:12', read: false, route: 'hr/leave/requests', roles: ['hr'] },
-    { id: 'n2', kind: 'Policy Acknowledgement', title: 'Information Security Policy v5.0 needs your acknowledgement', body: 'Due 15 Nov 2026', on: '2026-11-03T08:40', read: false, route: 'me/documents/acknowledgements', roles: ['me'] },
+    { id: 'n2', kind: 'Policy Acknowledgement', title: 'Information Security Policy v5.0 needs your acknowledgement', body: 'Due 15 Nov 2026', on: '2026-11-03T08:40', read: false, route: 'me/documents', roles: ['me'] },
     { id: 'n3', kind: 'Payroll', title: 'November payroll is open for review', body: payable.length + ' employees · cut-off 25 Nov 2026', on: '2026-11-02T17:05', read: false, route: 'hr/payroll/cycles', roles: ['hr'] },
     { id: 'n4', kind: 'Onboarding Reminder', title: 'Pranav Hegde has 3 documents awaiting verification', body: 'Document verification is blocking IT setup', on: '2026-11-02T11:20', read: false, route: 'hr/onboarding/verification', roles: ['hr'] },
     { id: 'n5', kind: 'Attendance Exception', title: '6 missing punches today', body: 'Including Vikram Desai, who has raised a correction', on: '2026-11-03T09:00', read: false, route: 'hr/attendance/regularization', roles: ['hr'] },
