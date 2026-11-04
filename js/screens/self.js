@@ -948,67 +948,35 @@
             })));
   }
 
-  /* Your own asset requests, and how far each has got.
+  /* Your own asset requests.
 
-     Asking for something happens in Tracklivo, so there is no form here. What there is
-     instead is the thing the form never told you: which desk it is on now, who has
-     already said yes, and — if it came back — exactly why. The chain is your own
-     reporting line, ending with IT. */
+     Asking for something, and the decision on it, both happen in Tracklivo. What this
+     screen keeps is the record: what you asked for, when, and whether a unit is on its
+     way to you. */
   function MyAssetRequests() {
     var m = me();
-    var openSt = React.useState(null);
-    var flow = HRMS.assetflow;
     var rows = store.collection('assetRequests').filter(function (a) { return a.employee === m.id; });
+    var chip = HRMS.assetRequestChip;
 
-    return h(React.Fragment, null,
-      h(Card, {
-        title: 'My asset requests',
-        description: 'Raised in Tracklivo. This is where each one has got to — open a request to see every approval and the reasoning behind it.',
-        aside: h('span', { className: 'atl__src' }, 'From Tracklivo')
-      },
-        h(ui.DataTable, {
-          exportName: 'my-asset-requests', label: 'My asset requests', rows: rows, pageSize: 10, onExport: false,
-          columns: [
-            { key: 'id', header: 'Request', cell: function (a) { return h('span', { className: 'mono' }, a.id); } },
-            { key: 'category', header: 'Category' },
-            { key: 'reason', header: 'Reason' },
-            { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (a) { return ui.dateLabel(a.requestedOn); } },
-            { key: 'stage', header: 'Where it is',
-              csv: function (a) {
-                var w = flow.waitingOn(a), d = flow.decidedBy(a);
-                return w ? 'With ' + w : d ? (d.rejected ? 'Rejected by ' : 'Cleared by ') + d.who : '';
-              },
-              cell: function (a) {
-                var w = flow.waitingOn(a);
-                if (w) return h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
-                  h(V.Avatar, { name: w, size: 'xs' }), h('span', null, 'With ' + w));
-                var d = flow.decidedBy(a);
-                if (!d) return h('span', { className: 'muted' }, '—');
-                return h('span', null, (d.rejected ? 'Rejected by ' : 'Cleared by ') + d.who);
-              } },
-            { key: 'steps', header: 'Approvals', align: 'right',
-              csv: function (a) {
-                var t = flow.timeline(a).filter(function (x) { return x.kind !== 'raised'; });
-                return t.filter(function (x) { return x.state === 'approved'; }).length + '/' + t.length;
-              },
-              cell: function (a) {
-                var t = flow.timeline(a).filter(function (x) { return x.kind !== 'raised'; });
-                var done = t.filter(function (x) { return x.state === 'approved'; }).length;
-                return h('span', { className: 'muted mono' }, done + ' / ' + t.length);
-              } },
-            { key: 'status', header: 'Status', cell: function (a) { return h(ui.StatusChip, { status: a.status }); } },
-            { key: 'actions', header: '', align: 'right',
-              cell: function (a) {
-                return h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.history,
-                  onClick: function () { openSt[1](a); } }, 'Timeline');
-              } }
-          ],
-          emptyIcon: I.package, emptyTitle: 'No requests raised',
-          emptyBody: 'Asset requests are raised in Tracklivo. Once one exists, its approvals show up here.'
-        })),
-
-      openSt[0] ? h(HRMS.assetTimeline, { request: openSt[0], onClose: function () { openSt[1](null); } }) : null);
+    return h(Card, {
+      title: 'My asset requests',
+      description: 'Raised and decided in Tracklivo. Once one is cleared there, IT issues the unit from here.',
+      aside: h('span', { className: 'atl__src' }, 'From Tracklivo')
+    },
+      h(ui.DataTable, {
+        exportName: 'my-asset-requests', label: 'My asset requests', rows: rows, pageSize: 10, onExport: false,
+        columns: [
+          { key: 'id', header: 'Request', cell: function (a) { return h('span', { className: 'mono' }, a.id); } },
+          { key: 'category', header: 'Category' },
+          { key: 'reason', header: 'Reason' },
+          { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (a) { return ui.dateLabel(a.requestedOn); } },
+          { key: 'status', header: 'Status', cell: function (a) { return chip ? chip(a.status) : a.status; } }
+        ],
+        emptyIcon: I.package, emptyTitle: 'No requests raised',
+        emptyBody: 'Asset requests are raised in Tracklivo. Once one exists, it shows up here.'
+      }));
   }
+
 
 
   function MyAssetHistory() {

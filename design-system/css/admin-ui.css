@@ -1097,25 +1097,8 @@ html.lenis, html.lenis body { height: auto; }
 .amc__wrap.is-full .amc { height: 100%; }
 @media (max-width: 760px) { .amc { height: 420px; } }
 
-/* --------------------------------------------------------- asset approval timeline */
-.atl__head { display: flex; align-items: flex-start; gap: 16px; padding-bottom: 14px; border-bottom: 1px solid var(--border-subtle); flex-wrap: wrap; }
-.atl { display: flex; flex-direction: column; padding-top: 4px; }
-.atl__row { display: flex; gap: 13px; padding: 13px 0 13px 2px; position: relative; }
-.atl__row::before { content: ""; position: absolute; left: 15px; top: 34px; bottom: -8px; width: 2px; background: var(--border-subtle); }
-.atl__row:last-child::before { display: none; }
-.atl__dot { position: relative; z-index: 1; flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--bg-muted); color: var(--text-muted); border: 2px solid var(--bg-surface); }
-.atl__dot svg { width: 15px; height: 15px; }
-.atl__row--approved .atl__dot { background: var(--success-bg); color: var(--success-fg); }
-.atl__row--rejected .atl__dot { background: var(--danger-bg); color: var(--danger-fg); }
-.atl__row--pending .atl__dot { background: var(--warning-bg); color: var(--warning-fg); }
-.atl__row--raised .atl__dot { background: var(--brand-soft); color: var(--text-brand); }
-.atl__row--waiting { opacity: .62; }
-.atl__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.atl__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.atl__tag { font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+/* --------------------------------------------------------- the "From Tracklivo" badge */
 .atl__src { display: inline-flex; align-items: center; height: 20px; padding: 0 8px; border-radius: var(--tl-radius-pill); background: var(--bg-subtle); border: 1px solid var(--border-default); font-size: 11px; font-weight: 600; color: var(--text-secondary); }
-.atl__note { margin: 4px 0 0; padding: 9px 12px; border-radius: 11px; background: var(--bg-subtle); font-size: 13px; line-height: 1.5; color: var(--text-primary); }
-.atl__row--rejected .atl__note { background: var(--danger-bg); color: var(--danger-fg); }
 
 /* ===================================================================== asset register
    The reference layout, in the product's own palette. */
