@@ -149,11 +149,78 @@
       }()));
   }
 
+  /* What a month of this type is worth, capped by what is actually left. The strip
+     shows the year on top and this underneath, so a balance reads as "what I have" and
+     "what I can take now" rather than one number doing both jobs. */
+  function availableThisMonth(b) {
+    if (!b.entitled) return b.available;
+    return Math.max(0, Math.min(b.available, Math.ceil(b.entitled / 12)));
+  }
+
+  /* Applying, in one dialog: what kind, when, how long, and why. Nothing else — the
+     notice periods, the document rules and the rest are the approver's business, and
+     the action refuses with the reason if one of them is not met. */
+  function ApplyLeaveModal(p) {
+    var balances = p.balances;
+    var form = ui.useForm({ type: balances.length ? balances[0].type : '', from: '', to: '', reason: '' });
+    var v = form.values;
+    var calc = v.from && v.to && v.from <= v.to
+      ? HRMS.rules.countLeaveDays(v.from, v.to, false) : null;
+
+    function save() {
+      var res = form.submit(function (vals) {
+        return ui.report(act.applyLeave(p.employee, {
+          type: vals.type, from: vals.from, to: vals.to, reason: vals.reason
+        }));
+      });
+      if (res && res.ok) p.onClose();
+    }
+
+    return h(ui.Modal, {
+      title: 'Apply leave',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, 'Apply'))
+    },
+      h(V.Select, Object.assign({
+        label: 'Leave type', required: true,
+        options: balances.map(function (b) {
+          return { value: b.type, label: typeName(b.type) + ' · ' + b.available + ' available' };
+        })
+      }, form.select('type'))),
+      h(ui.FieldRow, { cols: 2 },
+        h(V.DateField, Object.assign({ label: 'From', required: true }, form.field('from'))),
+        h(V.DateField, Object.assign({ label: 'To', required: true }, form.field('to')))),
+      h(V.TextField, {
+        label: 'Duration', readOnly: true, value: calc ? calc.total + (calc.total === 1 ? ' day' : ' days') : '',
+        placeholder: 'Set both dates',
+        hint: calc && (calc.weekends || calc.holidays)
+          ? (calc.weekends ? calc.weekends + ' weekend day' + (calc.weekends === 1 ? '' : 's') : '')
+            + (calc.weekends && calc.holidays ? ' and ' : '')
+            + (calc.holidays ? calc.holidays + ' holiday' + (calc.holidays === 1 ? '' : 's') : '')
+            + ' excluded'
+          : 'Counted from the dates, weekends and holidays excluded'
+      }),
+      h(V.TextArea, Object.assign({
+        label: 'Reason', rows: 3, required: true, placeholder: 'Why you need the time off'
+      }, form.field('reason'))),
+      (function () {
+        var loose = Object.keys(form.errors || {})
+          .filter(function (k) { return ['type', 'from', 'to', 'reason'].indexOf(k) < 0; })
+          .map(function (k) { return form.errors[k]; });
+        return loose.length
+          ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, loose.join(' \u00b7 '))
+          : null;
+      }()));
+  }
+
   function MyLeaveOverview() {
     var m = me();
     var ledgerSt = React.useState(null);
     var editSt = React.useState(null);
     var cancelSt = React.useState(null);
+    var applySt = React.useState(false);
     var typeSt = React.useState('');
     var statusSt = React.useState('');
     var yearSt = React.useState('');
@@ -181,12 +248,10 @@
         title: 'Leave',
         description: 'What you have left, and every request you have made.',
         actions: [
-          h(V.Button, { key: 'p', variant: 'ghost', iconStart: I.file,
-            onClick: function () { router.go('me/leave/holidays'); } }, 'View leave policy'),
           h(V.Button, { key: 'w', variant: 'outline', iconStart: I.calendar,
             onClick: function () { router.go('me/leave/calendar'); } }, 'Who is away'),
           h(V.Button, { key: 'a', variant: 'primary', iconStart: I.plus,
-            onClick: function () { router.go('me/leave/apply'); } }, 'Apply leave')
+            onClick: function () { applySt[1](true); } }, 'Apply leave')
         ]
       }),
 
@@ -200,7 +265,7 @@
         },
           h('span', { className: 'lbal__n' }, b.available, h('small', null, '/' + total)),
           h('span', { className: 'lbal__t' }, typeName(b.type)),
-          h('span', { className: 'lbal__s' }, 'Taken this year', h('b', null, b.used)));
+          h('span', { className: 'lbal__s' }, 'Available (this month)', h('b', null, availableThisMonth(b))));
       })) : null,
 
       h(Card, {
@@ -258,9 +323,12 @@
             ? 'Clear a filter to see everything you have applied for.'
             : 'When you apply for leave it appears here, with what it is waiting on.',
           emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
-            onClick: function () { router.go('me/leave/apply'); } }, 'Apply leave')
+            onClick: function () { applySt[1](true); } }, 'Apply leave')
         })),
 
+      applySt[0] ? h(ApplyLeaveModal, {
+        employee: m.id, balances: balances, onClose: function () { applySt[1](false); }
+      }) : null,
       editSt[0] ? h(EditLeaveModal, {
         request: store.find('leaveRequests', editSt[0]),
         onClose: function () { editSt[1](null); }
