@@ -273,7 +273,10 @@
           aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { inviteSt[1](true); } }, 'Invite user')
         },
           h(ui.DataTable, {
-            exportName: 'users', label: 'Users', rows: rows, pageSize: 10,
+            /* `columns` was built above and then never passed, so the table drew its
+               toolbar and its “showing 1-10 of 248” footer around nothing: no header
+               row, no people. The column set is the one that was always meant for it. */
+            exportName: 'users', label: 'Users', rows: rows, pageSize: 10, columns: columns,
             search: function (u) { var e = emp(u.employee); return (e ? e.name : '') + ' ' + u.email + ' ' + u.role; },
             searchPlaceholder: 'Search by name, email or role',
             filters: h(ui.Filter, {
