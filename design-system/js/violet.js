@@ -576,14 +576,22 @@
         mode === 'single' ? h(TableCell, { select: true, radio: { checked: on, name: name + '-row', 'aria-label': label, onChange: function () { setSel([k]); } } }) : null,
         cols.map(function (c) {
           var v = c.cell ? c.cell(r) : r[c.key];
-          if (React.isValidElement(v) && v.type === TableCell) return React.cloneElement(v, { key: c.key });
-          if (isPlainObj(v)) return h(TableCell, Object.assign({ key: c.key, align: c.align, numeric: c.numeric }, v));
-          return h(TableCell, { key: c.key, align: c.align, numeric: c.numeric }, v);
+          /* The header, carried on the cell. Below a certain width a row stops being a
+             row and becomes a stack of label-and-value pairs, and at that point the
+             header row is gone — so each cell has to be able to name itself. */
+          var lbl = typeof c.header === 'string' ? c.header : undefined;
+          if (React.isValidElement(v) && v.type === TableCell) return React.cloneElement(v, { key: c.key, 'data-label': lbl });
+          if (isPlainObj(v)) return h(TableCell, Object.assign({ key: c.key, align: c.align, numeric: c.numeric, 'data-label': lbl }, v));
+          return h(TableCell, { key: c.key, align: c.align, numeric: c.numeric, 'data-label': lbl }, v);
         }));
     });
     return h(DensityCtx.Provider, { value: density },
       h('div', { className: cx('vi-table-wrap', props.stickyHeader && 'is-sticky', props.className), style: props.maxHeight ? { maxHeight: props.maxHeight } : undefined },
-        h('table', { className: cx('vi-table', 'vi-table--' + density, props.hover !== false && 'vi-table--hover'), 'aria-label': props['aria-label'] },
+        /* How many columns a table has decides how much room it needs before it stops
+           being a table. Eight or more is wide: tighter padding, smaller type, and it
+           stacks below 880px. Six or seven stacks below 700. Five or fewer can hold out
+           to 560, which is about where two columns stop being readable side by side. */
+        h('table', { className: cx('vi-table', 'vi-table--' + density, cols.length >= 8 && 'vi-table--wide', cols.length >= 6 && cols.length < 8 && 'vi-table--mid', props.hover !== false && 'vi-table--hover'), 'aria-label': props['aria-label'] },
           h('thead', null, head), h('tbody', null, body))));
   }
 

@@ -316,6 +316,15 @@
      by frame, and the edges are rebuilt from the eased positions on every frame, so cards
      and wires move together instead of the wires snapping. Children load on first expand. */
   var NW = 188, NH = 104, HGAP = 26, VGAP = 86;
+  /* How many people one manager shows before the rest fold into a single card. A real
+     directory has managers with seventeen reports, and seventeen cards in a row is a
+     wall rather than a chart: the row alone is wider than four screens, so nothing can
+     be read without panning past it. Six is enough to see the shape of a team, and the
+     rest are one click away on the branch somebody is actually reading. */
+  var SIBS = 6;
+  function moreId(parent) { return '\u0000more:' + parent; }
+  function isMore(id) { return String(id).indexOf('\u0000more:') === 0; }
+  function moreParent(id) { return String(id).slice('\u0000more:'.length); }
 
   function layout(rootId, kidsFor) {
     var nodes = [], cursor = 0;
@@ -345,6 +354,7 @@
     var posRef = React.useRef({});        // eased positions, id -> {x, y}
     var rafRef = React.useRef(0);
     var zoomSt = useState(1), openSt = useState({}), busySt = useState({}), loadedSt = useState({}), moveSt = useState(null);
+    var allSt = useState({});   /* branches the reader asked to see in full */
     var tickSt = useState(0);
 
     /* Fetched children live in a ref as well as state: opening a chain fires several
@@ -352,7 +362,14 @@
        write wipe an earlier one. The ref is the source of truth, state only redraws. */
     var cacheRef = React.useRef({});
     function kidsFor(id) { return cacheRef.current[id] || []; }
-    function visibleKids(id) { return openSt[0][id] ? kidsFor(id) : []; }
+    function visibleKids(id) {
+      if (isMore(id) || !openSt[0][id]) return [];
+      var kids = kidsFor(id);
+      /* Folding one card behind another would be a worse trade than showing it. */
+      if (allSt[0][id] || kids.length <= SIBS + 1) return kids;
+      return kids.slice(0, SIBS).concat([{ id: moreId(id), rest: kids.length - SIBS }]);
+    }
+    function showAll(id) { allSt[1](function (prev) { var o = Object.assign({}, prev); o[id] = true; return o; }); }
     function setOpen(id, v) { openSt[1](function (prev) { var o = Object.assign({}, prev); o[id] = v; return o; }); }
 
     function expand(id) {
@@ -369,12 +386,12 @@
     }
     function toggle(id) { if (openSt[0][id]) setOpen(id, false); else expand(id); }
 
-    /* Open the top two levels on arrival, so the chart lands full rather than as one card. */
-    React.useEffect(function () {
-      var first = [p.rootId].concat(directory.childrenOf(p.rootId).map(function (n) { return n.id; }));
-      var i = 0;
-      (function step() { if (i >= first.length) return; expand(first[i++]).then(step); })();
-    }, []);
+    /* Open one level on arrival: the root and who reports to it. Opening two levels
+       was right when the chart was a dozen hand-written people; against the directory
+       it lands 93 cards at once, which is a wall rather than a chart. The second level
+       is one click away on whichever branch is actually being looked at. */
+    React.useEffect(function () { expand(p.rootId); }, []);
+
 
     /* Picking someone opens the line down to them, a level at a time. */
     React.useEffect(function () {
@@ -389,6 +406,23 @@
     }, [p.selected]);
 
     var L = layout(p.rootId, visibleKids);
+
+    /* Then fit what was opened to the width there is, once. A top row is as wide as the
+       organisation is broad, so at 100% the end of it starts off-screen and the reader
+       has to pan before they know it is there. Zoom is the reader's after that: later
+       expansions keep whatever they set rather than lurching back to a fit. */
+    var fittedRef = React.useRef(false);
+    React.useEffect(function () {
+      /* Wait for the first expansion to land: before it the chart is a single card,
+         which fits anything and would retire this with nothing fitted. */
+      if (fittedRef.current || L.nodes.length < 2) return;
+      var v = viewRef.current; if (!v) return;
+      var avail = v.clientWidth - 24;
+      if (avail <= 0) return;
+      fittedRef.current = true;
+      if (L.w > avail) zoomSt[1](Math.max(0.6, Math.round((avail / L.w) * 20) / 20));
+    }, [L.w, L.nodes.length]);
+
     var byId = {}; staff().forEach(function (n) { byId[n.id] = n; });
     var anc = ancestorsOf(p.selected);
     var onPath = {}; anc.concat([p.selected]).forEach(function (id) { onPath[id] = true; });
@@ -538,6 +572,20 @@
           h('svg', { className: 'oc__edges', width: L.w, height: L.h, 'aria-hidden': 'true' },
             edges.map(function (e) { return h('path', { key: e.key, d: e.d, className: e.hot ? 'is-path' : undefined }); })),
           L.nodes.map(function (n) {
+            if (isMore(n.id)) {
+              var parent = moreParent(n.id);
+              var rest = (kidsFor(parent) || []).length - SIBS;
+              var qm = at(n.id);
+              return h('button', {
+                key: n.id, type: 'button', className: 'ocn ocn--more',
+                style: { width: NW, height: NH, transform: 'translate(' + qm.x + 'px,' + qm.y + 'px)', opacity: qm.o },
+                'aria-label': 'Show the other ' + rest + ' people reporting to ' + parent,
+                onClick: function () { if (draggedRef.current) { draggedRef.current = false; return; } showAll(parent); }
+              },
+                h('span', { className: 'ocn__more__n' }, '+' + rest),
+                h('span', { className: 'ocn__more__t' }, rest === 1 ? '1 more report' : 'more reports'),
+                h('span', { className: 'ocn__more__a' }, 'Show all'));
+            }
             var who = byId[n.id] || { r: '', d: '' };
             var kids = directory.childrenOf(n.id);
             var col = avFor(n.id), q = at(n.id);
@@ -624,7 +672,8 @@
         }
         T.reports.forEach(function (r) { wire('lead', 'rep-' + r.n); });
         T.reports.filter(function (r) { return r.sub.length; }).forEach(function (r) { wire('rep-out-' + r.n, 'team-' + r.n); });
-        wire('team-out', 'acts');
+        /* The actions act on the team; they are not part of its reporting line, so no
+           wire runs to them. */
         var next = { d: out, w: Math.round(W.width), h: Math.round(W.height) };
         var cur = pathSt[0];
         /* Only write when the geometry really moved — this effect has no dep array,
@@ -640,7 +689,6 @@
 
     var wires = pathSt[0] && pathSt[0].d ? pathSt[0] : { d: [], w: 0, h: 0 };
     var withSub = T.reports.filter(function (r) { return r.sub.length; });
-    var midTeam = withSub[Math.floor(withSub.length / 2)];
 
     return h('div', { className: 'tmap', ref: wrapRef },
       h('svg', { className: 'tmap__wires', viewBox: '0 0 ' + (wires.w || 1) + ' ' + (wires.h || 1), 'aria-hidden': 'true' },
@@ -651,11 +699,14 @@
         h('div', { className: 'tmap__col' },
           h('div', { className: 'mcard mcard--lead' },
             h('div', { className: 'mlead__h' }, h(V.Avatar, { name: T.lead, size: 'lg' }),
-              h('span', null, h('strong', null, T.lead), h('span', null, T.leadRole))),
+              h('span', { className: 'mlead__who' }, h('strong', null, T.lead), h('span', null, T.leadRole)),
+              h('button', { className: 'mrow__b', type: 'button', 'aria-label': 'Message ' + T.lead, title: 'Message ' + T.lead,
+                onClick: function () { toast('Message ' + T.lead + ' — prototype.'); } }, I.chat)),
+            /* Each fact as a label over its value, the way the reference sets them. */
             h('div', { className: 'mlead__f' },
-              h('div', { className: 'mlead__r' }, I.sitemap, h('em', null, 'Reports to'), h('b', null, T.reportsTo)),
-              h('div', { className: 'mlead__r' }, TEAMS, h('em', null, 'Team size'), h('b', null, T.size + ' members')),
-              h('div', { className: 'mlead__r' }, I.building, h('em', null, 'Department'), h('b', null, T.dept))),
+              h('div', { className: 'mlead__r' }, I.sitemap, h('span', null, h('em', null, 'Reports to'), h('b', null, T.reportsTo))),
+              h('div', { className: 'mlead__r' }, TEAMS, h('span', null, h('em', null, 'Team size'), h('b', null, T.size + ' members'))),
+              h('div', { className: 'mlead__r' }, I.building, h('span', null, h('em', null, 'Department'), h('b', null, T.dept)))),
             h('span', { className: 'pin pin--r', ref: setPin('lead') })),
           h('span', { className: 'tmap__cap' }, 'Reporting to')),
 
@@ -664,10 +715,10 @@
           h('div', { className: 'mcard mlist' }, T.reports.map(function (r) {
             return h('div', { className: 'mrow' + (focusSt[0] === r.n ? ' is-on' : ''), key: r.n, onClick: function () { focusSt[1](r.n); } },
               h('span', { className: 'pin pin--l', ref: setPin('rep-' + r.n) }),
-              h(V.Avatar, { name: r.n, size: 'sm' }),
+              h(V.Avatar, { name: r.n, size: 'md' }),
               h('span', { className: 'mrow__t' }, h('strong', null, r.n), h('span', null, r.r)),
-              h('button', { className: 'mrow__b', type: 'button', 'aria-label': 'Schedule with ' + r.n,
-                onClick: function (e) { e.stopPropagation(); toast('Schedule with ' + r.n + ' — prototype.'); } }, I.calendar),
+              h('button', { className: 'mrow__b', type: 'button', 'aria-label': 'Message ' + r.n, title: 'Message ' + r.n,
+                onClick: function (e) { e.stopPropagation(); toast('Message ' + r.n + ' — prototype.'); } }, I.chat),
               r.sub.length ? h('span', { className: 'pin pin--r', ref: setPin('rep-out-' + r.n) }) : null);
           })),
           h('span', { className: 'tmap__cap' }, 'Direct reports (' + T.reports.length + ')')),
@@ -690,14 +741,13 @@
                       h('small', null, SUBROLE[m] || 'Designer'));
                   }))
                 : h('div', { className: 'mteam__faces' }, r.sub.map(function (m) { return h(V.Avatar, { key: m, name: m, size: 'sm' }); })),
-              r === midTeam ? h('span', { className: 'pin pin--r', ref: setPin('team-out') }) : null);
+              null);
           }),
           h('span', { className: 'tmap__cap' }, 'Team members (' + T.size + ')')),
 
         /* 4 · actions */
         h('div', { className: 'tmap__col' },
           h('div', { style: { position: 'relative' } },
-            h('span', { className: 'pin pin--l', ref: setPin('acts'), style: { top: 38 } }),
             h('div', { className: 'tt__acts' },
               h('button', { type: 'button', className: 'tt__act tt__act--pri', onClick: function () { p.onAction('add'); } }, ADDP, 'Add team member'),
               h('button', { type: 'button', className: 'tt__act', onClick: function () { p.onAction('reassign'); } }, I.sitemap, 'Reassign reporting'),
@@ -726,6 +776,10 @@
     var loadedSt = useState(1), teamRowsSt = useState({ loading: true, rows: [] }), panelSt = useState('team');
     var lifeSt = useState(LIFE_SEED.map(function (r) { return Object.assign({}, r); }));
     var moveKeySt = useState(0), actSt = useState(null), bigSt = useState(false), sheetSt = useState(false);
+    /* cards | vertical | network. A stored 'horizontal' is from before the tree turned
+       upright, and reads as the vertical view rather than as nothing. */
+    var savedView = store.pref('orgView');
+    var viewSt = useState(savedView === 'horizontal' ? 'vertical' : (savedView || 'cards'));
 
     /* The chart holds only what was expanded, so the team always comes from the directory. */
     React.useEffect(function () {
@@ -787,11 +841,48 @@
             h('section', { className: 'dash__card c12', style: { padding: 0, overflow: 'hidden' } },
               h('div', { className: 'dash__card__head', style: { padding: '18px 20px 10px' } },
                 h('h2', null, 'Reporting chart'),
-                h('span', { className: 'row gap-2' },
-                  h('span', { className: 'anote' }, 'Drag to pan · click a person to load their team'),
+                h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
+                  /* Three readings of one reporting line: cards to change it, a vertical
+                     tree to follow it, network to see its shape. */
+                  h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'Chart view' },
+                    [['cards', 'Cards'], ['vertical', 'Vertical'], ['network', 'Network']].map(function (v) {
+                      return h('button', {
+                        key: v[0], type: 'button', role: 'tab',
+                        'aria-selected': viewSt[0] === v[0] ? 'true' : 'false',
+                        className: 'ad-seg__b' + (viewSt[0] === v[0] ? ' is-on' : ''),
+                        onClick: function () { viewSt[1](v[0]); store.setPref('orgView', v[0]); }
+                      }, v[1]);
+                    })),
+                  h('span', { className: 'anote' }, viewSt[0] === 'cards'
+                    ? 'Drag to pan \u00b7 click a person to load their team'
+                    : viewSt[0] === 'vertical' ? 'Click a card to open their team'
+                    : 'Scroll to zoom \u00b7 drag to pan \u00b7 click to open a branch'),
                   h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: bigSt[0] ? I.shrink : I.expand,
                     onClick: function () { bigSt[1](!bigSt[0]); } }, bigSt[0] ? 'Exit full screen' : 'Full screen'))),
               bigSt[0] ? h('div', { className: 'oc__scrim', onClick: function () { bigSt[1](false); } }) : null,
+
+              viewSt[0] === 'vertical' && HRMS.orgcharts
+                ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
+                    h(HRMS.orgcharts.VerticalTree, {
+                      key: 'vertical:' + moveKeySt[0], staff: all, rootId: root.id, big: bigSt[0],
+                      onSelect: function (id) { focusSt[1](id); sheetSt[1](true); }
+                    }))
+                : null,
+
+              viewSt[0] === 'network' && HRMS.orgcharts && HRMS.orgcharts.ready()
+                ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
+                    h(HRMS.orgcharts.AmChart, {
+                      key: viewSt[0] + ':' + moveKeySt[0] + ':' + (bigSt[0] ? 'full' : 'inline'),
+                      view: viewSt[0], epoch: moveKeySt[0],
+                      label: 'Reporting network',
+                      draw: HRMS.orgcharts.drawNetwork(
+                        HRMS.orgcharts.treeData(all, root.id),
+                        function (id) { focusSt[1](id); sheetSt[1](true); }
+                      )
+                    }))
+                : null,
+
+              viewSt[0] !== 'cards' ? null :
               h(OrgChart, { key: moveKeySt[0], rootId: root.id, selected: focusSt[0], big: bigSt[0],
                 onSelect: function (id) { focusSt[1](id); sheetSt[1](true); },
                 onCount: function (n) { loadedSt[1](n); },

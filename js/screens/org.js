@@ -441,7 +441,6 @@
       ['Leave Request', 'Reporting Manager', 'HR Administrator', 'Sequential'],
       ['Attendance Regularization', 'Reporting Manager', 'HR Administrator', 'Sequential'],
       ['Shift Swap', 'Reporting Manager', '—', 'Single'],
-      ['Asset Request', 'IT Administrator', 'HR Administrator', 'Sequential'],
       ['Profile Change', 'HR Administrator', '—', 'Single'],
       ['Payroll', 'Finance Controller', 'Organization Admin', 'Sequential'],
       ['Document Verification', 'HR Administrator', '—', 'Single'],
@@ -1323,20 +1322,27 @@
 
   /* ========================================================= Integrations
 
-     One page and one flat grid of cards. This module used to carry six tabs, then
-     section headings; both made you click or scan before you could answer "what is
-     connected". With three providers there is nothing to group — the grid is the
-     whole picture, and each card is self-contained.
+     A catalogue of three dozen providers, grouped by what they do. The module used to
+     carry six tabs, then section headings, then a flat grid of three cards — and a flat
+     grid is right up to the point where the shelf is long enough that you have to read
+     it rather than see it. So: one filter row, one search box, and the cards grouped
+     under their category. Nothing is hidden behind a click, and "what have we got for
+     payroll" is one chip away.
 
-     The cards are the design system's integration card (.icards/.icard), so this module
-     looks like the rest of the admin console rather than a list of rows.
+     Connecting and disconnecting a provider lives here and only here. Integrations is
+     an Admin item (js/nav.js), which is what makes it the IT admin's page — HR and
+     employees have no route to it at all — and the page says so above the grid, because
+     the person who asks for a connection is usually not the person who may make one.
 
-     A card opens its own configuration form. The fields come from the seed record, so
-     adding a provider is a data change and this screen does not grow a branch for it. */
+     Each card carries the provider's real brand mark where one can be drawn honestly
+     (js/brand-logos.js) and a tile in its brand colour where it cannot. A card opens
+     its own configuration form; the fields come from the seed record, so adding a
+     provider stays a data change. */
 
   /* The configuration form a card opens. Fields are declared in the seed record. */
   function IntegrationForm(p) {
     var x = p.integration;
+    var connected = x.status === 'Connected';
     var init = {};
     x.fields.forEach(function (f) { init[f.id] = f.value; });
     var valSt = React.useState(init);
@@ -1354,14 +1360,63 @@
       p.onClose();
     }
 
+    /* Connecting is a real change, not a toast: the card has to come back connected,
+       which means writing the status and the date through the store. */
+    function connect() {
+      store.setOverride('integrations', x.id, {
+        status: 'Connected',
+        connectedOn: new Date().toISOString().slice(0, 10),
+        lastSync: new Date().toISOString().slice(0, 16),
+        droppedOn: null
+      });
+      store.log('connected ' + x.name, 'Configuration');
+      ui.toast(x.name + ' connected', 'success');
+      p.onClose();
+    }
+    function disconnect() {
+      /* `droppedOn` is what separates a provider we never connected from one that was
+         connected and is not any more. The dashboards raise an alert for the second
+         and say nothing about the first. */
+      store.setOverride('integrations', x.id, { status: 'Not connected', connectedOn: null,
+        lastSync: null, droppedOn: new Date().toISOString().slice(0, 10) });
+      store.log('disconnected ' + x.name, 'Configuration');
+      ui.toast(x.name + ' disconnected');
+      p.onClose();
+    }
+
     return h(ui.Modal, {
-      title: x.name + ' settings',
+      title: x.name + (connected ? ' settings' : ' · connect'),
       onClose: p.onClose,
       footer: h(React.Fragment, null,
-        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
-        h(V.Button, { variant: 'primary', iconStart: I.check, onClick: save }, 'Save settings'))
+        connected
+          ? h(V.Button, { variant: 'outline', onClick: disconnect }, 'Disconnect')
+          : h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        connected
+          ? h(V.Button, { variant: 'primary', iconStart: I.check, onClick: save }, 'Save settings')
+          : h(V.Button, { variant: 'primary', iconStart: I.plug, onClick: connect }, 'Connect ' + x.name))
     },
+      h('div', { className: 'ifm__h' },
+        h('span', { className: 'ifm__logo' }, HRMS.logos.mark(x.mark, 40, x.name)),
+        h('div', { style: { minWidth: 0 } },
+          h('strong', null, x.kind),
+          h('span', null, x.provider + ' · ' + x.scope))),
+
       h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.55, marginTop: 0 } }, x.summary),
+
+      (x.capabilities || []).length
+        ? h('ul', { className: 'ifm__can' }, x.capabilities.map(function (cp) {
+            return h('li', { key: cp }, cp);
+          }))
+        : null,
+
+      x.imports && x.imports.length
+        ? h('div', { className: 'ifm__imp' },
+            h('strong', null, 'Can be imported from'),
+            h('span', null, x.imports.join(' · ')),
+            h('span', { className: 'ifm__imp-go' },
+              'Run an import from Data, import and retention.'))
+        : null,
+
       x.fields.map(function (f) {
         var v = valSt[0][f.id];
         if (f.kind === 'switch') {
@@ -1387,31 +1442,32 @@
       }));
   }
 
-  /* One provider, as the design system's integration card: logo, name, the regions it
-     covers, what it does, an optional caution, and a footer that carries the connection
-     state on the left and the way in on the right. No chips and no second button — the
-     card says what this is and opens its settings, and everything else lives in there. */
+  /* One provider, as the design system's integration card: the brand mark, the name,
+     what it is and where it runs, what it does, an optional caution, and a footer that
+     carries the connection state on the left and the way in on the right. */
   function IntegrationCard(p) {
     var x = p.integration;
     var connected = x.status === 'Connected';
 
     function open() { p.onConfigure(x); }
 
-    return h('div', { className: 'icard' },
+    return h('div', { className: 'icard' + (connected ? ' is-on' : '') },
       h('div', { className: 'icard__h' },
-        h('span', {
-          className: 'icard__logo',
-          style: { background: x.logo.bg, color: x.logo.fg }
-        }, x.logo.text),
+        h('span', { className: 'icard__logo icard__logo--mark' }, HRMS.logos.mark(x.mark, 34, x.name)),
         h('span', { style: { minWidth: 0 } },
           h('strong', null, x.name),
-          h('span', null, x.scope))),
+          h('span', null, x.kind))),
 
       h('p', null, x.summary),
 
       x.note ? h('div', { className: 'icard__note' },
         h('span', { className: 'icard__note-i', 'aria-hidden': 'true' }, '⚠'),
         h('span', null, x.note)) : null,
+
+      x.imports && x.imports.length
+        ? h('span', { className: 'icard__imp' }, 'Imports ' + x.imports.length
+            + (x.imports.length === 1 ? ' kind of record' : ' kinds of record'))
+        : null,
 
       h('div', { className: 'icard__f' },
         h('span', { className: 'icard__state' },
@@ -1423,28 +1479,93 @@
             : 'Not connected'),
         connected
           ? h(V.Button, { variant: 'ghost', className: 'vi-btn--sm icard__view', onClick: open }, 'View')
-          : h(V.Button, { variant: 'outline', className: 'vi-btn--sm icard__view', onClick: open }, 'View')));
+          : h(V.Button, { variant: 'outline', className: 'vi-btn--sm icard__view', onClick: open }, 'Connect')));
   }
 
   function Integrations() {
     var cfgSt = React.useState(null);
+    var stateSt = React.useState('all');
+    var catSt = React.useState('');
+    var qSt = React.useState('');
+
     var rows = store.collection('integrations');
     var connected = rows.filter(function (x) { return x.status === 'Connected'; }).length;
+    var q = qSt[0].trim().toLowerCase();
+
+    var view = rows.filter(function (x) {
+      if (stateSt[0] === 'on' && x.status !== 'Connected') return false;
+      if (stateSt[0] === 'off' && x.status === 'Connected') return false;
+      if (catSt[0] && x.category !== catSt[0]) return false;
+      if (!q) return true;
+      return (x.name + ' ' + x.provider + ' ' + x.kind + ' ' + x.category + ' ' + x.summary)
+        .toLowerCase().indexOf(q) >= 0;
+    });
+
+    /* Grouped in the seed's category order, so the shelf reads the same every time
+       rather than in whatever order the records happen to sit in. */
+    var order = (store.seed.intCategories || []).filter(function (cat) {
+      return view.some(function (x) { return x.category === cat; });
+    });
+
+    function card(x) {
+      return h(IntegrationCard, {
+        key: x.id, integration: x,
+        onConfigure: function (it) { cfgSt[1](it); }
+      });
+    }
 
     return h(React.Fragment, null,
       h(PageHead, {
         eyebrow: 'Integrations', title: 'Connected services',
-        description: connected + ' of ' + rows.length + ' connected. Each card opens its own settings.'
+        description: connected + ' of ' + rows.length + ' providers connected. Connecting, configuring and '
+          + 'disconnecting a provider is the IT administrator’s to do — this page is not in the HR or '
+          + 'employee workspace.',
+        actions: h(V.Button, {
+          variant: 'outline', iconStart: I.download,
+          onClick: function () { HRMS.router.go('admin/data/import'); }
+        }, 'Import from another application')
       }),
 
-      h('div', { className: 'icards' }, rows.map(function (x) {
-        return h(IntegrationCard, {
-          key: x.id, integration: x,
-          onConfigure: function (it) { cfgSt[1](it); }
-        });
-      })),
+      h('div', { className: 'ifilter' },
+        h(V.SegmentedControl, {
+          size: 'sm', 'aria-label': 'Connection state', value: stateSt[0],
+          items: [
+            { value: 'all', label: 'All ' + rows.length },
+            { value: 'on', label: 'Connected ' + connected },
+            { value: 'off', label: 'Available ' + (rows.length - connected) }
+          ],
+          onChange: function (v) { stateSt[1](v); }
+        }),
+        h('div', { className: 'ifilter__q' },
+          h(V.SearchField, {
+            'aria-label': 'Search providers', placeholder: 'Search providers',
+            value: qSt[0], onChange: function (e) { qSt[1](e.target.value); }
+          }))),
 
-      rows.length ? null : h(ui.Empty, { icon: I.plug, title: 'No integrations available yet' }),
+      h('div', { className: 'ichips' },
+        [{ value: '', label: 'Everything' }].concat((store.seed.intCategories || []).map(function (cat) {
+          return { value: cat, label: cat };
+        })).map(function (o) {
+          var on = catSt[0] === o.value;
+          return h('button', {
+            key: o.value || 'all', type: 'button',
+            className: 'ichip' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false',
+            onClick: function () { catSt[1](o.value); }
+          }, o.label);
+        })),
+
+      order.map(function (cat) {
+        var group = view.filter(function (x) { return x.category === cat; });
+        return h('section', { key: cat, className: 'igroup' },
+          h('h2', { className: 'igroup__h' }, cat,
+            h('span', null, group.length)),
+          h('div', { className: 'icards' }, group.map(card)));
+      }),
+
+      view.length ? null : h(ui.Empty, {
+        icon: I.plug, title: 'No provider matches that',
+        body: 'Try another category, or clear the search.'
+      }),
 
       cfgSt[0] ? h(IntegrationForm, {
         integration: cfgSt[0],

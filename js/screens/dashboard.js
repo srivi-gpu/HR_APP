@@ -1,307 +1,852 @@
-/* The admin dashboard, from the aptaHR admin build.
+/* The admin dashboard, built to the reference layout in the product's own palette.
 
-   What it answers, in order: what Ara thinks needs doing, how big the organisation is,
-   how the platform is holding up, what is queued against it, and what you might do next.
+   The brief attached a dashboard — a KPI strip across the top on one card, a tall
+   illustrated card, a square card, a wide chart, a table and an alerts column — and this
+   keeps that geometry: four KPIs on a single card split by hairline rules, dark circular
+   icons, a grey header band on the table, bordered status pills, blurred ellipses behind
+   everything. The colour is the Tracklivo tokens', not the reference's lime and pink,
+   because a page in colours the rest of the app never uses reads as another product.
 
-   Ara comes first because it is the only card that names work rather than measuring it —
-   a reading of the other cards, put at the top so the page opens on what to do rather
-   than on what is true. It can be closed, and closing it is remembered; the page head
-   keeps a way back so dismissing it is not a one-way door.
+   What each card holds is the admin's job, which is accounts and access:
 
-   The counts are read from the store rather than typed in, so they stay honest when the
-   seed changes. The series behind the usage chart is sample data: nothing in the
-   prototype records history. */
+   - the first card has two tabs: MFA coverage by role, privileged roles first, because
+     an account that can change everyone else's is the one a password alone protects
+     worst; and the plan, seats and AI credits against what is paid for;
+   - the wide card is how recently people actually sign in, with Ara's suggestions read
+     off the same records and pinned to the bar they are about;
+   - the bottom row is charts: the access work queued against the admin as a donut by
+     kind (leavers to revoke, invites nobody accepted, suspensions, privileged accounts
+     without MFA), and the asset requests Tracklivo has sent, stacked by status.
+
+   Every count is read from the store. The one fixed panel is the backup line in the
+   alerts, because nothing in the prototype records a backup. */
 (function () {
   var HRMS = window.HRMS;
   var React = window.React, h = React.createElement, V = window.Violet, I = window.Icons;
   var store = HRMS.store, router = HRMS.router, ui = HRMS.ui, seed = HRMS.seed;
-  var useState = React.useState;
 
   function deptName(id) { var d = store.department(id); return d ? d.name : '\u2014'; }
   function locName(id) { var l = store.location(id); return l ? l.name : '\u2014'; }
 
-  /* ---------- glyphs the Tracklivo icon set does not carry ---------- */
+  /* ---------- glyphs the Tracklivo set does not carry ---------- */
   function g(d, s) {
     return h('svg', { viewBox: '0 0 24 24', width: s || 20, height: s || 20, fill: 'none', 'aria-hidden': 'true' },
-      h('path', { d: d, stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round', strokeLinejoin: 'round' }));
+      h('path', { d: d, stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }));
   }
-  var CHECK = g('M5 13l4 4L19 7', 16);
-  var UP = g('M7 14l5-5 5 5', 13);
-  var TEAMS = g('M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM2 20c.4-3.3 3.3-5.8 7-5.8s6.6 2.5 7 5.8M17 11.2a2.6 2.6 0 1 0 0-5.2M18 14.4c2.3.5 4 2.4 4 4.6');
-  var SYNC = g('M4 10a8 8 0 0 1 13.7-5.6L20 7M20 14a8 8 0 0 1-13.7 5.6L4 17M20 4v3h-3M4 20v-3h3');
-
-  var ARA_GLYPH = h('svg', { viewBox: '0 0 24 24', fill: 'none', 'aria-hidden': 'true' },
+  var CHECK = g('M5 13l4 4L19 7', 15);
+  var XMARK = g('M6 6l12 12M18 6L6 18', 18);
+  var WIFI = g('M2 8.5a15 15 0 0 1 20 0M5.5 12.5a10 10 0 0 1 13 0M9 16.5a5 5 0 0 1 6 0M12 20h.01');
+  var KEY = g('M14.5 9.5a4 4 0 1 1-1.2-2.9M14.5 9.5L21 16v3h-3v-2h-2v-2h-2l-1.3-1.3', 18);
+  var ARA = h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', 'aria-hidden': 'true' },
     h('path', { d: 'M12 3.2l1.9 4.7 4.9 1.8-4.9 1.8L12 16.2l-1.9-4.7-4.9-1.8 4.9-1.8L12 3.2Z', fill: 'currentColor' }),
     h('circle', { cx: 18.4, cy: 17.6, r: 2.1, fill: 'currentColor', opacity: .85 }),
     h('circle', { cx: 6.2, cy: 18.4, r: 1.3, fill: 'currentColor', opacity: .6 }));
 
-  function Ara(p) {
-    return h('span', { className: 'ara ara--' + ((p && p.size) || 'md'), 'aria-hidden': 'true' }, ARA_GLYPH);
+  var num = function (n) { return Number(n || 0).toLocaleString('en-IN'); };
+  function plural(n, one, many) { return num(n) + ' ' + (n === 1 ? one : (many || one + 's')); }
+  function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 864e5); }
+  function nameOf(id) { var e = store.employee(id); return e ? e.name : id; }
+  function deptOf(id) {
+    var e = store.employee(id), d = e && store.department(e.department);
+    return d ? d.name : '—';
+  }
+  var ROLE_NAME = { admin: 'Organization Admin', hr: 'HR Administrator', manager: 'Manager', me: 'Employee' };
+
+  /* ---------- the four KPIs ----------
+     Each names the action it is about, so the arrow on the card opens the same modal
+     Ara's own suggestions open. A KPI whose action has nothing left to do shows no
+     arrow rather than an arrow that leads to an empty list. */
+  function kpis(s, users) {
+    var running = store.collection('onboarding').filter(function (o) { return o.stage !== 'Completed'; }).length;
+    var sub = seed.subscription;
+    return [
+      { k: 'quiet', t: 'Active accounts', s: 'Of ' + num(users.length) + ' on the directory',
+        n: users.filter(function (u) { return u.status === 'Active'; }).length },
+      { k: 'nudge', t: 'Without MFA', s: 'Password-only sign-in',
+        n: users.filter(function (u) { return !u.mfa; }).length },
+      { k: 'onboarding', t: 'Open onboarding tasks', s: 'Across ' + running + ' people joining', n: s.pendingOnboardingTasks },
+      { k: 'leaving', t: 'Seats in use', s: 'Of ' + sub.seats + ' on ' + sub.plan,
+        n: Math.round(sub.seatsUsed / sub.seats * 100), unit: '%' }
+    ];
   }
 
-  /* ---------- the card this page is built from ---------- */
-  /* A card says what it measures. What to do about it is Ara's, and it is one small
-     control in the head rather than a panel underneath: the card keeps its size and
-     the suggestions open in a modal over it. */
-  function Card(p) {
-    return h('section', { className: 'dash__card ' + (p.span || 'c12') },
-      h('div', { className: 'dash__card__head' },
-        h('h2', null, p.title),
-        h('div', { className: 'row gap-2', style: { alignItems: 'center' } },
-          p.right || null,
-          p.ara && p.ara.length
-            ? h('button', {
-                type: 'button', className: 'dash__ara-b',
-                title: 'Ara · ' + p.ara.length + (p.ara.length === 1 ? ' suggestion' : ' suggestions'),
-                'aria-label': 'Ara has ' + p.ara.length + ' suggestion' + (p.ara.length === 1 ? '' : 's') + ' about ' + p.title,
-                onClick: function () { p.onAra(p.title, p.ara); }
-              }, h(Ara, { size: 'xs' }), h('span', null, p.ara.length))
-            : null)),
-      p.children);
+  /* ====================================================== privileged access
+     The people whose account can change everyone else's. On most days this is the
+     single most important list an admin owns, and it is short enough to show whole. */
+  function privileged(users) {
+    return users.filter(function (u) { return u.role === 'admin' || u.role === 'hr'; })
+      .sort(function (a, b) { return (a.mfa === b.mfa ? 0 : a.mfa ? 1 : -1) || (a.role === 'admin' ? -1 : 1); });
   }
 
-  /* The suggestions, over the card rather than inside it. */
-  function AraModal(p) {
-    return h(ui.Modal, {
-      title: 'Ara · ' + p.title,
-      description: p.items.length + (p.items.length === 1 ? ' thing' : ' things') + ' worth doing here.',
-      onClose: p.onClose,
-      footer: h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close')
-    },
-      h('div', { className: 'cop' }, p.items.map(function (c) {
-        return h('div', { className: 'cop__i', key: c.t },
-          h('span', { className: 'cop__ico' }, c.icon),
-          h('span', { className: 'cop__m' },
-            h('strong', null, c.t),
-            h('span', null, c.s),
-            h('button', {
-              type: 'button', className: 'cop__a',
-              onClick: function () { p.onClose(); router.go(c.to); }
-            }, c.a, I.right)));
-      })));
+  /* ====================================================== sign-in activity
+     When each account last signed in, bucketed. Read off `lastSignIn` on every user. */
+  var BUCKETS = [
+    { k: 'today', t: 'Last day', test: function (d) { return d !== null && d <= 1; } },
+    { k: 'week', t: '2–7 days', test: function (d) { return d !== null && d > 1 && d <= 7; } },
+    { k: 'month', t: '8–30 days', test: function (d) { return d !== null && d > 7 && d <= 30; } },
+    { k: 'dormant', t: '30+ days', test: function (d) { return d !== null && d > 30; } },
+    { k: 'never', t: 'Never', test: function (d) { return d === null; } }
+  ];
+  function signins(users) {
+    return BUCKETS.map(function (b) {
+      var who = users.filter(function (u) {
+        return b.test(u.lastSignIn ? daysBetween(u.lastSignIn, seed.todayIso) : null);
+      });
+      return { k: b.k, t: b.t, n: who.length, who: who };
+    });
   }
 
-  /* ---------- sample series: the prototype keeps no history ---------- */
-  var USAGE = { Users: [200, 206, 215, 222, 233, 248], Storage: [41, 44, 48, 52, 58, 64] };
-  var MONTHS = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov'];
+  /* ====================================================== Ara's suggestions
+     Each one is a rule over the records, with the arithmetic that fired it kept beside
+     it so the modal can show its working. Nothing here is a model: a suggestion only
+     appears when its rule holds, and says exactly which records made it hold. */
+  /* Each suggestion also carries the action that settles it: the records it would act
+     on, what the button says, and how to apply and undo it. Applying writes real record
+     fields through the store — `mfaRequired`, `resentOn`, `revokeScheduled`,
+     `remindedOn` — and logs the change to the audit trail, and every rule below leaves
+     out the records already acted on, so a suggestion shrinks or goes once it is dealt
+     with. Requiring MFA does not enrol anyone: the KPI for accounts without MFA still
+     counts them until they set it up, because that is still true. */
+  function suggestions(users, buckets, queue) {
+    var out = [], today = seed.todayIso, act = HRMS.actions;
+    var priv = privileged(users);
+    var privNoMfa = priv.filter(function (u) { return !u.mfa && !u.mfaRequired; });
+    var noMfa = users.filter(function (u) { return !u.mfa && !u.mfaNudgedOn; });
+    var never = users.filter(function (u) { return !u.lastSignIn && u.resentOn !== today; });
+    var quiet = users.filter(function (u) {
+      return u.lastSignIn && daysBetween(u.lastSignIn, today) > 7 && !u.remindedOn;
+    });
+    var leaving = queue.filter(function (r) { return r.kind === 'revoke' && !r.scheduled; });
 
-  function Trend(p) {
-    var data = USAGE[p.series], W = 900, H = 264, PL = 44, PR = 10, PT = 14, PB = 30;
-    var lo = Math.min.apply(null, data), hi = Math.max.apply(null, data);
-    var min = Math.floor((lo - (hi - lo) * 0.35) / 10) * 10;
-    var max = Math.ceil((hi + (hi - lo) * 0.12) / 10) * 10;
-    function x(i) { return PL + (i / (data.length - 1)) * (W - PL - PR); }
-    function y(v) { return PT + (1 - (v - min) / (max - min)) * (H - PT - PB); }
-    var line = data.map(function (v, i) { return (i ? 'L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); }).join(' ');
-    var area = line + ' L' + x(data.length - 1).toFixed(1) + ' ' + (H - PB) + ' L' + x(0).toFixed(1) + ' ' + (H - PB) + ' Z';
-    var ticks = [min, min + (max - min) / 2, max];
+    /* Open onboarding tasks, gathered by who owns them: one nudge per owner, not one
+       per task, because a person with six of them wants one message about six. */
+    var owners = {};
+    store.collection('onboarding').forEach(function (o) {
+      if (o.stage === 'Completed' || o.nudgedOn === today) return;
+      (o.tasks || []).filter(function (t) { return !t.done; }).forEach(function (t) {
+        var e = owners[t.assignee] || (owners[t.assignee] = { id: t.assignee, n: 0, who: {} });
+        e.n++; e.who[o.employee] = true;
+      });
+    });
+    var ownerRows = Object.keys(owners).map(function (id) { return owners[id]; })
+      .sort(function (x, y) { return y.n - x.n; });
+    var openTasks = ownerRows.reduce(function (n, r) { return n + r.n; }, 0);
 
-    return h('div', { className: 'chart' },
-      h('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': p.series + ' from June to November' },
-        h('defs', null, h('linearGradient', { id: 'dashTrend', x1: 0, y1: 0, x2: 0, y2: 1 },
-          h('stop', { offset: 0, stopColor: 'var(--brand-solid)', stopOpacity: 0.22 }),
-          h('stop', { offset: 1, stopColor: 'var(--brand-solid)', stopOpacity: 0 }))),
+    function userTargets(list, sub) {
+      return list.map(function (u) { return { id: u.id, emp: u.employee, t: nameOf(u.employee), s: sub(u) }; });
+    }
+    function setUsers(field, value) {
+      return function (ids) { ids.forEach(function (id) { var o = {}; o[field] = value; store.setOverride('users', id, o); }); };
+    }
+    /* The people behind the chosen rows, for the notification each action sends. */
+    function empsOf(targets, ids) {
+      return targets.filter(function (t) { return ids.indexOf(t.id) > -1; })
+        .map(function (t) { return t.emp; }).filter(Boolean);
+    }
+
+    if (privNoMfa.length) {
+      var privT = userTargets(privNoMfa, function (u) { return ROLE_NAME[u.role]; });
+      out.push({
+        k: 'priv', bucket: null, icon: I.shield, tone: 'bad', impact: 'High impact',
+        t: 'Require MFA for the ' + plural(privNoMfa.length, 'privileged account') + ' without it',
+        s: privNoMfa.length + ' of the ' + priv.length + ' people with admin or HR rights sign in with a password alone. ' +
+          'Requiring it for those two roles first protects the accounts that can change everyone else’s, without ' +
+          'asking all ' + num(users.length) + ' people to set it up on the same day.',
+        targets: privT,
+        verb: function (n) { return 'Require MFA for ' + plural(n, 'account'); },
+        run: function (ids) {
+          setUsers('mfaRequired', true)(ids);
+          act.notifyEach(empsOf(privT, ids), function () {
+            return { kind: 'Security', roles: ['me', 'hr', 'admin'], route: 'me/profile',
+              title: 'Set up two-factor sign-in', body: 'Your role can change other people’s accounts, so MFA is now required on it.' };
+          });
+        },
+        undo: setUsers('mfaRequired', false),
+        done: function (n) { return 'MFA is now required for ' + plural(n, 'account') + ', and each person has been told.'; },
+        log: function (n) { return 'required MFA for ' + plural(n, 'privileged account'); }, cat: 'Security',
+        a: 'Open security settings', to: 'admin/settings'
+      });
+    }
+    if (never.length) {
+      var nvT = userTargets(never, function (u) { return 'Invited ' + ui.dateLabel(u.invitedOn); });
+      out.push({
+        k: 'never', bucket: 'never', icon: I.mail, tone: 'warn', impact: 'Blocking',
+        t: plural(never.length, 'invitation') + ' never accepted',
+        s: 'These accounts were invited and have never signed in. ' +
+          never.map(function (u) { return nameOf(u.employee); }).join(' and ') +
+          (never.length === 1 ? ' was' : ' were') + ' invited on ' + ui.dateLabel(never[0].invitedOn) +
+          ' and ' + (never.length === 1 ? 'is' : 'are') + ' already past their start date, so the invite has probably gone to spam.',
+        targets: nvT,
+        verb: function (n) { return 'Resend ' + plural(n, 'invitation'); },
+        run: function (ids) {
+          setUsers('resentOn', today)(ids);
+          act.notifyEach(empsOf(nvT, ids), function () {
+            return { kind: 'Invitation', roles: ['me'], route: 'me/dashboard',
+              title: 'Your invitation has been resent', body: 'Activate your account to pick up your onboarding tasks.' };
+          });
+        },
+        undo: setUsers('resentOn', null),
+        done: function (n) { return plural(n, 'invitation') + ' resent, from the same sender address.'; },
+        log: function (n) { return 'resent ' + plural(n, 'invitation'); }, cat: 'User activity',
+        a: 'Open users', to: 'admin/users/all'
+      });
+    }
+    if (leaving.length) {
+      out.push({
+        k: 'leaving', bucket: null, icon: I.logout, tone: 'warn', impact: 'Frees seats',
+        t: 'Close access for ' + plural(leaving.length, 'leaver') + ' on their last day',
+        s: 'Every one of them is on notice with their access still open. Scheduling it now means nobody has to ' +
+          'remember on the day — the earliest is ' + ui.dateLabel(leaving[0].due) + ' — and each seat returns ' +
+          'to the plan as they go.',
+        targets: leaving.map(function (r) { return { id: r.id, emp: r.emp, t: r.who, s: 'Last day ' + ui.dateLabel(r.due) }; }),
+        verb: function (n) { return 'Schedule ' + plural(n, 'account') + ' to close'; },
+        run: function (ids) {
+          ids.forEach(function (id) {
+            var o = store.find('offboarding', id);
+            if (o) {
+              store.setOverride('offboarding', id, { revokeScheduled: o.lastWorkingDay });
+              act.notify({ to: o.employee, kind: 'Offboarding', roles: ['me'], route: 'me/exit/formalities',
+                title: 'Your access closes on your last working day',
+                body: 'Save anything personal before ' + ui.dateLabel(o.lastWorkingDay) + '.' });
+            }
+          });
+        },
+        undo: function (ids) { ids.forEach(function (id) { store.setOverride('offboarding', id, { revokeScheduled: null }); }); },
+        done: function (n) { return plural(n, 'account') + ' will close at the end of each last working day, freeing ' +
+          plural(n, 'seat') + ' on the plan.'; },
+        log: function (n) { return 'scheduled access removal for ' + plural(n, 'leaver'); }, cat: 'Security',
+        a: 'Open access review', to: 'admin/roles/review'
+      });
+    }
+    if (noMfa.length) {
+      var ndT = userTargets(noMfa, function (u) { return ROLE_NAME[u.role] + ' · ' + deptOf(u.employee); });
+      out.push({
+        k: 'nudge', bucket: null, icon: KEY, tone: 'info', impact: 'Reaches people',
+        t: 'Nudge the ' + plural(noMfa.length, 'account') + ' still signing in on a password',
+        s: Math.round(noMfa.length / (users.length || 1) * 100) + '% of the directory has no second factor. A nudge puts ' +
+          'the setup link in front of each of them without forcing anyone out of their session — the people who act ' +
+          'on it are the ones you no longer have to require it of.',
+        targets: ndT,
+        verb: function (n) { return 'Send ' + plural(n, 'nudge'); },
+        run: function (ids) {
+          setUsers('mfaNudgedOn', today)(ids);
+          act.notifyEach(empsOf(ndT, ids), function () {
+            return { kind: 'Security', roles: ['me', 'hr', 'admin'], route: 'me/profile',
+              title: 'Add two-factor sign-in to your account', body: 'It takes a minute and protects your pay and personal details.' };
+          });
+        },
+        undo: setUsers('mfaNudgedOn', null),
+        done: function (n) { return plural(n, 'nudge') + ' sent. Each lands in their notifications with the setup link.'; },
+        log: function (n) { return 'sent ' + plural(n, 'MFA nudge'); }, cat: 'Security',
+        a: 'Open security settings', to: 'admin/settings'
+      });
+    }
+    if (ownerRows.length) {
+      out.push({
+        k: 'onboarding', bucket: null, icon: I.checklist, tone: 'info', impact: 'Unblocks joiners',
+        t: 'Nudge the owners of ' + plural(openTasks, 'open onboarding task'),
+        s: plural(openTasks, 'task') + ' across ' + plural(store.collection('onboarding').filter(function (o) { return o.stage !== 'Completed'; }).length, 'joiner') +
+          ' are still open, and every one of them is somebody’s to do. A nudge tells each owner what is theirs and ' +
+          'whose first week it is holding up.',
+        targets: ownerRows.map(function (r) {
+          return { id: r.id, emp: r.id, t: nameOf(r.id),
+            s: plural(r.n, 'task') + ' · ' + plural(Object.keys(r.who).length, 'joiner') };
+        }),
+        verb: function (n) { return 'Nudge ' + plural(n, 'owner'); },
+        run: function (ids) {
+          store.collection('onboarding').forEach(function (o) {
+            if (o.stage === 'Completed') return;
+            var mine = (o.tasks || []).filter(function (t) { return !t.done && ids.indexOf(t.assignee) > -1; });
+            if (mine.length) store.setOverride('onboarding', o.id, { nudgedOn: today });
+          });
+          ids.forEach(function (id) {
+            var r = owners[id];
+            if (!r) return;
+            act.notify({ to: id, kind: 'Onboarding Reminder', roles: ['me', 'hr', 'admin'], route: 'hr/onboarding/tasks',
+              title: plural(r.n, 'onboarding task') + ' waiting on you',
+              body: 'Across ' + plural(Object.keys(r.who).length, 'joiner') + ' who have already started.' });
+          });
+        },
+        undo: function () {
+          store.collection('onboarding').forEach(function (o) {
+            if (o.nudgedOn === today) store.setOverride('onboarding', o.id, { nudgedOn: null });
+          });
+        },
+        done: function (n) { return plural(n, 'owner') + ' told what is theirs, with the joiners it is holding up.'; },
+        log: function (n) { return 'nudged ' + plural(n, 'onboarding task owner'); }, cat: 'User activity',
+        a: 'Open onboarding', to: 'hr/onboarding/dashboard'
+      });
+    }
+    if (quiet.length) {
+      var qT = userTargets(quiet, function (u) { return daysBetween(u.lastSignIn, today) + ' days since sign-in'; });
+      out.push({
+        k: 'quiet', bucket: 'month', icon: I.clock, tone: 'info', impact: 'Worth a look',
+        t: plural(quiet.length, 'account') + ' quiet for over a week',
+        s: 'Nobody here has signed in for eight days or more. Most will be leave or travel, which is why this is a ' +
+          'reminder rather than a suspension — but an account nobody is using is also one nobody would notice being used.',
+        targets: qT,
+        verb: function (n) { return 'Send ' + plural(n, 'sign-in reminder'); },
+        run: function (ids) {
+          setUsers('remindedOn', today)(ids);
+          act.notifyEach(empsOf(qT, ids), function () {
+            return { kind: 'Security', roles: ['me', 'hr', 'admin'], route: 'me/dashboard',
+              title: 'We have not seen you in a while', body: 'Sign in when you are back so your account stays active.' };
+          });
+        },
+        undo: setUsers('remindedOn', null),
+        done: function (n) { return plural(n, 'reminder') + ' sent. Anyone still quiet in a week shows up in access review.'; },
+        log: function (n) { return 'sent ' + plural(n, 'sign-in reminder'); }, cat: 'User activity',
+        a: 'Open access review', to: 'admin/roles/review'
+      });
+    }
+    var gone = store.pref('araDismissed') || [];
+    return out.filter(function (x) { return gone.indexOf(x.k) < 0; });
+  }
+
+  var TONE_CLASS = { bad: 'is-bad', warn: 'is-warn', info: 'is-info' };
+
+  /* The sign-in chart. A bar Ara has something to say about carries a marker at its
+     head, and the marker opens that suggestion. */
+  function SigninChart(p) {
+    var b = p.buckets, max = Math.max.apply(null, b.map(function (x) { return x.n; }).concat([1]));
+    var W = 640, H = 196, PL = 34, PR = 8, PT = 40, PB = 22;
+    var band = (W - PL - PR) / b.length, bw = Math.min(64, band * 0.56);
+    function x(i) { return PL + band * i + band / 2; }
+    function y(v) { return PT + (1 - v / max) * (H - PT - PB); }
+    var step = max > 100 ? 50 : max > 40 ? 20 : max > 10 ? 5 : 2;
+    var ticks = [];
+    for (var t = 0; t <= max; t += step) ticks.push(t);
+
+    return h('div', { className: 'adm-plot' },
+      h('svg', { viewBox: '0 0 ' + W + ' ' + H, role: 'img',
+        'aria-label': 'Accounts by last sign-in: ' + b.map(function (x) { return x.t + ' ' + x.n; }).join(', ') },
+        h('defs', null, h('linearGradient', { id: 'admBar', x1: 0, y1: 0, x2: 0, y2: 1 },
+          h('stop', { offset: 0, stopColor: 'var(--brand-solid)' }),
+          h('stop', { offset: 1, stopColor: 'var(--brand-solid)', stopOpacity: .35 }))),
         ticks.map(function (t) {
           return h('g', { key: t },
-            h('line', { x1: PL, x2: W - PR, y1: y(t), y2: y(t), stroke: 'var(--border-subtle)', strokeWidth: 1 }),
-            h('text', { x: PL - 10, y: y(t) + 4, textAnchor: 'end', className: 'chart__ax' }, Math.round(t)));
+            h('line', { x1: PL, x2: W - PR, y1: y(t), y2: y(t), stroke: 'var(--border-subtle)' }),
+            h('text', { x: PL - 8, y: y(t) + 4, textAnchor: 'end', className: 'adm-plot__ax' }, t));
         }),
-        h('path', { d: area, fill: 'url(#dashTrend)' }),
-        h('path', { d: line, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 2.5, strokeLinejoin: 'round', strokeLinecap: 'round' }),
-        data.map(function (v, i) {
-          return h('circle', { key: i, cx: x(i), cy: y(v), r: 4, fill: 'var(--bg-surface)', stroke: 'var(--brand-solid)', strokeWidth: 2 });
-        }),
-        MONTHS.map(function (m, i) {
-          return h('text', { key: m, x: x(i), y: H - 8, textAnchor: 'middle', className: 'chart__ax' }, m);
-        })));
+        b.map(function (s, i) {
+          var flagged = p.flags[s.k];
+          return h('g', { key: s.k },
+            h('rect', { x: x(i) - bw / 2, y: y(s.n), width: bw, height: Math.max(2, y(0) - y(s.n)), rx: 7,
+              fill: flagged ? 'var(--warning-fg)' : 'url(#admBar)', opacity: flagged ? .85 : 1 }),
+            h('text', { x: x(i), y: y(s.n) - 8, textAnchor: 'middle', className: 'adm-plot__v' }, s.n),
+            h('text', { x: x(i), y: H - 6, textAnchor: 'middle', className: 'adm-plot__ax' }, s.t));
+        })),
+      b.map(function (s, i) {
+        var f = p.flags[s.k];
+        if (!f) return null;
+        return h('button', {
+          key: s.k, type: 'button', className: 'adm-pin',
+          title: 'Ara on ' + s.t, 'aria-label': 'What Ara suggests about ' + s.t,
+          style: { left: (x(i) / W * 100) + '%', top: ((y(s.n) - 34) / H * 100) + '%' },
+          onClick: function () { p.onOpen(f); }
+        }, ARA);
+      }));
   }
 
-  /* ---------- users by role ---------- */
-  var RAMP = ['#3d2496', '#5733c1', '#7a5ad2', '#a690e4'];
-  var ROLE_ORDER = ['me', 'manager', 'hr', 'admin'];
-  var ROLE_NAME = { me: 'Employees', manager: 'Managers', hr: 'HR', admin: 'Admins' };
+  /* A suggestion, opened, and acted on in place. The reasoning first, then exactly
+     which records Ara will touch — each one can be left out — then the action. Once it
+     runs the modal says what changed, that it is in the audit trail, and offers undo;
+     the suggestion itself recomputes from the records, so it shrinks or disappears. */
+  function SuggestionModal(p) {
+    var x = p.item;
+    var pickSt = React.useState(x.targets.map(function (t) { return t.id; }));
+    var doneSt = React.useState(null);
+    var allSt = React.useState(false);
+    var picked = pickSt[0];
+    /* A rule can reach a hundred and fifty people. Show a handful, and open the rest
+       on request: a wall of checkboxes is not a review, it is a scroll. */
+    var CAP = 8;
+    var shown = allSt[0] ? x.targets : x.targets.slice(0, CAP);
+    var n = x.targets.length ? picked.length : 1;
 
-  function split() {
+    function toggle(id) {
+      pickSt[1](picked.indexOf(id) > -1 ? picked.filter(function (v) { return v !== id; }) : picked.concat([id]));
+    }
+    function apply() {
+      var ids = picked.slice();
+      x.run(ids);
+      store.log(x.log(ids.length || 1), x.cat);
+      doneSt[1]({ ids: ids, n: ids.length || 1 });
+    }
+    function undo() {
+      x.undo(doneSt[0].ids);
+      store.log('undid: ' + x.log(doneSt[0].n), x.cat);
+      ui.toast('Undone.');
+      p.onClose();
+    }
+    function dismiss() {
+      store.setPref('araDismissed', (store.pref('araDismissed') || []).concat([x.k]));
+      ui.toast('Suggestion dismissed. It will not come back unless you clear dismissed suggestions.');
+      p.onClose();
+    }
+
+    if (doneSt[0]) return h(ui.Modal, {
+      title: 'Ara · done', description: 'Applied on ' + seed.todayLabel + '.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h('span', { className: 'muted grow' }, 'Logged in the audit trail.'),
+        h(V.Button, { variant: 'outline', onClick: undo }, 'Undo'),
+        h(V.Button, { variant: 'primary', onClick: p.onClose }, 'Done'))
+    },
+      h('div', { className: 'ara-done' },
+        h('span', { className: 'ara-done__i' }, CHECK),
+        h('strong', null, x.done(doneSt[0].n)),
+        h('button', { type: 'button', className: 'dash__link', onClick: function () { p.onClose(); router.go(x.to); } }, x.a, I.right)));
+
+    return h(ui.Modal, {
+      title: 'Ara · ' + x.t,
+      description: 'Read off the directory on ' + seed.todayLabel + '. Nothing changes until you run it.',
+      onClose: p.onClose, wide: true,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'ghost', onClick: dismiss }, 'Dismiss'),
+        h('span', { className: 'grow' }),
+        h(V.Button, { variant: 'outline', iconEnd: I.right, onClick: function () { p.onClose(); router.go(x.to); } }, x.a),
+        h(V.Button, { variant: 'primary', iconStart: ARA, disabled: x.targets.length > 0 && !picked.length, onClick: apply }, x.verb(n)))
+    },
+      h('div', { className: 'ara-tags' },
+        h('span', { className: 'ara-tag ara-tag--' + x.tone }, x.impact),
+        x.targets.length ? h('span', { className: 'ara-tag' }, plural(x.targets.length, 'record')) : null),
+      h('div', { className: 'adm-say' },
+        h('span', { className: 'adm-say__m' }, ARA),
+        h('p', null, x.s)),
+      x.targets.length ? h('div', { className: 'ara-pick' },
+        h('div', { className: 'ara-pick__h' },
+          h('span', { className: 'adm-src__h' }, 'Ara will act on'),
+          h('button', { type: 'button', className: 'dash__link',
+            onClick: function () { pickSt[1](picked.length === x.targets.length ? [] : x.targets.map(function (t) { return t.id; })); } },
+            picked.length === x.targets.length ? 'Clear all' : 'Select all')),
+        h('div', { className: 'ara-pick__list' }, shown.map(function (t) {
+          var on = picked.indexOf(t.id) > -1;
+          return h('label', { className: 'ara-pick__r' + (on ? ' is-on' : ''), key: t.id },
+            h('input', { type: 'checkbox', checked: on, onChange: function () { toggle(t.id); } }),
+            h(V.Avatar, { name: t.t, size: 'xs' }),
+            h('span', { className: 'grow' }, t.t),
+            h('small', null, t.s));
+        })),
+        x.targets.length > CAP ? h('button', { type: 'button', className: 'ara-pick__more',
+          onClick: function () { allSt[1](!allSt[0]); } },
+          allSt[0] ? 'Show the first ' + CAP : 'Show all ' + num(x.targets.length)) : null) : null);
+  }
+
+  /* All of them at once, in the order they matter, each a step from being done. */
+  function AllSuggestions(p) {
+    return h(ui.Modal, {
+      title: 'Ara · ' + plural(p.items.length, 'suggestion') + ' about accounts',
+      description: 'Ranked by risk: what protects the most first. Open one to review it and run it.',
+      onClose: p.onClose, wide: true,
+      footer: h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close')
+    },
+      p.items.length ? h('div', { className: 'ara-list' }, p.items.map(function (c) {
+        return h('div', { className: 'ara-list__r', key: c.k },
+          h('span', { className: 'adm-tip__i ara-list__i is-' + c.tone }, c.icon),
+          h('span', { className: 'ara-list__m' },
+            h('span', { className: 'ara-tag ara-tag--' + c.tone }, c.impact),
+            h('strong', null, c.t),
+            h('span', null, c.s)),
+          h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: ARA, onClick: function () { p.onOpen(c); } }, 'Review & run'));
+      })) : h(ui.Empty, { icon: I.ok, title: 'Nothing to suggest', body: 'Every suggestion has been acted on or dismissed.' }));
+  }
+
+  /* ====================================================== the access queue
+     Work the admin owes, from the records that create it: leavers whose access is still
+     open, invitations nobody accepted, suspensions waiting on a decision, and privileged
+     accounts without a second factor. Ordered by when it is due. */
+  var PILL = { revoke: 'fail', invite: 'warn', suspend: 'sched', mfa: 'manual',
+    Overdue: 'fail', 'Due soon': 'warn', Scheduled: 'sched', 'At risk': 'fail', Waiting: 'warn' };
+
+  function accessQueue(users) {
+    var today = seed.todayIso, rows = [];
+    store.collection('offboarding').forEach(function (o) {
+      if (o.stage === 'Completed') return;
+      var t = (o.tasks || []).filter(function (x) { return x.name === 'Access revocation'; })[0];
+      if (t && t.done) return;
+      var d = daysBetween(today, o.lastWorkingDay);
+      rows.push({ id: o.id, emp: o.employee, who: nameOf(o.employee), dept: deptOf(o.employee), kind: 'revoke', due: o.lastWorkingDay,
+        when: 'Last day ' + ui.dateLabel(o.lastWorkingDay), scheduled: !!o.revokeScheduled,
+        status: o.revokeScheduled ? 'Scheduled' : d < 0 ? 'Overdue' : d <= 30 ? 'Due soon' : 'Scheduled', to: 'admin/roles/review' });
+    });
+    users.forEach(function (u) {
+      if (u.status === 'Pending Invitation') {
+        /* An unaccepted invite is overdue once its person's start date has passed, not after
+           an arbitrary number of days: that is the day they needed to be able to sign in. */
+        var emp = store.employee(u.employee), start = emp && emp.joined;
+        var late = start && start <= today;
+        rows.push({ id: u.id, who: nameOf(u.employee), dept: deptOf(u.employee), kind: 'invite', due: u.invitedOn,
+          when: start ? (late ? 'Started ' : 'Starts ') + ui.dateLabel(start) : 'Invited ' + ui.dateLabel(u.invitedOn),
+          status: late ? 'Overdue' : 'Waiting', to: 'admin/users/all' });
+      } else if (u.status === 'Suspended') {
+        rows.push({ id: u.id, who: nameOf(u.employee), dept: deptOf(u.employee), kind: 'suspend', due: u.lastSignIn || today,
+          when: 'Since ' + ui.dateLabel(u.lastSignIn), status: 'Waiting', to: 'admin/users/all' });
+      } else if ((u.role === 'admin' || u.role === 'hr') && !u.mfa && !u.mfaRequired) {
+        rows.push({ id: u.id, who: nameOf(u.employee), dept: deptOf(u.employee), kind: 'mfa', due: today,
+          when: ROLE_NAME[u.role], status: 'At risk', to: 'admin/settings' });
+      }
+    });
+    var rank = { Overdue: 0, 'At risk': 1, 'Due soon': 2, Waiting: 3, Scheduled: 4 };
+    return rows.sort(function (a, b) { return (rank[a.status] - rank[b.status]) || (a.due < b.due ? -1 : 1); });
+  }
+
+  function pill(word, cls) { return h('span', { className: 'adm-p adm-p--' + (cls || PILL[word]) }, word); }
+
+  /* ====================================================== the access queue, as a donut
+     The same twelve items the queue holds, grouped by the kind of work, so the card says
+     at a glance what the admin owes and each slice's row opens where it is done. */
+  var QUEUE_KINDS = [
+    { k: 'revoke', t: 'Revoke access', c: 'var(--danger-fg)', to: 'admin/roles/review' },
+    { k: 'mfa', t: 'Require MFA', c: 'var(--info-fg)', to: 'admin/settings' },
+    { k: 'invite', t: 'Resend invite', c: 'var(--warning-fg)', to: 'admin/users/all' },
+    { k: 'suspend', t: 'Decide suspension', c: 'var(--text-muted)', to: 'admin/users/all' }
+  ];
+
+  function Donut(p) {
+    var total = p.rows.reduce(function (a, r) { return a + r.n; }, 0);
+    var R = 58, C = 2 * Math.PI * R, GAP = total > 1 ? 3 : 0, off = 0;
+    return h('div', { className: 'admb-ring adm-donut' },
+      h('svg', { viewBox: '0 0 150 150', role: 'img', 'aria-label': p.label },
+        h('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 9 }),
+        p.rows.filter(function (r) { return r.n; }).map(function (r) {
+          var len = r.n / (total || 1) * C, dash = Math.max(len - GAP, 1.5), o = off;
+          off += len;
+          return h('circle', { key: r.k, cx: 75, cy: 75, r: R, fill: 'none', stroke: r.c, strokeWidth: 9,
+            strokeDasharray: dash + ' ' + (C - dash), strokeDashoffset: -o, transform: 'rotate(-90 75 75)' });
+        })),
+      h('span', { className: 'admb-ring__mid' }, h('b', null, total), h('span', null, p.caption)));
+  }
+
+  /* ====================================================== from Tracklivo
+     Asset requests are raised and decided in Tracklivo; what reaches the register is
+     the request and where Tracklivo has got to with it. Stacked by that status, per
+     category, so "what are people asking for, and what is cleared to issue" is one read. */
+  var TL_STATUS = [
+    { s: 'Approved', t: 'Ready to issue', c: 'var(--success-fg)' },
+    { s: 'Pending Approval', t: 'In Tracklivo', c: 'var(--brand-solid)' },
+    { s: 'Rejected', t: 'Declined', c: 'var(--border-strong)' }
+  ];
+  function tracklivoRows() {
+    var by = {};
+    store.collection('assetRequests').forEach(function (r) {
+      var c = by[r.category] || (by[r.category] = { k: r.category, n: 0, parts: {} });
+      c.n++; c.parts[r.status] = (c.parts[r.status] || 0) + 1;
+    });
+    return Object.keys(by).map(function (k) { return by[k]; }).sort(function (a, b) { return b.n - a.n; });
+  }
+
+  /* ====================================================== MFA coverage, by role
+     Who signs in with a second factor, per role, privileged roles first — the gap that
+     matters most is the one at the top of this list. */
+  var MFA_ROLES = [['admin', 'Admins'], ['hr', 'HR'], ['manager', 'Managers'], ['me', 'Employees']];
+  function mfaByRole(users) {
+    return MFA_ROLES.map(function (r) {
+      var all = users.filter(function (u) { return u.role === r[0]; });
+      return { k: r[0], t: r[1], n: all.length, on: all.filter(function (u) { return u.mfa; }).length };
+    }).filter(function (r) { return r.n; });
+  }
+
+  /* ====================================================== plan usage
+     What the plan includes and how much of it is spent: seats against the plan, AI
+     credits against the month, and where the credits went. Read from the subscription
+     and the AI usage the billing screens use. */
+  function Gauge(p) {
+    var R = 34, C = 2 * Math.PI * R, on = Math.max(0, Math.min(100, p.pct)) / 100 * C;
+    return h('div', { className: 'adm-gauge' },
+      h('span', { className: 'adm-gauge__ring' },
+        h('svg', { viewBox: '0 0 84 84', 'aria-hidden': 'true' },
+          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 5.5 }),
+          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: p.color, strokeWidth: 5.5, strokeLinecap: 'round',
+            strokeDasharray: on + ' ' + (C - on), transform: 'rotate(-90 42 42)' })),
+        h('b', null, Math.round(p.pct) + '%')),
+      h('span', { className: 'adm-gauge__m' }, h('strong', null, p.t), h('span', null, p.s)));
+  }
+
+  /* ====================================================== the page */
+  var TABS = [{ k: 'mfa', t: 'MFA coverage' }, { k: 'plan', t: 'Plan usage' }];
+
+  function AdminDashA(p) {
+    var savedTab = store.pref('adminDashTab');
+    var tabSt = React.useState(savedTab === 'plan' ? 'plan' : 'mfa');
+    var tab = tabSt[0];
+    function pickTab(k) { tabSt[1](k); store.setPref('adminDashTab', k); }
+    var openSt = React.useState(null);
+    var allSt = React.useState(false);
+    var s = store.stats();
     var users = store.collection('users');
-    return ROLE_ORDER.map(function (r) {
-      return { k: ROLE_NAME[r], n: users.filter(function (u) { return u.role === r; }).length };
-    }).filter(function (s) { return s.n; });
-  }
-
-  function Donut() {
-    var rows = split();
-    var total = rows.reduce(function (a, s) { return a + s.n; }, 0) || 1;
-    var R = 62, C = 2 * Math.PI * R, GAP = 4, off = 0;
-    return h('div', { className: 'donut' },
-      h('div', { className: 'donut__svg' },
-        h('svg', { viewBox: '0 0 168 168', 'aria-hidden': 'true' },
-          rows.map(function (s, i) {
-            var len = (s.n / total) * C, d = Math.max(len - GAP, 2), o = off;
-            off += len;
-            return h('circle', {
-              key: s.k, cx: 84, cy: 84, r: R, fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 20,
-              strokeDasharray: d + ' ' + (C - d), strokeDashoffset: -o, strokeLinecap: 'butt'
-            });
-          })),
-        h('span', { className: 'donut__mid' }, h('span', null, h('b', null, total), h('span', null, 'Users')))),
-      h('div', { className: 'donut__key' }, rows.map(function (s, i) {
-        return h('div', { className: 'donut__row', key: s.k },
-          h('span', { className: 'donut__dot', style: { background: RAMP[i % RAMP.length] } }),
-          h('span', { className: 'donut__lbl' }, s.k),
-          h('span', { className: 'donut__pc' }, Math.round((s.n / total) * 100) + '%'),
-          h('span', { className: 'donut__n' }, s.n));
-      })));
-  }
-
-  /* ---------- the fixed panels ---------- */
-  var HEALTH = [
-    { t: 'Core platform', s: 'Online', ok: true, icon: I.database },
-    { t: 'Authentication (SSO)', s: 'Online', ok: true, icon: I.lock },
-    { t: 'Integrations', s: '4 of 5 online', ok: false, icon: I.plug },
-    { t: 'Data backup', s: 'Last backup 2 hrs ago', mut: true, icon: I.archive }
-  ];
-
-  /* Each one is filed against the card whose number it explains, so the suggestion sits
-     next to the thing it is about rather than in a pile of its own. */
-  var ARA_ITEMS = [
-    { card: 'Upcoming lifecycle actions', t: '3 users are exiting tomorrow', s: 'Their access stays open until someone closes it. I can schedule it for end of day.', a: 'Schedule disable', icon: I.logout, to: 'admin/users/all' },
-    { card: 'Users by role', t: '2 accounts inactive for 30+ days', s: 'Rohit Shetty and one other. Deactivating frees two seats and closes a way in.', a: 'Review accounts', icon: I.person, to: 'admin/roles/review' },
-    { card: 'Pending access requests', t: '5 users hold more access than they use', s: 'None has used an approval right in 90 days. Worth stepping them down a level.', a: 'Adjust access', icon: I.shield, to: 'admin/roles/modules' },
-    { card: 'System health', t: 'Attendance sync failed 3 times yesterday', s: 'The Tally connector is timing out. Punches since Monday have not reached payroll.', a: 'Fix now', icon: SYNC, to: 'admin/integrations' }
-  ];
-  function araFor(card) { return ARA_ITEMS.filter(function (x) { return x.card === card; }); }
-
-  var REQS = [
-    { t: 'New user access', n: 6, who: 'Engineering · Design', icon: I.person },
-    { t: 'Role change', n: 4, who: 'HR Junior → HR Senior ×2', icon: I.shield },
-    { t: 'Team or department access', n: 3, who: 'Finance · Sales', icon: TEAMS },
-    { t: 'System access (integration)', n: 1, who: 'Tally', icon: I.plug }
-  ];
-
-  var LIFE = [
-    { t: '3 employees exiting', d: 'Nov 04, 2026', act: 'Disable access', icon: I.logout },
-    { t: '4 probation completions', d: 'Nov 07, 2026', act: 'Review', icon: I.calendar },
-    { t: '7 document accesses expiring', d: 'Within 30 days', act: 'Notify users', icon: I.file }
-  ];
-
-  var QUICK = [
-    { t: 'Add user', icon: I.person, to: 'admin/users/all' },
-    { t: 'Manage roles', icon: I.shield, to: 'admin/roles/modules' },
-    { t: 'Create team', icon: TEAMS, to: 'admin/org/teams' },
-    { t: 'Org structure', icon: I.sitemap, to: 'admin/org/org-tree' },
-    { t: 'Integrations', icon: I.plug, to: 'admin/integrations' },
-    { t: 'Export audit', icon: I.download, to: 'admin/audit/export' }
-  ];
-
-  function greeting() {
-    var hr = new Date().getHours();
-    return hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
-  }
-
-  /* ---------- the page ---------- */
-  function AdminDashboard() {
-    var seriesSt = useState('Users');
-    var araSt = useState(null);
-
     var me = store.employeeByName(HRMS.nav.role('admin').persona);
-    var users = store.collection('users');
-    var reqTotal = REQS.reduce(function (a, r) { return a + r.n; }, 0);
 
-    function openAra(title, items) { araSt[1]({ title: title, items: items }); }
+    var mfa = mfaByRole(users);
+    var mfaOn = mfa.reduce(function (a, r) { return a + r.on; }, 0);
+    var sub = seed.subscription, ai = seed.aiUsage;
+    var aiMax = Math.max.apply(null, ai.byModule.map(function (m) { return m.credits; }).concat([1]));
+    var buckets = signins(users);
+    var queue = accessQueue(users);
+    var queueRows = QUEUE_KINDS.map(function (k) {
+      var items = queue.filter(function (r) { return r.kind === k.k; });
+      return Object.assign({ n: items.length, overdue: items.filter(function (r) { return r.status === 'Overdue' || r.status === 'At risk'; }).length }, k);
+    });
+    var urgent = queueRows.reduce(function (a, r) { return a + r.overdue; }, 0);
+    var firstLeave = (queue.filter(function (r) { return r.kind === 'revoke'; }).map(function (r) { return r.due; }).sort()[0]) || seed.todayIso;
+    var tlRows = tracklivoRows();
+    var tlTotal = tlRows.reduce(function (a, r) { return a + r.n; }, 0);
+    var tlMax = Math.max.apply(null, tlRows.map(function (r) { return r.n; }).concat([1]));
+    var tlReady = store.collection('assetRequests').filter(function (r) { return r.status === 'Approved'; }).length;
+    var tlConn = (seed.integrations.filter(function (x) { return x.name === 'Tracklivo'; })[0] || {}).connectedOn;
+    var sugg = suggestions(users, buckets, queue);
+    var flags = {}, byKey = {};
+    sugg.forEach(function (x) { if (x.bucket) flags[x.bucket] = x; byKey[x.k] = x; });
+    var top = sugg[0] || null;
+    var active7 = buckets[0].n + buckets[1].n;
 
-    var KPI = [
-      { l: 'Total users', n: users.length, ico: I.users, d: '+5.4%', dt: 'up', sub: 'vs last month', wave: true },
-      { l: 'Departments', n: store.collection('departments').length, ico: I.sitemap, sub: 'across ' + seed.entities.length + (seed.entities.length === 1 ? ' entity' : ' entities') },
-      { l: 'Teams', n: seed.teams.length, ico: TEAMS, sub: '6 without a lead' },
-      { l: 'Roles', n: store.collection('roles').length, ico: I.shield, sub: '1 draft' },
-      { l: 'Integrations', n: seed.integrations.length, ico: I.plug, d: '1 failing', dt: 'warn', sub: 'Tally since Monday' }
-    ];
+    /* Read through the store, so a provider disconnected in this session shows up here
+       rather than on the next reload. */
+    var integrations = store.collection('integrations');
+    var offline = integrations.filter(function (x) { return x.status !== 'Connected'; });
+    /* A provider nobody ever connected is not an alert — the catalogue is a shelf, and
+       most of it is things this organisation does not run. What is an alert is one that
+       was connected and is not any more, which the Integrations screen can now do; and,
+       once, the size of the gap. Before this, every unconnected provider raised its own
+       line, so widening the catalogue from three providers to thirty-four turned the
+       alert timeline into a list of software we have never used. */
+    var dropped = offline.filter(function (x) { return x.droppedOn; });
+    /* Newest first, each with the tone its dot takes on the timeline. */
+    var alerts = dropped.map(function (x) {
+      return { tone: 'bad', t: x.name + ' disconnected', s: 'It was connected and is not any more. '
+        + (x.kind || '') + '.', at: 'Today', to: 'admin/integrations' };
+    }).concat(offline.length > dropped.length ? [
+      { tone: 'warn',
+        t: (integrations.length - offline.length) + ' of ' + integrations.length + ' providers connected',
+        s: 'The rest of the catalogue is waiting, including '
+          + offline.filter(function (x) { return !x.droppedOn; }).slice(0, 3)
+              .map(function (x) { return x.name; }).join(', ') + '.',
+        at: 'Today', to: 'admin/integrations' }
+    ] : []).concat([
+      { tone: 'warn', t: plural(s.invited, 'invitation') + ' unaccepted', s: 'Past the start date and never signed in.',
+        at: '11:04', to: 'admin/users/all' },
+      { tone: 'bad', t: 'Single sign-on not configured', s: 'Everyone signs in with an email and a password only.',
+        at: '09:51', to: 'admin/settings' },
+      { tone: 'good', t: 'Nightly backup completed', s: 'No errors reported \u00b7 core platform to object store.',
+        at: '04:00', to: 'admin/settings' }
+    ]);
 
-    return h('div', { className: 'stack gap-4 dash' },
-      h('div', { className: 'ah' },
+    return h('div', { className: 'adm' },
+      h('div', { className: 'adm__glow', 'aria-hidden': 'true' }, h('i', null), h('i', null)),
+
+      h('div', { className: 'adm__head' },
         h('div', null,
-          h('h1', null, greeting() + ', ', h('em', null, me ? me.name.split(' ')[0] : 'there'), ' 👋'),
-          h('p', null, 'Users, access, organisation and platform health.')),
-        h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.calendar, iconEnd: I.chevron,
-          onClick: function () { ui.toast('Pick another period — not wired in the prototype.'); } },
-          'Nov 1 – Nov 30, 2026')),
+          h('span', { className: 'adm__eyebrow' }, 'Accounts, access and platform'),
+          h('h1', null, 'Admin ', h('em', null, 'dashboard')),
+          h('div', { className: 'adm__status' },
+            h('b', null, CHECK, 'Platform health: Healthy'),
+            h('i', null),
+            h('span', null, 'Read on ' + seed.todayLabel),
+            h('i', null),
+            h('span', null, me ? 'Signed in as ' + me.name : 'Administrator'))),
+        /* Ara sits at the head, before the option switcher: one small button for every
+           suggestion on the page, wherever its subject appears below. */
+        h('div', { className: 'adm__tools' },
+          sugg.length ? h('button', {
+            type: 'button', className: 'adm-ara', onClick: function () { allSt[1](true); },
+            title: plural(sugg.length, 'suggestion') + ' from Ara',
+            'aria-label': 'Ara has ' + plural(sugg.length, 'suggestion')
+          }, ARA, h('span', { className: 'adm-ara__n' }, sugg.length)) : null,
+          p.switcher)),
 
-      h('div', { className: 'kpis' }, KPI.map(function (k) {
-        return h('div', { className: 'kpi2' + (k.wave ? ' has-wave' : ''), key: k.l },
-          h('div', { className: 'kpi2__top' },
-            h('span', { className: 'kpi2__lbl' }, k.l),
-            h('span', { className: 'kpi2__ico' }, k.ico)),
-          h('span', { className: 'kpi2__n' }, k.n),
-          h('div', { className: 'kpi2__foot' },
-            k.d ? h('span', { className: 'delta delta--' + (k.dt === 'warn' ? 'warn' : 'up') }, k.dt === 'warn' ? I.warn : UP, k.d) : null,
-            h('span', null, k.sub)),
-          k.wave ? h('span', { className: 'kpi2__wave' },
-            h('svg', { viewBox: '0 0 220 42', preserveAspectRatio: 'none', 'aria-hidden': 'true' },
-              h('defs', null, h('linearGradient', { id: 'dashKpi', x1: 0, y1: 0, x2: 0, y2: 1 },
-                h('stop', { offset: 0, stopColor: 'var(--brand-solid)', stopOpacity: 0.2 }),
-                h('stop', { offset: 1, stopColor: 'var(--brand-solid)', stopOpacity: 0 }))),
-              h('path', { d: 'M0 34 C 30 30, 52 26, 78 24 S 128 18, 154 13 S 196 5, 220 2 L220 42 L0 42 Z', fill: 'url(#dashKpi)' }),
-              h('path', { d: 'M0 34 C 30 30, 52 26, 78 24 S 128 18, 154 13 S 196 5, 220 2', fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 2 }))) : null);
-      })),
+      /* Four numbers on one card, divided by rules. */
+      h('section', { className: 'adm-card', style: { padding: 0 }, 'aria-label': 'Key figures' },
+        h('div', { className: 'adm-kpis' }, kpis(s, users).map(function (k) {
+          var action = byKey[k.k];
+          return h('div', { className: 'adm-kpi', key: k.t },
+            h('div', { className: 'adm-kpi__t' },
+              h('span', { className: 'adm-kpi__l' }, h('strong', null, k.t), h('span', null, k.s)),
+              /* The arrow is the way from the figure to the thing to do about it. */
+              action ? h('button', {
+                type: 'button', className: 'adm-kpi__go', onClick: function () { openSt[1](action); },
+                title: action.verb(action.targets.length || 1),
+                'aria-label': action.verb(action.targets.length || 1)
+              }, I.right) : null),
+            h('span', { className: 'adm-kpi__n' }, num(k.n), k.unit ? h('small', null, k.unit) : null));
+        }))),
 
-      h('div', { className: 'agrid' },
-        h(Card, { span: 'c8', title: 'Platform usage',
-          right: h(V.SegmentedControl, { size: 'sm', value: seriesSt[0], onChange: seriesSt[1], items: ['Users', 'Storage'] }) },
-          h(Trend, { series: seriesSt[0] })),
-
-        h(Card, { span: 'c4', title: 'System health', ara: araFor('System health'), onAra: openAra,
-          right: h('span', { className: 'state state--ok' }, CHECK, 'Operational') },
-          h('div', { className: 'lrows' }, HEALTH.map(function (x) {
-            return h('div', { className: 'lrow', key: x.t },
-              h('span', { className: 'lrow__ico' }, x.icon),
-              h('span', { className: 'lrow__m' }, h('strong', null, x.t)),
-              h('span', { className: 'state ' + (x.mut ? 'state--mut' : x.ok ? 'state--ok' : 'state--warn') },
-                x.mut ? null : x.ok ? CHECK : I.warn, x.s));
-          }))),
-
-        h(Card, { span: 'c6', title: 'Pending access requests', ara: araFor('Pending access requests'), onAra: openAra,
-          right: h('span', { className: 'tag2 tag2--warn' }, reqTotal + ' waiting') },
-          h('div', { className: 'lrows' }, REQS.map(function (r) {
-            return h('div', { className: 'lrow', key: r.t },
-              h('span', { className: 'lrow__ico' }, r.icon),
-              h('span', { className: 'lrow__m' }, h('strong', null, r.t), h('span', null, r.who)),
-              h('span', { className: 'lrow__n' }, r.n),
-              h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + r.t,
-                onClick: function () { router.go('admin/users/access'); } }, I.right));
-          }))),
-
-        h(Card, { span: 'c6', title: 'Upcoming lifecycle actions', ara: araFor('Upcoming lifecycle actions'), onAra: openAra,
-          right: h('button', { type: 'button', className: 'dash__link',
-            onClick: function () { router.goAs('hr/people/all'); } }, 'This week', I.right) },
-          h('div', { className: 'lrows' }, LIFE.map(function (l) {
-            return h('div', { className: 'lrow', key: l.t },
-              h('span', { className: 'lrow__ico' }, l.icon),
-              h('span', { className: 'lrow__m' }, h('strong', null, l.t), h('span', null, l.d)),
-              h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
-                onClick: function () { ui.toast(l.act + ' — not wired in the prototype.'); } }, l.act));
-          }))),
-
-        h(Card, { span: 'c6', title: 'Users by role', ara: araFor('Users by role'), onAra: openAra,
-          right: h('button', { type: 'button', className: 'dash__link',
-            onClick: function () { router.go('admin/users/all'); } }, 'All users', I.right) },
-          h(Donut)),
-
-        h(Card, { span: 'c6', title: 'Quick actions' },
-          h('div', { className: 'dash__qa' }, QUICK.map(function (q) {
-            return h('button', { key: q.t, type: 'button', className: 'dash__qbtn',
-              onClick: function () { router.go(q.to); } }, q.icon, h('span', null, q.t));
+      h('div', { className: 'adm-mid' },
+        /* Two readings an admin owns, MFA coverage and the plan, in one card with a tab
+           each. The tab picked is remembered, so the card opens where it was left. */
+        h('section', { className: 'adm-card adm-tabbed' },
+          h('div', { className: 'adm-card__head' },
+            h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'Account health' },
+              TABS.map(function (t) {
+                return h('button', {
+                  key: t.k, type: 'button', role: 'tab', id: 'admtab-' + t.k,
+                  'aria-selected': tab === t.k ? 'true' : 'false', 'aria-controls': 'admpanel-' + t.k,
+                  className: 'ad-seg__b' + (tab === t.k ? ' is-on' : ''),
+                  onClick: function () { pickTab(t.k); }
+                }, t.t);
+              })),
+            tab === 'mfa'
+              ? h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/settings'); } }, 'Security', I.right)
+              : h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/billing/usage'); } }, 'Usage', I.right)),
+          tab === 'mfa'
+            ? h('div', { className: 'adm-tabbed__p', role: 'tabpanel', id: 'admpanel-mfa', 'aria-labelledby': 'admtab-mfa' },
+                h('p', { className: 'adm-tabbed__s' }, h('b', { className: 'adm-inl' }, num(mfaOn)), ' of ' + num(users.length) + ' accounts on MFA \u00b7 ',
+                  h('b', { className: 'adm-inl' }, Math.round(mfaOn / (users.length || 1) * 100) + '%')),
+          h('div', { className: 'adm-legend' },
+            h('span', null, h('i', { style: { background: 'var(--success-fg)' } }), 'MFA on'),
+            h('span', null, h('i', { style: { background: 'var(--danger-fg)', opacity: .35 } }), 'Password only')),
+          h('div', { className: 'adm-stack adm-stack--mfa' }, mfa.map(function (r) {
+            var pct = r.n ? r.on / r.n * 100 : 0;
+            return h('button', { type: 'button', className: 'adm-stack__r', key: r.k,
+              title: r.on + ' of ' + r.n + ' ' + r.t.toLowerCase() + ' on MFA',
+              onClick: function () { router.go('admin/settings'); } },
+              h('span', { className: 'adm-stack__l' }, r.t, h('small', null, num(r.n))),
+              h('span', { className: 'adm-stack__bar' },
+                r.on ? h('i', { style: { width: pct + '%', background: 'var(--success-fg)' } }) : null,
+                r.n - r.on ? h('i', { style: { width: (100 - pct) + '%', background: 'var(--danger-fg)', opacity: .35 } }) : null),
+              h('b', { className: pct < 50 ? 'is-low' : null }, Math.round(pct) + '%'));
+          })),
+          h('p', { className: 'adm-card__foot' }, 'Privileged roles first: their accounts can change everyone else’s.'))
+            : h('div', { className: 'adm-tabbed__p', role: 'tabpanel', id: 'admpanel-plan', 'aria-labelledby': 'admtab-plan' },
+                h('p', { className: 'adm-tabbed__s' }, sub.plan + ' plan \u00b7 renews ' + sub.renewsLabel),
+          h('div', { className: 'adm-gauges' },
+            h(Gauge, { pct: sub.seatsUsed / sub.seats * 100, color: 'var(--brand-solid)', t: 'Seats',
+              s: num(sub.seatsUsed) + ' of ' + num(sub.seats) }),
+            h(Gauge, { pct: ai.used / ai.credits * 100, color: 'var(--priority-high)', t: 'AI credits',
+              s: num(ai.used) + ' of ' + num(ai.credits) })),
+          h('span', { className: 'adm-sub' }, 'Where the credits went this month'),
+          h('div', { className: 'adm-stack adm-stack--wide' }, ai.byModule.map(function (m) {
+            return h('div', { className: 'adm-stack__r adm-stack__r--static', key: m.module },
+              h('span', { className: 'adm-stack__l', title: m.module }, m.module),
+              h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (m.credits / aiMax * 100) + '%', background: 'var(--priority-high)' } })),
+              h('b', null, (m.credits / 1000).toFixed(1) + 'k'));
           })))),
 
-      araSt[0] ? h(AraModal, {
-        title: araSt[0].title, items: araSt[0].items,
-        onClose: function () { araSt[1](null); }
-      }) : null);
+        /* How recently people sign in, with Ara's reading pinned to it. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null,
+              h('h2', null, 'Sign-in activity'),
+              h('p', null, h('b', { className: 'adm-inl' }, num(active7)), ' signed in this week \u00b7 ',
+                h('b', { className: 'adm-inl' }, Math.round(active7 / (users.length || 1) * 100) + '%'), ' of the directory')),
+            null),
+          h(SigninChart, { buckets: buckets, flags: flags, onOpen: function (f) { openSt[1](f); } }),
+          /* One suggestion under the chart, the most pressing. The rest are behind Ara
+             at the head of the page: a card should carry a line about itself, not a
+             stack of everything Ara has noticed. */
+          top ? h('div', { className: 'adm-tip' },
+            h('span', { className: 'adm-tip__i' }, ARA),
+            h('span', { className: 'adm-tip__m' },
+              h('strong', null, top.t),
+              h('span', null, top.s.split('. ')[0] + '.')),
+            h('button', { type: 'button', className: 'adm-tip__go', onClick: function () { openSt[1](top); } },
+              top.verb(top.targets.length || 1)),
+            h('button', { type: 'button', className: 'adm-tip__x', 'aria-label': 'Dismiss this suggestion',
+              onClick: function () { store.setPref('araDismissed', (store.pref('araDismissed') || []).concat([top.k])); } },
+              I.close)) : null)),
+
+      h('div', { className: 'adm-low' },
+        /* The access work queued against the admin, by kind. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null,
+              h('h2', null, 'Access queue'),
+              h('p', null, 'Work waiting on an admin')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/roles/review'); } }, 'Review', I.right)),
+          queue.length ? h('div', { className: 'adm-split' },
+            h(Donut, { rows: queueRows, caption: queue.length === 1 ? 'item' : 'items',
+              label: 'Access queue: ' + queueRows.map(function (r) { return r.n + ' ' + r.t; }).join(', ') }),
+            h('div', { className: 'adm-key' }, queueRows.map(function (r) {
+              return h('button', { type: 'button', className: 'adm-key__r', key: r.k, disabled: !r.n,
+                onClick: function () { router.go(r.to); } },
+                h('i', { style: { background: r.c } }),
+                h('span', { className: 'grow' }, r.t),
+                h('b', null, r.n));
+            })))
+            : h(ui.Empty, { icon: I.ok, title: 'Nothing waiting', body: 'No leaver, invitation or privileged account needs an admin today.' }),
+          urgent ? h('p', { className: 'adm-card__foot adm-card__foot--warn' }, I.warn,
+            plural(urgent, 'item') + ' overdue or at risk \u00b7 the earliest leaver goes ' + ui.dateLabel(firstLeave)) : null),
+
+        /* Asset requests, as Tracklivo reports them. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null,
+              h('h2', null, 'Asset requests'),
+              h('p', null, num(tlTotal) + ' from Tracklivo, by category')),
+            h('span', { className: 'atl__src' }, 'From Tracklivo')),
+          h('div', { className: 'adm-legend' }, TL_STATUS.map(function (st) {
+            return h('span', { key: st.s }, h('i', { style: { background: st.c } }), st.t);
+          })),
+          h('div', { className: 'adm-stack' }, tlRows.map(function (r) {
+            return h('button', { type: 'button', className: 'adm-stack__r', key: r.k,
+              title: TL_STATUS.map(function (st) { return (r.parts[st.s] || 0) + ' ' + st.t.toLowerCase(); }).join(' · '),
+              onClick: function () { router.go('admin/assets/requests'); } },
+              h('span', { className: 'adm-stack__l' }, r.k),
+              h('span', { className: 'adm-stack__bar' }, TL_STATUS.map(function (st) {
+                var n = r.parts[st.s] || 0;
+                return n ? h('i', { key: st.s, style: { width: (n / tlMax * 100) + '%', background: st.c } }) : null;
+              })),
+              h('b', null, r.n));
+          })),
+          h('p', { className: 'adm-card__foot' }, plural(tlReady, 'request') + ' ready to issue · synced from Tracklivo, connected ' +
+            ui.dateLabel(tlConn))),
+
+        /* The alerts column, with the reference's source and target lines. */
+        h('section', { className: 'adm-card' },
+          h('div', { className: 'adm-card__head' },
+            h('div', null,
+              h('h2', null, 'Alerts'),
+              h('p', null, 'Raised by the platform today')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/audit/security'); } }, 'All', I.right)),
+          /* A minimal timeline: the time, a dot on the line, and what happened. */
+          h('ol', { className: 'adm-tl' }, alerts.map(function (a) {
+            return h('li', { className: 'adm-tl__r is-' + (a.tone || 'info'), key: a.t },
+              h('span', { className: 'adm-tl__time' }, a.at),
+              h('span', { className: 'adm-tl__dot', 'aria-hidden': 'true' }),
+              h('button', { type: 'button', className: 'adm-tl__m', onClick: function () { router.go(a.to); } },
+                h('strong', { title: a.t }, a.t),
+                h('span', { title: a.s }, a.s)));
+          })))),
+
+      openSt[0] ? h(SuggestionModal, { key: openSt[0].k, item: openSt[0], onClose: function () { openSt[1](null); } }) : null,
+      allSt[0] && !openSt[0] ? h(AllSuggestions, { items: sugg, onClose: function () { allSt[1](false); },
+        onOpen: function (c) { openSt[1](c); } }) : null);
+  }
+
+  /* ====================================================== A or B
+     Two options for the same route, so they can be compared on the same data without a
+     rebuild in between. Option B lives in admin-dash-b.js and takes this page's styles.
+     The choice is remembered; a value stored by an older build falls back to A. */
+  var OPTIONS = [
+    { k: 'a', label: 'Option A', title: 'Accounts and access' },
+    { k: 'b', label: 'Option B', title: 'System overview' }
+  ];
+
+  function Switcher(p) {
+    return h('div', { className: 'dsw', role: 'group', 'aria-label': 'Dashboard option' },
+      OPTIONS.map(function (o) {
+        return h('button', {
+          key: o.k, type: 'button', title: o.title,
+          className: 'dsw__b' + (p.value === o.k ? ' is-on' : ''),
+          'aria-pressed': p.value === o.k,
+          onClick: function () { p.onChange(o.k); }
+        }, o.label);
+      }));
+  }
+
+  function AdminDashboard() {
+    var saved = store.pref('adminDashOption');
+    var optSt = React.useState(saved === 'b' && HRMS.adminDashB ? 'b' : 'a');
+    function pick(k) { optSt[1](k); store.setPref('adminDashOption', k); }
+    var switcher = h(Switcher, { value: optSt[0], onChange: pick });
+    return optSt[0] === 'b'
+      ? h(HRMS.adminDashB, { switcher: switcher })
+      : h(AdminDashA, { switcher: switcher });
   }
 
 
   /* ================================================== The employee dashboard
-     Built from the same pieces as the admin one above — the greeting head, the
-     twelve-column card grid, the row lists, the quick-action tiles — so moving
+     Built from the admin dashboard's own pieces — the .adm head, the .adm-card,
+     the chip row, the key list, the .adm-mid and .adm-low grids — so moving
      between workspaces does not feel like moving between products.
 
      What it carries, and why: this month's attendance and leave balance, because
@@ -323,21 +868,24 @@
     { t: 'Tax declaration', icon: I.reports, to: 'me/payroll/tax' }
   ];
 
-  /* A month's worth of the same derivation the attendance screens use, so the
-     tallies here and the history there can never disagree. */
   var MONTH_TALLY = [
-    { k: 'Present', l: 'Present', tone: 'ok' },
+    { k: 'Present', l: 'Present' },
     { k: 'Work From Home', l: 'Work from home' },
-    { k: 'Late', l: 'Late', tone: 'warn' },
+    { k: 'Late', l: 'Late' },
     { k: 'On Leave', l: 'On leave' },
-    { k: 'Absent', l: 'Absent', tone: 'warn' }
+    { k: 'Absent', l: 'Absent' }
   ];
 
-  function monthCounts(me) {
+  var LEAVE_DOT = ['var(--av-violet-fg)', 'var(--av-blue-fg)', 'var(--av-green-fg)',
+    'var(--av-peach-fg)', 'var(--av-grey-fg)'];
+
+  /* A month of the same derivation the attendance screens use, so the tallies here
+     and the history there can never disagree. */
+  function monthCounts(who) {
     var counts = {};
     var monthStart = seed.todayIso.slice(0, 8) + '01';
-    var days = Math.round((new Date(seed.todayIso + 'T00:00') - new Date(monthStart + 'T00:00')) / 86400000) + 1;
-    var rows = (HRMS.attendanceHistory ? HRMS.attendanceHistory(me, days) : [])
+    var days = Math.round((new Date(seed.todayIso + 'T00:00') - new Date(monthStart + 'T00:00')) / 864e5) + 1;
+    var rows = (HRMS.attendanceHistory ? HRMS.attendanceHistory(who, days) : [])
       .filter(function (r) { return r.date >= monthStart; });
     rows.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
     counts._worked = (counts.Present || 0) + (counts['Work From Home'] || 0) + (counts.Late || 0);
@@ -358,20 +906,18 @@
      carries sixteen. Both kinds are derived here against the same window, so the
      card's own label is the truth about what is in it. */
   var CELEBRATION_DAYS = 30;
+  var MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   function celebrations() {
     var birthdays = [], years = [], joiners = [];
-    var monthName = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     var today = seed.today;
-    function whenLabel(mmdd) {
-      return Number(mmdd.slice(3)) + ' ' + monthName[Number(mmdd.slice(0, 2)) - 1];
-    }
+    function whenLabel(mmdd) { return Number(mmdd.slice(3)) + ' ' + MONTH_ABBR[Number(mmdd.slice(0, 2)) - 1]; }
     function inLabel(n) { return n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : 'In ' + n + ' days'; }
     /* Days until the next time this month and day comes round. */
     function daysTo(mmdd) {
       var d = new Date(today.getFullYear(), Number(mmdd.slice(0, 2)) - 1, Number(mmdd.slice(3)));
       if (d < today) d = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
-      return Math.round((d - today) / 86400000);
+      return Math.round((d - today) / 864e5);
     }
 
     store.collection('employees').forEach(function (e) {
@@ -379,20 +925,18 @@
       if (e.dob) {
         var bd = daysTo(e.dob.slice(5));
         if (bd <= CELEBRATION_DAYS) {
-          birthdays.push({ id: 'b' + e.id, employee: e, kind: 'Birthday', tone: 'info',
-            sort: bd, note: whenLabel(e.dob.slice(5)) + ' \u00b7 ' + inLabel(bd) });
+          birthdays.push({ id: 'b' + e.id, employee: e, kind: 'Birthday', cls: 'manual',
+            sort: bd, note: whenLabel(e.dob.slice(5)) + ' · ' + inLabel(bd) });
         }
       }
       var served = today.getFullYear() - Number(e.joined.slice(0, 4));
       var ad = daysTo(e.joined.slice(5));
       if (served > 0 && ad <= CELEBRATION_DAYS) {
         years.push({ id: 'a' + e.id, employee: e,
-          kind: served + (served === 1 ? ' year' : ' years'), tone: 'success',
-          sort: ad, note: whenLabel(e.joined.slice(5)) + ' \u00b7 ' + inLabel(ad) });
+          kind: served + (served === 1 ? ' year' : ' years'), cls: 'ok',
+          sort: ad, note: whenLabel(e.joined.slice(5)) + ' · ' + inLabel(ad) });
       }
     });
-    birthdays.sort(function (x, y) { return x.sort - y.sort; });
-    years.sort(function (x, y) { return x.sort - y.sort; });
     store.collection('employees')
       .filter(function (e) {
         return e.status !== 'Exited' && e.joined <= seed.todayIso
@@ -400,9 +944,11 @@
       })
       .sort(function (x, y) { return x.joined < y.joined ? 1 : -1; })
       .forEach(function (e) {
-        joiners.push({ id: 'n' + e.id, employee: e, kind: 'New joiner', tone: 'warning',
+        joiners.push({ id: 'n' + e.id, employee: e, kind: 'New joiner', cls: 'warn',
           sort: -1, note: 'Joined ' + seed.util.pretty(new Date(e.joined + 'T00:00')) });
       });
+    birthdays.sort(function (x, y) { return x.sort - y.sort; });
+    years.sort(function (x, y) { return x.sort - y.sort; });
     /* Capped per kind before they are merged. The seed has a dozen people in their
        first fortnight, and without a cap they fill the card and the birthdays and
        anniversaries never appear at all. */
@@ -412,17 +958,32 @@
       .slice(0, 6);
   }
 
+  function greeting() {
+    var hr = new Date().getHours();
+    return hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  }
+
+  function MeCard(p) {
+    return h('section', { className: 'adm-card' + (p.className ? ' ' + p.className : '') },
+      h('div', { className: 'adm-card__head' },
+        h('div', null,
+          h('h2', null, p.title),
+          p.sub ? h('p', null, p.sub) : null),
+        p.right || null),
+      p.children);
+  }
+
   function MeDashboard() {
-    var me = store.persona('me');
-    var clockSt = useState(new Date());
+    var who = store.persona('me');
+    var clockSt = React.useState(new Date());
     React.useEffect(function () {
       var t = setInterval(function () { clockSt[1](new Date()); }, 1000);
       return function () { clearInterval(t); };
     }, []);
-    if (!me) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
+    if (!who) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
 
-    var shift = store.shift(me.shift) || seed.shifts[0];
-    var balances = store.balancesFor(me.id);
+    var shift = store.shift(who.shift) || seed.shifts[0];
+    var balances = store.balancesFor(who.id);
     var punch = store.pref('punch') || {};
     var today = seed.todayIso;
     var inAt = punch.date === today ? punch.in : null;
@@ -432,7 +993,7 @@
       store.setPref('punch', Object.assign({ date: today }, punch.date === today ? punch : {}, next));
     }
 
-    var counts = monthCounts(me);
+    var counts = monthCounts(who);
     var posts = store.collection('announcements').slice()
       .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (a.on < b.on ? 1 : -1); })
       .slice(0, 3);
@@ -443,22 +1004,30 @@
     var party = celebrations();
     var monthLabel = new Date(today + 'T00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
 
-    return h('div', { className: 'stack gap-4 dash' },
-      h('div', { className: 'ah' },
+    function link(label, to) {
+      return h('button', { type: 'button', className: 'dash__link',
+        onClick: function () { router.go(to); } }, label, I.right);
+    }
+
+    return h('div', { className: 'adm' },
+      h('div', { className: 'adm__head' },
         h('div', null,
-          h('h1', null, greeting() + ', ', h('em', null, me.name.split(' ')[0]), ' 👋'),
-          h('p', null, me.designation + ' · ' + deptName(me.department)
-            + ' · ' + locName(me.location) + ' · ' + me.id)),
-        h('div', { className: 'row gap-2 wrap' },
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.calendar,
-            onClick: function () { router.go('me/leave/holidays'); } }, seed.todayLabel),
+          h('span', { className: 'adm__eyebrow' }, seed.todayLabel),
+          h('h1', null, greeting() + ', ', h('em', null, who.name.split(' ')[0])),
+          h('div', { className: 'adm__status' },
+            h('span', null, who.designation),
+            h('i', null),
+            h('span', null, deptName(who.department)),
+            h('i', null),
+            h('span', null, locName(who.location)),
+            h('i', null),
+            h('span', null, who.id))),
+        h('div', { className: 'adm__tools' },
           h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
             onClick: function () { router.go('me/leave/overview'); } }, 'Apply leave'))),
 
-      h('div', { className: 'agrid' },
-        h(Card, { span: 'c8', title: 'Attendance · ' + monthLabel,
-          right: h('button', { type: 'button', className: 'dash__link',
-            onClick: function () { router.go('me/attendance/history'); } }, 'Full history', I.right) },
+      h('div', { className: 'adm-mid mdash-mid' },
+        h(MeCard, { title: 'Attendance', sub: monthLabel, right: link('Full history', 'me/attendance/history') },
           h('div', { className: 'mdash__split' },
             h('div', { className: 'mdash__punch' },
               h('span', { className: 'mdash__clock' }, hhmm(clockSt[0])),
@@ -473,88 +1042,84 @@
                   ? h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.stop,
                       onClick: function () { setPunch({ out: hhmm(new Date()) }); } }, 'Check out')
                   : h(V.Chip, { shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Day complete')),
-            h('div', { className: 'mstat' }, MONTH_TALLY.map(function (t) {
-              return h('div', { className: 'mstat__i' + (t.tone ? ' is-' + t.tone : ''), key: t.k },
-                h('span', { className: 'mstat__n' }, counts[t.k] || 0),
-                h('span', { className: 'mstat__l' }, t.l));
+            h('div', { className: 'adm-chips mdash__chips' }, MONTH_TALLY.map(function (t) {
+              return h('div', { className: 'adm-chip', key: t.k },
+                h('b', null, counts[t.k] || 0),
+                h('span', null, t.l));
             }))),
-          h('p', { className: 'mdash__note' },
+          h('p', { className: 'adm-card__foot' },
             counts._working
               ? 'Worked ' + counts._worked + ' of ' + counts._working + ' working day'
                 + (counts._working === 1 ? '' : 's') + ' so far this month. '
                 + 'Weekends and holidays are not counted.'
               : 'The month has not reached a working day yet.')),
 
-        h(Card, { span: 'c4', title: 'Leave balance',
-          right: h('button', { type: 'button', className: 'dash__link',
-            onClick: function () { router.go('me/leave/overview'); } }, 'My leave', I.right) },
+        h(MeCard, { title: 'Leave balance', sub: 'Days left against what you are entitled to',
+          right: link('My leave', 'me/leave/overview') },
           balances.length
-            ? h('div', { className: 'lrows' }, balances.map(function (b) {
+            ? h('div', { className: 'adm-key', style: { marginTop: 8 } }, balances.map(function (b, i) {
                 var t = store.leaveType(b.type) || {};
-                return h('div', { className: 'lrow', key: b.type },
-                  h('span', { className: 'lrow__m' },
-                    h('strong', null, t.name || b.type),
-                    h('span', null, b.used + ' of ' + b.entitled + ' used')),
-                  h('span', { className: 'lrow__v' }, b.available));
+                return h('button', { type: 'button', className: 'adm-key__r', key: b.type,
+                  title: 'Open ' + (t.name || b.type),
+                  onClick: function () { router.go('me/leave/overview'); } },
+                  h('i', { style: { background: LEAVE_DOT[i % LEAVE_DOT.length] } }),
+                  h('span', { style: { flex: 1, minWidth: 0 } }, t.name || b.type),
+                  h('span', { className: 'mdash__used' }, b.used + ' of ' + b.entitled + ' used'),
+                  h('b', null, b.available));
               }))
             : h(ui.Empty, { icon: I.calendar, title: 'No leave policy assigned',
-              body: 'Ask HR to assign a leave policy to your record.' })),
+              body: 'Ask HR to assign a leave policy to your record.' }))),
 
-        h(Card, { span: 'c6', title: 'Celebrations',
-          right: h('span', { className: 'tag2 tag2--brand' }, 'Next 30 days') },
+      h('div', { className: 'adm-low' },
+        h(MeCard, { title: 'Celebrations', sub: 'Next 30 days' },
           party.length
-            ? h('div', { className: 'lrows' }, party.map(function (c) {
-                return h('div', { className: 'lrow', key: c.id },
+            ? h('div', { className: 'mlist' }, party.map(function (c) {
+                return h('div', { className: 'mlist__r', key: c.id },
                   h(V.Avatar, { name: c.employee.name, size: 'sm' }),
-                  h('span', { className: 'lrow__m' },
+                  h('span', { className: 'mlist__m' },
                     h('strong', null, c.employee.name),
-                    h('span', null, c.employee.designation + ' · ' + c.note)),
-                  h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: c.tone }, c.kind));
+                    h('span', null, c.note)),
+                  h('span', { className: 'adm-p adm-p--' + c.cls }, c.kind));
               }))
             : h(ui.Empty, { icon: I.star, title: 'Nothing coming up',
               body: 'Birthdays, work anniversaries and new joiners appear here.' })),
 
-        h(Card, { span: 'c6', title: 'Announcements',
-          right: h('button', { type: 'button', className: 'dash__link',
-            onClick: function () { router.go('me/announcements'); } }, 'See all', I.right) },
+        h(MeCard, { title: 'Announcements', right: link('See all', 'me/announcements') },
           posts.length
-            ? h('div', { className: 'lrows' }, posts.map(function (a) {
+            ? h('div', { className: 'mlist' }, posts.map(function (a) {
                 var by = a.by ? store.employee(a.by) : null;
-                return h('div', { className: 'lrow', key: a.id },
+                return h('button', { type: 'button', className: 'mlist__r mlist__r--go', key: a.id,
+                  onClick: function () { router.go('me/announcements'); } },
                   h(V.Avatar, { name: by ? by.name : (a.byName || 'HR'), size: 'sm' }),
-                  h('span', { className: 'lrow__m' },
+                  h('span', { className: 'mlist__m' },
                     h('strong', null,
-                      a.pinned ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.flag }, 'Pinned') : null,
+                      a.pinned ? h('span', { className: 'adm-p adm-p--manual' }, 'Pinned') : null,
                       /* A titleless announcement leads with its text. */
                       h('span', null, a.title || a.body)),
                     h('span', null, a.title ? a.body : ui.dateLabel(String(a.on).slice(0, 10)))),
-                  h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open announcements',
-                    onClick: function () { router.go('me/announcements'); } }, I.right));
+                  I.right);
               }))
             : h(ui.Empty, { icon: I.flag, title: 'No announcements',
               body: 'Anything HR posts shows up here.' })),
 
-        h(Card, { span: 'c6', title: 'Upcoming holidays',
-          right: h('button', { type: 'button', className: 'dash__link',
-            onClick: function () { router.go('me/leave/holidays'); } }, 'Calendar', I.right) },
+        h(MeCard, { title: 'Upcoming holidays', right: link('Calendar', 'me/leave/holidays') },
           holidays.length
-            ? h('div', { className: 'lrows' }, holidays.map(function (hd) {
-                return h('div', { className: 'lrow', key: hd.id || hd.date },
-                  h('span', { className: 'lrow__ico' }, I.calendar),
-                  h('span', { className: 'lrow__m' },
+            ? h('div', { className: 'mlist' }, holidays.map(function (hd) {
+                return h('div', { className: 'mlist__r', key: hd.id || hd.date },
+                  h('span', { className: 'mlist__ico' }, I.calendar),
+                  h('span', { className: 'mlist__m' },
                     h('strong', null, hd.name),
                     h('span', null, new Date(hd.date + 'T00:00').toLocaleDateString('en-GB', { weekday: 'long' })
                       + ', ' + ui.dateLabel(hd.date))),
-                  h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft',
-                    tone: hd.type === 'Optional' ? 'neutral' : 'info' }, hd.type));
+                  h('span', { className: 'adm-p adm-p--' + (hd.type === 'Optional' ? 'sched' : 'manual') }, hd.type));
               }))
-            : h(ui.Empty, { icon: I.calendar, title: 'No holidays left this year' })),
+            : h(ui.Empty, { icon: I.calendar, title: 'No holidays left this year' }))),
 
-        h(Card, { span: 'c6', title: 'Shortcuts' },
-          h('div', { className: 'dash__qa' }, SHORTCUTS.map(function (q) {
-            return h('button', { key: q.t, type: 'button', className: 'dash__qbtn',
-              onClick: function () { router.go(q.to); } }, q.icon, h('span', null, q.t));
-          })))));
+      h(MeCard, { title: 'Shortcuts', sub: 'The pages you open most' },
+        h('div', { className: 'mdash__sc' }, SHORTCUTS.map(function (q) {
+          return h('button', { key: q.t, type: 'button', className: 'dash__qbtn',
+            onClick: function () { router.go(q.to); } }, q.icon, h('span', null, q.t));
+        }))));
   }
 
   HRMS.screens.register({ 'admin/dashboard': AdminDashboard, 'me/dashboard': MeDashboard });

@@ -57,7 +57,9 @@
     'In Review': 'info', Finalized: 'success', Published: 'success', Connected: 'success',
     'Not Configured': 'neutral', 'Pending Invitation': 'warning', Deactivated: 'neutral',
     Open: 'warning', 'Under Review': 'info', Actioned: 'success', 'Awaiting Manager': 'warning',
-    'Awaiting Self-Assessment': 'neutral', 'Manager Review Done': 'success', Pending: 'warning'
+    'Awaiting Self-Assessment': 'neutral', 'Manager Review Done': 'success', Pending: 'warning',
+    /* Data export and import runs. */
+    Ready: 'success', Queued: 'info', Running: 'info', 'Held for Review': 'warning'
   };
   function StatusChip(p) {
     return h(V.Chip, {
@@ -131,14 +133,96 @@
 
   function Grid(p) { return el('div', { className: 'grid' }, p.children); }
 
+  /* ---------- the KPI card ----------
+     Every module screen opens on a row of these, and they only ever know a label, a
+     value, a line under it and a tone. So everything that makes the card worth looking
+     at is read from those: the icon from what the label is about, the ring from a
+     percentage wherever one appears, the colour from the tone. No screen has to pass
+     anything new, and a screen that does pass `icon` gets its own. */
+  var STAT_ICONS = [
+    [/overdue|fail|reject|declin|absent|missing|expir|risk|late|lapsed|error/i, 'warn'],
+    [/pending|await|waiting|due|notice|probation|in progress|queued|open|draft/i, 'clock'],
+    [/approv|acknowledg|complet|verif|paid|present|done|ready|cleared|settled/i, 'check'],
+    [/value|cost|payroll|salary|gross|net|amount|budget|ctc|spend|payable|deduction|reimburse|loan|₹/i, 'card'],
+    [/holder|employee|people|headcount|user|joiner|member|staff|team|candidate|manager/i, 'users'],
+    [/asset|unit|inventory|allocat|stock|laptop|device|return|maintenance/i, 'package'],
+    [/leave|holiday|calendar|day|week|month|shift|hours/i, 'calendar'],
+    [/request|ticket|task|approval|case/i, 'checklist'],
+    [/score|rating|engag|survey|goal|review|performance/i, 'star']
+  ];
+  function statIcon(label) {
+    var t = String(label || '');
+    for (var i = 0; i < STAT_ICONS.length; i++) if (STAT_ICONS[i][0].test(t)) return I[STAT_ICONS[i][1]] || I.activity;
+    return I.activity;
+  }
+
+  /* A percentage the card can draw: the value itself when its unit is %, else the first
+     "N%" in the line underneath. Anything outside 0–100 is not a share and gets no ring. */
+  function statShare(p) {
+    var v = null;
+    if (p.unit === '%' && isFinite(Number(p.value))) v = Number(p.value);
+    else {
+      var m = String(p.sub || '').match(/(\d+(?:\.\d+)?)\s*%/);
+      if (m) v = Number(m[1]);
+    }
+    return v != null && v >= 0 && v <= 100 ? v : null;
+  }
+
+  /* The number counts up the first time the card is drawn. Only plain numbers do; a
+     formatted string such as "₹4.52 Cr" is shown as it is, and so is everything for
+     anyone who has asked for less motion. */
+  function useCountUp(value) {
+    var target = typeof value === 'number' && isFinite(value) ? value : null;
+    var st = React.useState(target == null ? value : 0);
+    React.useEffect(function () {
+      if (target == null) { st[1](value); return; }
+      var reduce = false;
+      try { reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+      if (reduce || !window.requestAnimationFrame) { st[1](target); return; }
+      var decimals = (String(target).split('.')[1] || '').length;
+      var start = null, raf;
+      function step(ts) {
+        if (start == null) start = ts;
+        var k = Math.min(1, (ts - start) / 700);
+        var eased = 1 - Math.pow(1 - k, 3);
+        st[1](k < 1 ? Number((target * eased).toFixed(decimals)) : target);
+        if (k < 1) raf = window.requestAnimationFrame(step);
+      }
+      raf = window.requestAnimationFrame(step);
+      return function () { if (raf) window.cancelAnimationFrame(raf); };
+    }, [target]);
+    return target == null ? value : st[0];
+  }
+
+  function StatRing(p) {
+    var R = 15, C = 2 * Math.PI * R, on = p.v / 100 * C;
+    return h('span', { className: 'stat__ring', 'aria-hidden': 'true' },
+      h('svg', { viewBox: '0 0 40 40' },
+        h('circle', { cx: 20, cy: 20, r: R, fill: 'none', stroke: 'var(--stat-track)', strokeWidth: 4 }),
+        h('circle', { cx: 20, cy: 20, r: R, fill: 'none', stroke: 'var(--stat-ink)', strokeWidth: 4, strokeLinecap: 'round',
+          strokeDasharray: on + ' ' + (C - on), transform: 'rotate(-90 20 20)' })),
+      h('b', null, Math.round(p.v)));
+  }
+
   function Stat(p) {
+    var shown = useCountUp(p.value);
+    var share = statShare(p);
+    var tone = p.tone === 'warn' ? 'warn' : p.tone === 'good' ? 'good' : p.tone === 'bad' ? 'bad' : 'brand';
     var inner = h(React.Fragment, null,
-      h('span', { className: 'stat__label' }, p.label),
-      h('span', { className: 'stat__value' }, p.value, p.unit ? h('small', null, ' ' + p.unit) : null),
-      h('span', { className: 'stat__sub' + (p.tone ? ' is-' + p.tone : '') },
-        p.tone === 'warn' ? I.warn : p.tone === 'good' ? I.ok : null, p.sub || ''));
-    if (!p.onClick) return h('div', { className: 'stat' }, inner);
-    return h('button', { type: 'button', className: 'stat stat--link', onClick: p.onClick }, inner);
+      h('span', { className: 'stat__glow', 'aria-hidden': 'true' }),
+      h('span', { className: 'stat__top' },
+        h('span', { className: 'stat__label' }, p.label),
+        h('span', { className: 'stat__ico', 'aria-hidden': 'true' }, p.icon || statIcon(p.label))),
+      h('span', { className: 'stat__mid' },
+        h('span', { className: 'stat__value' }, shown, p.unit ? h('small', null, ' ' + p.unit) : null),
+        share != null && p.unit !== '%' ? h(StatRing, { v: share }) : null),
+      p.sub ? h('span', { className: 'stat__sub' + (p.tone ? ' is-' + p.tone : '') },
+        p.tone === 'warn' ? I.warn : p.tone === 'good' ? I.ok : null, p.sub) : null,
+      h('span', { className: 'stat__bar', 'aria-hidden': 'true' },
+        share != null ? h('i', { style: { width: share + '%' } }) : h('i', { style: { width: '100%' } })));
+    var cls = 'stat stat--' + tone;
+    if (!p.onClick) return h('div', { className: cls }, inner);
+    return h('button', { type: 'button', className: cls + ' stat--link', onClick: p.onClick }, inner);
   }
   function Stats(p) { return el('div', { className: 'stats' + (p.cols ? ' stats--' + p.cols : '') }, p.children); }
 

@@ -80,7 +80,7 @@
 .dash__tile { flex: none; width: 46px; height: 46px; border-radius: 14px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-solid); }
 .dash__tile svg { width: 22px; height: 22px; }
 .dash__stat__txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.dash__stat__n { font-family: var(--font-flex); font-size: 27px; line-height: 1.2; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.dash__stat__n { font-family: var(--font-flex); font-size: 27px; line-height: 1.2; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .dash__stat__l { font-size: 14px; font-weight: 500; color: var(--text-primary); }
 .dash__stat__s { font-size: 12px; color: var(--text-muted); }
 

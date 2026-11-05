@@ -17,6 +17,32 @@
   function nameOf(id) { var e = store.employee(id); return e ? e.name : id; }
   function today() { return seed.todayIso; }
 
+  /* ---------- telling people ----------
+     One way to raise a notification, so anything the app does for a person reaches
+     them. `to` is an employee id for a personal note, or a list of roles for a
+     workspace-wide one; both can be given. The store surfaces these alongside the
+     seeded ones, so they land in the bell and in the notification centre. */
+  function notify(spec) {
+    return store.add('notifications', {
+      id: store.nextId('notifications', 'n'),
+      kind: spec.kind,
+      title: spec.title,
+      body: spec.body || '',
+      on: new Date().toISOString().slice(0, 16),
+      read: false,
+      route: spec.route || 'global/notifications',
+      roles: spec.roles || ['me'],
+      employee: spec.to || null
+    });
+  }
+  function notifyEach(ids, make) {
+    (ids || []).forEach(function (id) {
+      var e = store.employee(id);
+      if (e) notify(Object.assign({ to: id }, make(e)));
+    });
+    return (ids || []).length;
+  }
+
   /* An approval request, so anything needing a decision lands in the one inbox (PRD 6). */
   function raiseApproval(spec) {
     return store.add('approvals', {
@@ -1065,40 +1091,72 @@
     return done('Receipt acknowledged');
   }
 
-  function requestAsset(employeeId, form) {
-    var errors = rules.required([{ key: 'category', label: 'Asset category' }, { key: 'reason', label: 'Reason' }], form);
-    if (rules.hasErrors(errors)) return fail(errors);
-    var id = store.nextId('assetRequests', 'AR');
-    var approver = (store.employeeByName('Sandeep Rao') || {}).id;
-    store.add('assetRequests', {
-      id: id, employee: employeeId, category: form.category, reason: form.reason,
-      status: 'Pending Approval', requestedOn: today(), approver: approver
-    });
-    raiseApproval({
-      id: id, kind: 'Asset Request', module: 'assets', employee: employeeId,
-      detail: form.category + ' — ' + form.reason, approver: approver, route: 'admin/assets/requests'
-    });
-    store.log('requested a ' + form.category, 'User activity');
-    return done('Request ' + id + ' submitted', { id: id });
-  }
 
-  function decideAssetRequest(id, decision, comment) {
-    var req = store.find('assetRequests', id);
-    if (!req) return fail({ _: 'That request no longer exists' });
-    if (req.status !== 'Pending Approval') return fail({ _: 'Already ' + req.status.toLowerCase() });
-    if (decision === 'Approved') {
-      var free = store.collection('assets').filter(function (a) {
-        return a.category === req.category && a.status === 'Available';
-      })[0];
-      if (!free) return fail({ _: 'No ' + req.category.toLowerCase() + ' is available in inventory' });
-      store.setOverride('assetRequests', id, { status: 'Approved', fulfilledWith: free.id });
-      allocateAsset(free.id, req.employee);
-    } else {
-      store.setOverride('assetRequests', id, { status: 'Rejected', comment: comment || null });
+
+  /* ---------- raising an asset request ----------
+     Requests used to arrive only from Tracklivo. People can now raise one from inside
+     the asset portal: an employee asking for a new unit or reporting a fault on one
+     they hold, and HR asking for a joiner's kit before their first day. The decision
+     is still Tracklivo's — nothing here approves anything — so a request raised here
+     goes out in the same state a Tracklivo one arrives in, marked with where it came
+     from, and IT is told it is waiting. */
+  var ASSET_REQUEST_KINDS = {
+    'New asset': { needs: ['category', 'reason'], for: 'self' },
+    'Repair': { needs: ['asset', 'reason'], for: 'self' },
+    'Onboarding': { needs: ['employee', 'category', 'reason'], for: 'other' }
+  };
+
+  function raiseAssetRequest(raisedBy, form) {
+    var kind = form.kind || 'New asset';
+    var spec = ASSET_REQUEST_KINDS[kind];
+    if (!spec) return fail({ _: 'Pick what the request is for' });
+
+    var need = [];
+    if (spec.needs.indexOf('employee') > -1) need.push({ key: 'employee', label: 'Who it is for' });
+    if (spec.needs.indexOf('category') > -1) need.push({ key: 'category', label: 'Asset category' });
+    if (spec.needs.indexOf('asset') > -1) need.push({ key: 'asset', label: 'Which asset' });
+    need.push({ key: 'reason', label: kind === 'Repair' ? 'What is wrong' : 'Reason' });
+    var errors = rules.required(need, form);
+    if (rules.hasErrors(errors)) return fail(errors);
+
+    var forWhom = kind === 'Onboarding' ? form.employee : raisedBy;
+    var category = form.category;
+    if (kind === 'Repair') {
+      var unit = store.find('assets', form.asset);
+      if (!unit) return fail({ asset: 'That asset is no longer on the register' });
+      category = unit.category;
     }
-    closeApproval(id, decision);
-    store.log(decision.toLowerCase() + ' asset request ' + id, 'User activity');
-    return done('Request ' + id + ' ' + decision.toLowerCase());
+
+    var id = store.nextId('assetRequests', 'AR');
+    store.add('assetRequests', {
+      id: id, employee: forWhom, category: category,
+      reason: form.reason, status: 'Pending Approval', requestedOn: today(),
+      kind: kind, source: 'Portal', raisedBy: raisedBy,
+      asset: kind === 'Repair' ? form.asset : null,
+      neededBy: form.neededBy || null
+    });
+
+    var who = store.employee(forWhom), by = store.employee(raisedBy);
+    var label = kind === 'Repair' ? 'Repair' : kind === 'Onboarding' ? 'Onboarding kit' : category;
+
+    /* IT picks these up on the register. */
+    notify({
+      kind: 'Asset Request', roles: ['admin'], route: 'admin/assets/requests',
+      title: label + ' requested for ' + (who ? who.name : forWhom),
+      body: (by ? by.name : 'Someone') + ' raised ' + id + ' · ' + form.reason
+    });
+    /* And the person it is for knows it is moving, even when HR raised it. */
+    if (forWhom !== raisedBy) {
+      notify({
+        to: forWhom, kind: 'Asset Request', roles: ['me'], route: 'me/assets/requests',
+        title: label + ' requested for you',
+        body: (by ? by.name : 'HR') + ' raised ' + id + '. You will be told when it is ready to collect.'
+      });
+    }
+    store.log('raised asset request ' + id + ' (' + kind.toLowerCase() + ') for ' +
+      (who ? who.name : forWhom), 'User activity');
+
+    return done(kind === 'Repair' ? 'Repair raised · ' + id : 'Request ' + id + ' raised', { id: id });
   }
 
   function returnAsset(assetId, condition) {
@@ -1671,8 +1729,6 @@
         return decision === 'Approved' ? approveLeave(id) : rejectLeave(id, comment);
       case 'Attendance Regularization':
         return decision === 'Approved' ? approveRegularization(id) : rejectRegularization(id, comment);
-      case 'Asset Request':
-        return decideAssetRequest(id, decision, comment);
       case 'Shift Swap':
         return decideShiftSwap(id, decision);
       case 'Resignation':
@@ -1699,6 +1755,8 @@
   }
 
   HRMS.actions = {
+    /* Notifications */
+    notify: notify, notifyEach: notifyEach,
     /* Employee records */
     createEmployee: createEmployee, editEmployee: editEmployee,
     changeEmployeeStatus: changeEmployeeStatus, importEmployees: importEmployees,
@@ -1735,7 +1793,7 @@
     renameFolder: renameFolder, deleteFolder: deleteFolder,
     /* Assets */
     addAsset: addAsset, allocateAsset: allocateAsset, acknowledgeAsset: acknowledgeAsset,
-    requestAsset: requestAsset, decideAssetRequest: decideAssetRequest, returnAsset: returnAsset,
+    raiseAssetRequest: raiseAssetRequest, returnAsset: returnAsset,
     /* Payroll */
     createSalaryStructure: createSalaryStructure, initiatePayroll: initiatePayroll,
     reviewPayroll: reviewPayroll, finalizePayroll: finalizePayroll, generatePayslips: generatePayslips,

@@ -123,7 +123,7 @@
         h(Stat, { label: 'Headcount', value: s.headcount, sub: s.newJoiners + ' joined this month', tone: 'good' }),
         h(Stat, { label: 'On leave today', value: s.onLeaveToday, sub: s.absent + ' absent, ' + s.wfh + ' from home', tone: s.absent ? 'warn' : null }),
         h(Stat, { label: 'Attendance today', value: ui.pct(s.present + s.wfh, s.headcount), unit: '%', sub: s.late + ' late arrivals', tone: s.late > 8 ? 'warn' : 'good' }),
-        h(Stat, { label: 'Open approvals', value: s.pendingApprovals, sub: s.pendingLeave + ' leave, ' + s.pendingRegs + ' regularization, ' + s.pendingAssetRequests + ' asset', tone: 'warn' })),
+        h(Stat, { label: 'Open approvals', value: s.pendingApprovals, sub: s.pendingLeave + ' leave, ' + s.pendingRegs + ' regularization', tone: 'warn' })),
 
       h('div', { className: 'ai-note' },
         h('span', { className: 'ai-note__mark' }, I.leo),
@@ -312,7 +312,7 @@
   /* ==================================================== NOTIFICATION CENTRE */
   function Notifications(p) {
     var role = (p.route && p.route.role) || store.pref('role');
-    var notes = store.notificationsFor(role);
+    var notes = store.notificationsFor(role, (store.persona(role) || {}).id);
     var unread = notes.filter(function (n) { return !n.read; });
 
     return h(React.Fragment, null,

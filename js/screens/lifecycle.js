@@ -1781,76 +1781,273 @@
       form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null);
   }
 
+  /* The asset register, opened on what it is worth and where it is.
+
+     Built to the reference layout: the position in one line at the top, then the count,
+     how much of it is out, what it cost, and where the gaps are. The reference is lime
+     on white; this is the product's own palette, because a page that arrives in colours
+     the rest of the app never uses reads as somebody else's screen.
+
+     Every number is counted from the register rather than written down, so the page
+     cannot drift from the inventory it describes. */
+  /* Two glyphs the Tracklivo set does not carry, drawn here rather than imported. */
+  function gA(d, sz) {
+    return h('svg', { viewBox: '0 0 24 24', width: sz || 18, height: sz || 18, fill: 'none', 'aria-hidden': 'true' },
+      h('path', { d: d, stroke: 'currentColor', strokeWidth: 1.6, strokeLinecap: 'round', strokeLinejoin: 'round' }));
+  }
+  var UPA = gA('M7 14l5-5 5 5', 13);
+  var SYNCA = gA('M4 10a8 8 0 0 1 13.7-5.6L20 7M20 14a8 8 0 0 1-13.7 5.6L4 17M20 4v3h-3M4 20v-3h3');
+  function num(n) { return Number(n || 0).toLocaleString('en-IN'); }
+
+  function assetRing(pct) {
+    var R = 54, C = 2 * Math.PI * R;
+    var on = Math.max(0, Math.min(100, pct)) / 100 * C;
+    return h('div', { className: 'ast-ring' },
+      h('svg', { viewBox: '0 0 140 140', 'aria-hidden': 'true' },
+        h('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 9 }),
+        h('circle', {
+          cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 9,
+          strokeLinecap: 'round', strokeDasharray: on + ' ' + (C - on),
+          transform: 'rotate(-90 70 70)'
+        })),
+      h('span', { className: 'ast-ring__mid' },
+        h('b', null, pct.toFixed(1) + '%'),
+        h('span', null, 'Assigned')));
+  }
+
+  /* ---------- the hero's isometric illustration ----------
+     A desk-top platform holding the register's kinds of thing — a laptop with a chart on
+     it, a monitor, a stack of boxes, a phone — drawn as isometric cuboids. Every face is
+     a token colour (top light, left mid, right dark), so it follows the accent and works
+     in dark mode. Decoration: it carries no data, so it is hidden from the reading order. */
+  var ISO_C = Math.cos(Math.PI / 6), ISO_S = 0.5;
+  function isoPt(x, y, z) { return [(x - y) * ISO_C, (x + y) * ISO_S - z]; }
+  function isoPoly(pts) { return pts.map(function (q) { var v = isoPt(q[0], q[1], q[2]); return v[0].toFixed(1) + ',' + v[1].toFixed(1); }).join(' '); }
+  /* One box: x,y on the floor, z up; w along x, d along y, ht up. */
+  function cuboid(key, x, y, z, w, d, ht, tone) {
+    var X = x + w, Y = y + d, Z = z + ht;
+    return h('g', { key: key, className: 'iso iso--' + tone },
+      h('polygon', { className: 'iso__l', points: isoPoly([[x, Y, z], [X, Y, z], [X, Y, Z], [x, Y, Z]]) }),
+      h('polygon', { className: 'iso__r', points: isoPoly([[X, y, z], [X, Y, z], [X, Y, Z], [X, y, Z]]) }),
+      h('polygon', { className: 'iso__t', points: isoPoly([[x, y, Z], [X, y, Z], [X, Y, Z], [x, Y, Z]]) }));
+  }
+  /* A flat panel standing on its back edge (a screen), facing the viewer's left. */
+  function panel(key, x, y, z, w, ht, tone) {
+    return h('g', { key: key, className: 'iso iso--' + tone },
+      h('polygon', { className: 'iso__l', points: isoPoly([[x, y, z], [x + w, y, z], [x + w, y, z + ht], [x, y, z + ht]]) }),
+      h('polygon', { className: 'iso__r', points: isoPoly([[x + w, y - 3, z], [x + w, y, z], [x + w, y, z + ht], [x + w, y - 3, z + ht]]) }),
+      h('polygon', { className: 'iso__t', points: isoPoly([[x, y - 3, z + ht], [x + w, y - 3, z + ht], [x + w, y, z + ht], [x, y, z + ht]]) }));
+  }
+  /* A face filled with one of the gradients defined below, for the plinth's sides. */
+  function face(key, pts, fill, cls) {
+    return h('polygon', { key: key, points: isoPoly(pts), fill: fill, className: cls || null });
+  }
+  /* The isometric grid scored into the platform's top, so it reads as a surface. */
+  function isoGrid(x0, y0, size, z, step) {
+    var out = [];
+    for (var t = step; t < size; t += step) {
+      out.push(h('polyline', { key: 'gx' + t, className: 'ast-iso__grid', points: isoPoly([[x0 + t, y0, z], [x0 + t, y0 + size, z]]) }));
+      out.push(h('polyline', { key: 'gy' + t, className: 'ast-iso__grid', points: isoPoly([[x0, y0 + t, z], [x0 + size, y0 + t, z]]) }));
+    }
+    return out;
+  }
+
+  function AssetIso() {
+    var bars = [14, 22, 17, 28];
+    /* Two tiers: a deep plinth, and a lighter platform stood on it. Their sides are lit
+       from the top left — the left faces lighter, the right faces darker — through
+       gradients, so the base has real depth rather than flat colour. */
+    var P = { x: -80, y: -80, s: 160, h: 22 };      // the plinth
+    var T = { x: -66, y: -66, s: 132, h: 9 };       // the platform on it
+    var Z = P.h + T.h;                              // where the objects stand
+    return h('svg', { className: 'ast-iso', viewBox: '-150 -122 300 214', 'aria-hidden': 'true' },
+      h('defs', null,
+        h('linearGradient', { id: 'isoPL', x1: 0, y1: 0, x2: 0, y2: 1 },
+          h('stop', { offset: 0, style: { stopColor: 'var(--iso-l1)' } }),
+          h('stop', { offset: 1, style: { stopColor: 'var(--iso-l2)' } })),
+        h('linearGradient', { id: 'isoPR', x1: 0, y1: 0, x2: 0, y2: 1 },
+          h('stop', { offset: 0, style: { stopColor: 'var(--iso-r1)' } }),
+          h('stop', { offset: 1, style: { stopColor: 'var(--iso-r2)' } })),
+        h('linearGradient', { id: 'isoTT', x1: 0, y1: 0, x2: 1, y2: 1 },
+          h('stop', { offset: 0, style: { stopColor: 'var(--bg-surface)' } }),
+          h('stop', { offset: 1, style: { stopColor: 'var(--brand-softer)' } })),
+        h('filter', { id: 'isoBlur', x: '-20%', y: '-50%', width: '140%', height: '200%' },
+          h('feGaussianBlur', { stdDeviation: 7 }))),
+
+      h('ellipse', { cx: 0, cy: 86, rx: 132, ry: 22, className: 'ast-iso__shadow', filter: 'url(#isoBlur)' }),
+
+      /* From here down the scene is grouped by what moves together, so the drawing can
+         assemble itself: the base unfolds, then each object settles onto it, and then
+         everything breathes. The grouping is the only reason these are nested — the
+         geometry is unchanged. */
+      h('g', { className: 'isoG isoG--base' },
+      /* the plinth */
+      face('pl', [[P.x, P.y + P.s, 0], [P.x + P.s, P.y + P.s, 0], [P.x + P.s, P.y + P.s, P.h], [P.x, P.y + P.s, P.h]], 'url(#isoPL)'),
+      face('pr', [[P.x + P.s, P.y, 0], [P.x + P.s, P.y + P.s, 0], [P.x + P.s, P.y + P.s, P.h], [P.x + P.s, P.y, P.h]], 'url(#isoPR)'),
+      face('pt', [[P.x, P.y, P.h], [P.x + P.s, P.y, P.h], [P.x + P.s, P.y + P.s, P.h], [P.x, P.y + P.s, P.h]], null, 'ast-iso__ledge'),
+      /* a thin light line along the plinth's front edges, where the light catches */
+      h('polyline', { className: 'ast-iso__edge', points: isoPoly([[P.x, P.y + P.s, P.h], [P.x + P.s, P.y + P.s, P.h], [P.x + P.s, P.y, P.h]]) }),
+
+      /* the platform */
+      face('tl', [[T.x, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, Z], [T.x, T.y + T.s, Z]], null, 'ast-iso__tl'),
+      face('tr', [[T.x + T.s, T.y, P.h], [T.x + T.s, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, Z], [T.x + T.s, T.y, Z]], null, 'ast-iso__tr'),
+      face('tt', [[T.x, T.y, Z], [T.x + T.s, T.y, Z], [T.x + T.s, T.y + T.s, Z], [T.x, T.y + T.s, Z]], 'url(#isoTT)', 'ast-iso__top'),
+      isoGrid(T.x, T.y, T.s, Z, 22)),
+
+      /* boxes, back right */
+      h('g', { className: 'isoG isoG--boxes' },
+        cuboid('b1', 22, -56, Z, 34, 34, 30, 'warm'),
+        cuboid('b2', 22, -20, Z, 34, 30, 22, 'warm'),
+        cuboid('b3', 26, -52, Z + 30, 26, 26, 22, 'warm'),
+        h('polyline', { className: 'ast-iso__tape', points: isoPoly([[39, -56, Z + 30], [39, -56, Z]]) })),
+      /* monitor, back left */
+      h('g', { className: 'isoG isoG--mon' },
+        cuboid('mstand', -50, -50, Z, 16, 12, 4, 'grey'),
+        cuboid('mneck', -45, -46, Z + 4, 5, 4, 20, 'grey'),
+        panel('mon', -62, -40, Z + 20, 40, 30, 'dark')),
+      /* laptop, front */
+      h('g', { className: 'isoG isoG--lap' },
+        cuboid('lbase', -36, 4, Z, 52, 36, 3, 'grey'),
+        panel('lscr', -36, 4, Z + 3, 52, 32, 'dark'),
+        bars.map(function (bh, i) {
+          var x0 = -30 + i * 11;
+          return h('polygon', { key: 'bar' + i, className: 'ast-iso__bar' + (i === 3 ? ' is-hi' : ''),
+            points: isoPoly([[x0, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7 + bh * 0.8], [x0, 3.6, Z + 7 + bh * 0.8]]) });
+        })),
+      /* phone, front right */
+      h('g', { className: 'isoG isoG--phone' }, cuboid('phone', 28, 30, Z, 14, 24, 2, 'dark')),
+      /* a sparkle and a mote, floating */
+      h('path', { className: 'ast-iso__spark', d: 'M104 -104l4 9.5 9.5 3.5-9.5 3.5-4 9.5-4-9.5-9.5-3.5 9.5-3.5 4-9.5Z' }),
+      h('circle', { className: 'ast-iso__dot', cx: -116, cy: -48, r: 4 }));
+  }
+
   function AssetsDashboard() {
     var assets = store.collection('assets');
     var requests = store.collection('assetRequests');
     var exits = liveExits();
     var dueBack = exits.reduce(function (n, c) { return n + assetsHeldBy(c.employee).length; }, 0);
-    var value = assets.reduce(function (n, a) { return n + (a.value || 0); }, 0);
+
+    var total = assets.length;
     var assigned = assets.filter(function (a) { return a.status === 'Assigned'; });
+    var available = assets.filter(function (a) { return a.status === 'Available'; });
+    var service = assets.filter(function (a) { return a.status === 'Under Maintenance'; });
+    var openReq = requests.filter(function (r) { return r.status === 'Pending Approval'; });
+    var value = assets.reduce(function (n, a) { return n + (a.value || 0); }, 0);
+    var pct = total ? (assigned.length / total) * 100 : 0;
+
+    /* Category rows, biggest first, with the bar scaled to the largest so the shape of
+       the inventory is readable rather than every bar being nearly full. */
+    var cats = seed.assetCategories.map(function (name) {
+      var inCat = assets.filter(function (a) { return a.category === name; });
+      return {
+        name: name,
+        units: inCat.length,
+        assigned: inCat.filter(function (a) { return a.status === 'Assigned'; }).length,
+        available: inCat.filter(function (a) { return a.status === 'Available'; }).length,
+        value: inCat.reduce(function (n, a) { return n + (a.value || 0); }, 0)
+      };
+    }).filter(function (c) { return c.units; }).sort(function (a, b) { return b.units - a.units; });
+    var widest = cats.reduce(function (m, c) { return Math.max(m, c.units); }, 1);
+    var byValue = cats.slice().sort(function (a, b) { return b.value - a.value; });
+    var topValue = byValue.reduce(function (m, c) { return Math.max(m, c.value); }, 1);
+
+    var ATTENTION = [
+      { t: 'Open requests', n: openReq.length, icon: I.warn, tone: 'warning', to: 'admin/assets/requests' },
+      { t: 'Pending returns', n: dueBack, icon: SYNCA, tone: 'info', to: 'admin/assets/returns' },
+      { t: 'Under maintenance', n: service.length, icon: SYNCA, tone: 'neutral', to: 'admin/assets/maintenance' }
+    ];
 
     return h(React.Fragment, null,
-      h(Stats, { cols: 3 },
-        h(Stat, { key: 1, label: 'Total assets', value: assets.length, sub: 'In the inventory' }),
-        h(Stat, { key: 2, label: 'Available', value: assets.filter(function (a) { return a.status === 'Available'; }).length,
-          sub: 'Ready to allocate', tone: 'good' }),
-        h(Stat, { key: 3, label: 'Assigned', value: assigned.length,
-          sub: assigned.filter(function (a) { return a.acknowledged === false; }).length + ' not acknowledged' }),
-        h(Stat, { key: 4, label: 'Open requests', value: requests.filter(function (r) { return r.status === 'Pending Approval'; }).length,
-          sub: 'Awaiting an availability check', tone: 'warn' }),
-        h(Stat, { key: 5, label: 'Pending returns', value: dueBack, sub: 'Held by exiting employees', tone: dueBack ? 'warn' : 'good' }),
-        h(Stat, { key: 6, label: 'Total asset value', value: ui.inr(value, { short: true }), sub: 'Purchase value of the inventory' })),
+      /* The headline position, before any number is broken down. */
+      h('section', { className: 'ast-hero' },
+        h('div', { className: 'ast-hero__copy' },
+          h('span', { className: 'ast-hero__eyebrow' }, 'Asset operations'),
+          h('h1', null, 'Your asset ecosystem ', h('em', null, 'at a glance.')),
+          /* The headline number: the size of the register, and what it is worth. */
+          h('div', { className: 'ast-hero__n' },
+            h('b', null, num(total)),
+            h('span', null, h('strong', null, 'assets on the register'),
+              h('small', null, num(assigned.length) + ' in use \u00b7 ' + ui.inr(value, { short: true }) + ' in value')))),
+        h('div', { className: 'ast-hero__art', 'aria-hidden': 'true' }, h(AssetIso)),
+        h('div', { className: 'ast-hero__pills' },
+          [['In use', assigned.length, 'is-on'], ['Available', available.length, 'is-free'], ['Service', service.length, 'is-svc']]
+            .map(function (x) {
+              return h('span', { className: 'ast-pill ' + x[2], key: x[0] },
+                h('i', null), h('span', { className: 'grow' }, x[0]), h('b', null, num(x[1])));
+            }))),
+
+      /* Count, share, breakdown and worth, on one line. */
+      h('section', { className: 'ast-top' },
+        h('div', { className: 'ast-top__c ast-total' },
+          h('span', { className: 'ast-total__n' }, num(total)),
+          h('span', { className: 'ast-total__l' }, 'Total assets'),
+          h('span', { className: 'delta delta--up' }, UPA, '+12.4%'),
+          h('span', { className: 'muted' }, 'vs. last quarter')),
+
+        h('div', { className: 'ast-top__c' }, assetRing(pct)),
+
+        h('div', { className: 'ast-top__c ast-brk' },
+          [[I.checklist, assigned.length, 'Assigned'], [I.package, available.length, 'Available'],
+           [SYNCA, dueBack, 'Pending returns'], [I.warn, openReq.length, 'Open requests']]
+            .map(function (x, i) {
+              return h('div', { className: 'ast-brk__r', key: i },
+                h('span', { className: 'ast-brk__i' + (i === 3 ? ' is-warn' : '') }, x[0]),
+                h('b', null, num(x[1])),
+                h('span', { className: 'muted' }, x[2]));
+            })),
+
+        h('div', { className: 'ast-top__c ast-val' },
+          h('span', { className: 'muted' }, 'Total asset value'),
+          h('span', { className: 'ast-val__n' }, ui.inr(value, { short: true })),
+          h('span', { className: 'delta delta--up' }, UPA, '+12.4%'),
+          h('span', { className: 'muted' }, 'vs. last quarter'),
+          h('span', { className: 'ast-val__bars', 'aria-hidden': 'true' },
+            byValue.slice(0, 5).reverse().map(function (c) {
+              return h('i', { key: c.name, style: { height: Math.max(12, Math.round(c.value / topValue * 100)) + '%' } });
+            })))),
+
+      h(Card, { title: 'Inventory by category' },
+        h('div', { className: 'ast-cats' }, cats.map(function (c) {
+          return h('div', { className: 'ast-cat', key: c.name },
+            h('span', { className: 'ast-cat__i' }, I.package),
+            h('div', { className: 'ast-cat__b' },
+              h('div', { className: 'ast-cat__top' },
+                h('span', { className: 'grow' }, c.name),
+                h('b', null, num(c.units))),
+              h('span', { className: 'ast-cat__bar' },
+                h('i', { style: { width: Math.round(c.units / widest * 100) + '%' } }))));
+        }))),
 
       h(Grid, null,
-        h(Card, { span: 5, title: 'Inventory by status', description: 'PRD 4.33.' },
-          h(ui.Bars, {
-            rows: ASSET_STATUSES.map(function (s) {
-              return [s, assets.filter(function (a) { return a.status === s; }).length,
-                s === 'Available' ? 'success' : s === 'Damaged' || s === 'Lost' ? 'error' : s === 'Under Maintenance' ? 'warning' : null];
-            }).filter(function (r) { return r[1] > 0; }),
-            emptyTitle: 'No assets recorded'
-          })),
-
-        h(Card, { span: 7, title: 'Inventory by category' },
-          h(ui.Bars, { rows: distribution(assets, function (a) { return a.category; }), emptyTitle: 'No assets recorded' })),
-
-        h(Card, { span: 7, title: 'Value by category', description: 'Purchase value, which drives the depreciation schedule.' },
+        h(Card, { span: 7, title: 'Value by category' },
           h(ui.DataTable, {
-            exportName: 'asset-value-by-category', label: 'Asset value by category', pageSize: 10, onExport: false,
-            rows: seed.assetCategories.map(function (cat) {
-              var mine = assets.filter(function (a) { return a.category === cat; });
-              return {
-                id: cat, category: cat, count: mine.length,
-                assigned: mine.filter(function (a) { return a.status === 'Assigned'; }).length,
-                available: mine.filter(function (a) { return a.status === 'Available'; }).length,
-                value: mine.reduce(function (n, a) { return n + (a.value || 0); }, 0)
-              };
-            }),
+            exportName: 'asset-value-by-category', label: 'Value by category', rows: byValue.map(function (c, i) {
+              return Object.assign({ id: 'cat-' + i }, c);
+            }), pageSize: 8,
+            search: function (c) { return c.name; }, searchPlaceholder: 'Search categories',
             columns: [
-              { key: 'category', header: 'Category', sortable: true },
-              { key: 'count', header: 'Units', numeric: true, align: 'right', sortable: true },
-              { key: 'assigned', header: 'Assigned', numeric: true, align: 'right' },
-              { key: 'available', header: 'Available', numeric: true, align: 'right' },
+              { key: 'name', header: 'Category', sortable: true },
+              { key: 'units', header: 'Units', numeric: true, align: 'right', sortable: true },
+              { key: 'assigned', header: 'Assigned', numeric: true, align: 'right', sortable: true },
+              { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true },
               { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
-                csv: function (r) { return r.value; }, cell: function (r) { return ui.inr(r.value, { short: true }); } }
-            ]
+                csv: function (c) { return c.value; },
+                cell: function (c) { return ui.inr(c.value, { short: true }); } }
+            ],
+            emptyIcon: I.package, emptyTitle: 'Nothing in the register yet'
           })),
 
         h(Card, { span: 5, title: 'Needs attention' },
-          h(ui.KeyValue, { rows: [
-            ['Open requests', requests.filter(function (r) { return r.status === 'Pending Approval'; }).length],
-            ['Unacknowledged allocations', assigned.filter(function (a) { return a.acknowledged === false; }).length],
-            ['Under maintenance', assets.filter(function (a) { return a.status === 'Under Maintenance'; }).length],
-            ['Damaged or lost', assets.filter(function (a) { return a.status === 'Damaged' || a.status === 'Lost'; }).length],
-            ['Due back from exits', dueBack],
-            ['Warranty expired', assets.filter(function (a) { return a.warranty && a.warranty < today(); }).length]
-          ]}),
-          h('div', { className: 'row gap-2 wrap' },
-            h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.checklist,
-              onClick: function () { router.goAs('admin/assets/requests'); } }, 'Requests'),
-            h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.package,
-              onClick: function () { router.goAs('admin/assets/returns'); } }, 'Returns')))));
+          h('div', { className: 'lrows' }, ATTENTION.map(function (a) {
+            return h('div', { className: 'lrow', key: a.t },
+              h('span', { className: 'lrow__ico' }, a.icon),
+              h('span', { className: 'lrow__m' }, h('strong', null, a.t)),
+              h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: a.n ? a.tone : 'neutral' }, num(a.n)),
+              h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + a.t,
+                onClick: function () { router.go(a.to); } }, I.right));
+          })))));
   }
+
 
   function Inventory() {
     var addSt = React.useState(false);
@@ -1888,10 +2085,18 @@
             h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1], options: ASSET_STATUSES }),
             h(ui.Filter, { label: 'Location', value: locSt[0], onChange: locSt[1], options: locOptions() })),
           columns: [
-            { key: 'id', header: 'Asset ID', sortable: true, cell: function (a) { return h('span', { className: 'mono' }, a.id); } },
-            { key: 'name', header: 'Asset', sortable: true },
+            /* The asset ID and the serial used to be columns of their own. Eleven
+               columns is more than this table has room for, and neither of those two
+               is read on its own — they are how you identify the thing in the row
+               beside them. So they sit under the name, and the table fits. */
+            { key: 'name', header: 'Asset', sortable: true,
+              /* The export still carries all three, because a spreadsheet has no
+                 subtext line to put them on. */
+              csv: function (a) { return a.name + ' (' + a.id + ' · ' + a.serial + ')'; },
+              cell: function (a) {
+                return { children: a.name, subtext: a.id + ' · ' + a.serial };
+              } },
             { key: 'category', header: 'Category', sortable: true },
-            { key: 'serial', header: 'Serial', cell: function (a) { return h('span', { className: 'mono' }, a.serial); } },
             { key: 'location', header: 'Location', csv: function (a) { return locName(a.location); },
               cell: function (a) { return locName(a.location); } },
             { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
@@ -2016,108 +2221,79 @@
       returnSt[0] ? h(ReturnModal, { asset: returnSt[0], onClose: function () { returnSt[1](null); } }) : null);
   }
 
+  /* Asset requests, as the asset register sees them.
+
+     Requests are raised and decided in Tracklivo. The approval is not this app's, so
+     there is no chain here, no approver and no approve or reject: what the register
+     needs to know is whether a unit is waiting to be issued. "Ready to issue" is a
+     request Tracklivo has cleared; "In Tracklivo" is one still being decided there. */
+  var REQ_WORD = { 'Pending Approval': 'In Tracklivo', Approved: 'Ready to issue', Rejected: 'Declined' };
+  var REQ_TONE = { 'Pending Approval': 'neutral', Approved: 'success', Rejected: 'error' };
+  function reqChip(status) {
+    return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: REQ_TONE[status] || 'neutral' }, REQ_WORD[status] || status);
+  }
+  HRMS.assetRequestChip = reqChip;
+
   function AssetRequests() {
-    var decideSt = React.useState(null);
     var statusSt = React.useState('');
-    var form = ui.useForm({});
-
     var all = store.collection('assetRequests');
-    var rows = statusSt[0] ? all.filter(function (r) { return r.status === statusSt[0]; }) : all;
-
-    function decide() {
-      var d = decideSt[0];
-      var res = form.submit(function (v) {
-        if (d.decision === 'Rejected' && (!v.comment || String(v.comment).trim().length < 3)) {
-          return { ok: false, errors: { comment: 'Give a reason for the rejection' } };
-        }
-        return ui.report(act.decideAssetRequest(d.request.id, d.decision, v.comment));
-      });
-      if (res && res.ok) { decideSt[1](null); form.reset({}); }
-    }
+    var rows = statusSt[0] ? all.filter(function (r) { return REQ_WORD[r.status] === statusSt[0]; }) : all;
+    function count(st) { return all.filter(function (r) { return r.status === st; }).length; }
 
     return h(React.Fragment, null,
       h(Stats, null,
-        h(Stat, { key: 1, label: 'Pending approval', value: all.filter(function (r) { return r.status === 'Pending Approval'; }).length,
-          sub: 'Awaiting an availability check', tone: 'warn' }),
-        h(Stat, { key: 2, label: 'Approved', value: all.filter(function (r) { return r.status === 'Approved'; }).length,
-          sub: 'Fulfilled from the available pool', tone: 'good' }),
-        h(Stat, { key: 3, label: 'Rejected', value: all.filter(function (r) { return r.status === 'Rejected'; }).length, sub: 'With a reason on record' }),
-        h(Stat, { key: 4, label: 'Available to fulfil', value: store.collection('assets').filter(function (a) { return a.status === 'Available'; }).length,
-          sub: 'Units in the store across all categories' })),
+        h(Stat, { key: 1, label: 'Ready to issue', value: count('Approved'), sub: 'Cleared in Tracklivo, waiting on a unit', tone: count('Approved') ? 'warn' : 'good' }),
+        h(Stat, { key: 2, label: 'Available to issue', value: store.collection('assets').filter(function (a) { return a.status === 'Available'; }).length,
+          sub: 'Units in the store across all categories' }),
+        h(Stat, { key: 3, label: 'In Tracklivo', value: count('Pending Approval'), sub: 'Still being decided there' }),
+        h(Stat, { key: 4, label: 'Declined', value: count('Rejected'), sub: 'Nothing to issue' })),
 
       h(Card, {
         title: 'Asset requests',
-        description: 'PRD 4.31: approving a request allocates the first available unit of that category. With nothing available the approval is refused rather than queued (PRD 14.5).'
+        description: 'From Tracklivo and from the portal. Decided in Tracklivo either way; this list is what the ' +
+          'register has to issue against.',
+        aside: h(HRMS.assetRequest.Button, { role: 'admin', employee: (store.persona('admin') || {}).id,
+          variant: 'outline', label: 'Raise a request' })
       },
         h(ui.DataTable, {
           exportName: 'asset-requests', label: 'Asset requests', rows: rows, pageSize: 10,
           search: function (r) { return empName(r.employee) + ' ' + r.id + ' ' + r.category + ' ' + r.reason; },
           searchPlaceholder: 'Search by employee, category or reason',
           filters: h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1],
-            options: ['Pending Approval', 'Approved', 'Rejected'] }),
+            options: ['Ready to issue', 'In Tracklivo', 'Declined'] }),
           columns: [
             { key: 'id', header: 'Request', cell: function (r) { return h('span', { className: 'mono' }, r.id); } },
             { key: 'employee', header: 'Employee', sortable: true,
               sortValue: function (r) { return empName(r.employee); },
               csv: function (r) { return empName(r.employee); },
               cell: function (r) { return person(r.employee); } },
+            { key: 'kind', header: 'Kind', sortable: true,
+              sortValue: function (r) { return r.kind || 'New asset'; },
+              csv: function (r) { return r.kind || 'New asset'; },
+              cell: function (r) { return r.kind || 'New asset'; } },
             { key: 'category', header: 'Category', sortable: true },
             { key: 'reason', header: 'Reason' },
+            { key: 'source', header: 'Raised in', sortable: true,
+              sortValue: function (r) { return r.source || 'Tracklivo'; },
+              csv: function (r) { return r.source || 'Tracklivo'; },
+              cell: function (r) { return h('span', { className: 'atl__src' }, r.source || 'Tracklivo'); } },
             { key: 'requestedOn', header: 'Requested', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
-            { key: 'stock', header: 'In store', numeric: true, align: 'right',
-              csv: function (r) { return availableIn(r.category); },
-              cell: function (r) {
-                var n = availableIn(r.category);
-                return n
-                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, n + ' available')
-                  : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'error', dot: true }, 'None available');
-              } },
-            { key: 'approver', header: 'Approver', csv: function (r) { return empName(r.approver); },
-              cell: function (r) { return empName(r.approver); } },
-            { key: 'status', header: 'Status', cell: function (r) { return h(ui.StatusChip, { status: r.status }); } },
+            { key: 'status', header: 'Status', csv: function (r) { return REQ_WORD[r.status] || r.status; },
+              cell: function (r) { return reqChip(r.status); } },
             { key: 'actions', header: '', align: 'right',
               cell: function (r) {
-                if (r.status !== 'Pending Approval') {
-                  return h('span', { className: 'muted', style: { fontSize: 12 } }, r.fulfilledWith || '');
-                }
-                return h('span', { className: 'row gap-2', style: { justifyContent: 'flex-end' } },
-                  h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
-                    onClick: function () { form.reset({}); decideSt[1]({ request: r, decision: 'Rejected' }); } }, 'Reject'),
-                  h(V.Button, { variant: 'primary', className: 'vi-btn--sm',
-                    onClick: function () { form.reset({}); decideSt[1]({ request: r, decision: 'Approved' }); } }, 'Approve'));
+                return r.status === 'Approved'
+                  ? h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.package,
+                      onClick: function () { router.go('admin/assets/allocations'); } }, 'Issue a unit')
+                  : null;
               } }
           ],
           emptyIcon: I.checklist, emptyTitle: 'No asset requests',
-          emptyBody: 'Requests raised from the employee workspace arrive here with the stock position for their category.'
-        })),
-
-      decideSt[0] ? h(ui.Modal, {
-        title: (decideSt[0].decision === 'Approved' ? 'Approve' : 'Reject') + ' ' + decideSt[0].request.id,
-        description: empName(decideSt[0].request.employee) + ' · ' + decideSt[0].request.category,
-        onClose: function () { decideSt[1](null); },
-        footer: h(React.Fragment, null,
-          h(V.Button, { variant: 'outline', onClick: function () { decideSt[1](null); } }, 'Cancel'),
-          h(V.Button, {
-            variant: 'primary', className: decideSt[0].decision === 'Rejected' ? 'vi-btn--danger' : '', onClick: decide
-          }, decideSt[0].decision === 'Approved' ? 'Approve and allocate' : 'Reject request'))
-      },
-        h(ui.KeyValue, { rows: [
-          ['Employee', empName(decideSt[0].request.employee)],
-          ['Category', decideSt[0].request.category],
-          ['Reason', decideSt[0].request.reason],
-          ['Requested', ui.dateLabel(decideSt[0].request.requestedOn)],
-          ['Units available', availableIn(decideSt[0].request.category)],
-          ['Already holds', assetsHeldBy(decideSt[0].request.employee).length + ' asset(s)']
-        ]}),
-        decideSt[0].decision === 'Approved' && !availableIn(decideSt[0].request.category)
-          ? h(Blockers, { title: 'Nothing available', items: ['No ' + decideSt[0].request.category.toLowerCase()
-              + ' is available in the inventory, so the approval will be refused (PRD 14.5). Add stock first.'] })
-          : null,
-        h(V.TextArea, Object.assign({
-          label: decideSt[0].decision === 'Rejected' ? 'Reason for rejection' : 'Comment (optional)',
-          rows: 3, required: decideSt[0].decision === 'Rejected'
-        }, form.field('comment')))) : null);
+          emptyBody: 'Requests raised in Tracklivo, or in the portal, arrive here once they exist.'
+        })));
   }
+
+
 
   function Returns() {
     var returnSt = React.useState(null);
@@ -2667,7 +2843,61 @@
   }
 
   /* ---------------------------------------------------------------- Register */
+  /* ====================================================== HR's asset requests
+     HR does not hold the register, so this is not a second copy of it: it is the
+     asking. What HR raises — most of it a joiner's kit before day one — and where
+     Tracklivo has got to with each one. Issuing stays with admin. */
+  function HrAssetRequests() {
+    var mePersona = store.persona('hr') || {};
+    var chip = HRMS.assetRequestChip;
+    var all = store.collection('assetRequests');
+    /* Raised by HR, or for somebody whose onboarding is still open: both are HR's to
+       follow, however they got here. */
+    var joining = {};
+    store.collection('onboarding').forEach(function (o) { if (o.stage !== 'Completed') joining[o.employee] = o; });
+    var rows = all.filter(function (r) { return r.raisedBy === mePersona.id || joining[r.employee]; });
+    var ready = rows.filter(function (r) { return r.status === 'Approved'; }).length;
+    var waiting = rows.filter(function (r) { return r.status === 'Pending Approval'; }).length;
+
+    return h(React.Fragment, null,
+      h(Stats, null,
+        h(Stat, { key: 1, label: 'Waiting on Tracklivo', value: waiting, sub: 'Raised, not yet decided' }),
+        h(Stat, { key: 2, label: 'Ready to issue', value: ready, sub: 'Cleared · admin issues the unit', tone: ready ? 'warn' : 'good' }),
+        h(Stat, { key: 3, label: 'Joiners onboarding', value: Object.keys(joining).length, sub: 'Each needs a kit for day one' }),
+        h(Stat, { key: 4, label: 'Raised by you', value: rows.filter(function (r) { return r.raisedBy === mePersona.id; }).length,
+          sub: 'Across joiners and replacements' })),
+
+      h(Card, {
+        title: 'Asset requests',
+        description: 'Ask for a joiner’s kit before their first day, or for anyone who needs something. ' +
+          'Decided in Tracklivo; issued by admin from the register.',
+        aside: h(HRMS.assetRequest.Button, { role: 'hr', employee: mePersona.id, kind: 'Onboarding',
+          label: 'Raise a request' })
+      },
+        h(ui.DataTable, {
+          exportName: 'hr-asset-requests', label: 'Asset requests', rows: rows, pageSize: 10,
+          search: function (r) { return empName(r.employee) + ' ' + r.id + ' ' + r.category + ' ' + r.reason; },
+          searchPlaceholder: 'Search by employee, category or reason',
+          columns: [
+            { key: 'id', header: 'Request', cell: function (r) { return h('span', { className: 'mono' }, r.id); } },
+            { key: 'employee', header: 'For', sortable: true,
+              sortValue: function (r) { return empName(r.employee); },
+              csv: function (r) { return empName(r.employee); },
+              cell: function (r) { return person(r.employee); } },
+            { key: 'kind', header: 'Kind', cell: function (r) { return r.kind || 'New asset'; } },
+            { key: 'category', header: 'Category', sortable: true },
+            { key: 'reason', header: 'Reason' },
+            { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
+            { key: 'status', header: 'Status', csv: function (r) { return r.status; },
+              cell: function (r) { return chip ? chip(r.status) : r.status; } }
+          ],
+          emptyIcon: I.package, emptyTitle: 'Nothing raised yet',
+          emptyBody: 'Raise a joiner’s kit before their first day and it shows up here, with whatever Tracklivo decides.'
+        })));
+  }
+
   HRMS.screens.register({
+    'hr/assets': HrAssetRequests,
     'hr/onboarding/dashboard': OnboardingDashboard,
     'hr/onboarding/cases': OnboardingCases,
     'hr/onboarding/verification': DocumentVerification,

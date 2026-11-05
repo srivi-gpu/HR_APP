@@ -764,6 +764,13 @@
     });
   }
   addAssetRequest(id('Farhan Ali'), 'Monitor', 'Dual screen setup for research sessions', 'Pending Approval');
+  /* The Employee workspace opens as Ananya Rao, so she has to have asked for something:
+     a screen that can only ever be empty for the persona looking at it demonstrates
+     nothing. One of each outcome, so the timeline has an approval, a refusal and a
+     request still walking the line to show. */
+  addAssetRequest(id('Ananya Rao'), 'Laptop', 'Replacement \u2014 battery swells under load', 'Approved');
+  addAssetRequest(id('Ananya Rao'), 'Docking Station', 'Two screens at the Bengaluru desk', 'Pending Approval');
+  addAssetRequest(id('Ananya Rao'), 'Mobile Phone', 'On-call rotation starting next month', 'Rejected');
   var arPool = shuffle(eligible.filter(function (e) { return e.name !== 'Farhan Ali'; }));
   var AR_PENDING = 7;
   arPool.slice(0, AR_PENDING - 1).forEach(function (e) {
@@ -1128,13 +1135,8 @@
       status: 'Pending Approval', route: 'hr/attendance/regularization'
     });
   });
-  assetRequests.filter(function (a) { return a.status === 'Pending Approval'; }).forEach(function (a) {
-    approvals.push({
-      id: a.id, kind: 'Asset Request', module: 'assets', employee: a.employee,
-      detail: a.category + ' — ' + a.reason, submitted: a.requestedOn, approver: a.approver,
-      status: 'Pending Approval', route: 'admin/assets/requests'
-    });
-  });
+  /* Asset requests are not in this inbox: they are raised and decided in Tracklivo,
+     and the register only issues against what Tracklivo has cleared. */
   approvals.push(
     { id: 'PC9501', kind: 'Profile Change', module: 'people', employee: id('Pooja Agarwal'),
       detail: 'Bank account details updated', submitted: '2026-10-31', approver: id('Priya Sharma'), status: 'Pending Approval', route: 'hr/people/all' },
@@ -1168,7 +1170,6 @@
     { id: 'n3', kind: 'Payroll', title: 'November payroll is open for review', body: payable.length + ' employees · cut-off 25 Nov 2026', on: '2026-11-02T17:05', read: false, route: 'hr/payroll/cycles', roles: ['hr'] },
     { id: 'n4', kind: 'Onboarding Reminder', title: 'Pranav Hegde has 3 documents awaiting verification', body: 'Document verification is blocking IT setup', on: '2026-11-02T11:20', read: false, route: 'hr/onboarding/verification', roles: ['hr'] },
     { id: 'n5', kind: 'Attendance Exception', title: '6 missing punches today', body: 'Including Vikram Desai, who has raised a correction', on: '2026-11-03T09:00', read: false, route: 'hr/attendance/regularization', roles: ['hr'] },
-    { id: 'n6', kind: 'Asset Request', title: '7 asset requests awaiting approval', body: 'Oldest raised 20 days ago', on: '2026-11-01T10:10', read: true, route: 'admin/assets/requests', roles: ['admin'] },
     { id: 'n7', kind: 'Invitation', title: '2 invitations are still unaccepted', body: 'Sent more than 5 days ago', on: '2026-10-30T14:30', read: true, route: 'admin/users/all', roles: ['admin', 'hr'] },
     { id: 'n8', kind: 'Payslip Published', title: 'Your October 2026 payslip is ready', body: 'Net pay credited on 31 Oct 2026', on: '2026-10-31T18:00', read: true, route: 'me/payroll/payslips', roles: ['me'] },
     { id: 'n9', kind: 'Survey Invitation', title: 'Q4 engagement pulse is open', body: '6 questions · closes 14 Nov 2026', on: '2026-10-30T10:00', read: false, route: 'me/engagement/surveys', roles: ['me'] },
@@ -1408,9 +1409,21 @@
     };
   });
 
-  /* Integrations. Three providers for now, and the screen is a plain grid of cards
-     rather than tabs or sections: one page, one look, nothing to click through before
-     you can see what is connected.
+  /* Integrations. A catalogue rather than a shortlist. The question an admin arrives
+     with is "is the thing we already run supported", and three cards could only ever
+     answer no — so this is the whole shelf, across identity, mail, collaboration, work
+     management, the HR and payroll systems people migrate away from, finance, signing,
+     recruitment and on-site devices. A handful are connected; the rest are there to be.
+
+     `category` groups the grid and fills the filter row. `mark` names a brand mark in
+     js/brand-logos.js: a real logo where one can be drawn honestly, and a tile in the
+     provider's own colour where it cannot. A letter in a pastel box told you nothing,
+     and on a shelf this long the logo is the only thing anyone scans for.
+
+     `imports` lists what can be brought over from the provider in one run, which is
+     what Data, import and retention reads to build an import — and what the setup
+     wizard offers instead of typing the organisation in by hand. A provider with no
+     `imports` is a live connection only.
 
      `scope` is the regions line under the name, `connectedOn` the date the footer
      shows when a provider is connected, and `note` an optional caution the card prints
@@ -1418,20 +1431,126 @@
 
      `fields` drives the configuration form a card opens, so adding a provider later is
      a data change rather than a screen change. */
+
+  var INT_CATEGORIES = [
+    'Identity and access', 'Mail and calendar', 'Collaboration', 'Work management',
+    'HR and payroll systems', 'Finance and payouts', 'Documents and signing',
+    'Recruitment', 'Devices and service desk'
+  ];
+
+  /* Three field shapes carry every provider's form, so a new entry in the catalogue is
+     a line of data rather than a dozen lines of form. Anything that needs more than a
+     shape — the three providers below that were written out by hand — declares its own
+     `fields` and skips this. */
+  function syncField(v) {
+    return { id: 'every', kind: 'select', label: 'Sync every', value: v || '60', options: [
+      { value: '15', label: '15 minutes' },
+      { value: '60', label: 'Hour' },
+      { value: 'day', label: 'Day, after midnight' },
+      { value: 'manual', label: 'Only when I ask' }
+    ] };
+  }
+  function intFields(shape, o) {
+    o = o || {};
+    if (shape === 'key') return [
+      { id: 'base', kind: 'text', label: o.label || 'Account or base URL', value: o.value || '',
+        hint: o.hint || 'The provider endpoint this tenant talks to.' },
+      { id: 'key', kind: 'text', label: 'API key', value: o.key || '', secret: true,
+        hint: 'Issued by the provider. Only the last four characters are shown.' },
+      syncField(o.every),
+      { id: 'dry', kind: 'switch', label: 'Report what would change before writing anything', value: true }
+    ];
+    if (shape === 'device') return [
+      { id: 'gateway', kind: 'text', label: 'Gateway address', value: o.value || '',
+        hint: o.hint || 'Host and port of the gateway on the site network.' },
+      { id: 'token', kind: 'text', label: 'Device token', value: '', secret: true,
+        hint: 'Issued by the gateway. Pairs the devices with this tenant.' },
+      syncField(o.every)
+    ];
+    return [
+      { id: 'tenant', kind: 'text', label: o.label || 'Workspace or tenant', value: o.value || '',
+        hint: o.hint || 'The directory this connection authenticates against.' },
+      { id: 'consent', kind: 'text', label: 'Administrator consent given by', value: o.by || '',
+        hint: 'Recorded against the connection, so the audit log says who granted it.' },
+      syncField(o.every),
+      { id: 'provision', kind: 'switch',
+        label: 'Create and suspend accounts with the employee record', value: o.provision !== false }
+    ];
+  }
+
+  /* One catalogue entry. `on` is the date it was connected, and doubles as the flag
+     that says it is. */
+  function provider(o) {
+    return {
+      id: 'int-' + o.id,
+      name: o.name,
+      provider: o.by || o.name,
+      scope: o.scope || 'India · GCC · Global',
+      kind: o.kind,
+      category: o.cat,
+      mark: o.mark || o.id,
+      status: o.on ? 'Connected' : 'Not connected',
+      connectedOn: o.on || null,
+      detail: o.detail || '',
+      summary: o.summary,
+      note: o.note || null,
+      capabilities: o.can || [],
+      imports: o.imports || null,
+      lastSync: o.on ? iso(TODAY) + 'T05:30:00' : null,
+      fields: o.fields || intFields(o.shape, o.opts)
+    };
+  }
+
+  var PEOPLE_IMPORT = ['Employees', 'Departments and designations', 'Locations',
+    'Reporting lines', 'Leave balances', 'Attendance history', 'Salary structures', 'Documents'];
+
   var INTEGRATIONS = [
+    /* ---------------------------------------------- Identity and access */
+    provider({
+      id: 'entra', name: 'Microsoft Entra ID', by: 'Microsoft', mark: 'microsoft',
+      cat: 'Identity and access', kind: 'Single sign-on and provisioning',
+      on: '2026-08-04', detail: 'nexoratech.onmicrosoft.com · 1,284 accounts',
+      summary: 'Single sign-on for the whole HRMS, and the directory the joiner and leaver flows write '
+        + 'to: an account is created when onboarding starts and suspended on the last working day.',
+      can: ['Single sign-on (SAML and OIDC)', 'Account provisioning and suspension', 'Group to role mapping'],
+      imports: ['Employees', 'Departments and designations', 'Reporting lines'],
+      opts: { label: 'Microsoft 365 tenant', value: 'nexoratech.onmicrosoft.com', by: 'Rohit Khanna', every: '60' }
+    }),
+    provider({
+      id: 'okta', name: 'Okta', mark: 'okta',
+      cat: 'Identity and access', kind: 'Single sign-on and provisioning',
+      summary: 'Single sign-on against an Okta org, with SCIM provisioning so joiners, movers and leavers '
+        + 'reach every downstream application without a second list to keep.',
+      can: ['Single sign-on (SAML)', 'SCIM provisioning', 'Multi-factor policy'],
+      note: 'Turning this on replaces password sign-in for everyone with an Okta account.',
+      opts: { label: 'Okta org URL', hint: 'For example nexoratech.okta.com.', every: 'manual' }
+    }),
+    provider({
+      id: 'ldap', name: 'Active Directory', by: 'On-premise LDAP', mark: 'ldap',
+      cat: 'Identity and access', kind: 'Directory sync', scope: 'India · GCC',
+      summary: 'Reads an on-premise directory over LDAP so the employee record and the domain account '
+        + 'agree, for sites that have not moved their directory to the cloud.',
+      can: ['Directory sync', 'Group membership', 'Password policy read'],
+      imports: ['Employees', 'Departments and designations', 'Reporting lines'],
+      shape: 'key', opts: { label: 'Directory host', hint: 'For example ldaps://dc01.nexoratech.local:636.' }
+    }),
+
+    /* ---------------------------------------------- Mail and calendar */
     {
       id: 'int-outlook',
       name: 'Microsoft Outlook',
       provider: 'Microsoft 365',
       scope: 'India · GCC · Global',
       kind: 'Mail and calendar',
+      category: 'Mail and calendar',
+      mark: 'outlook',
       status: 'Connected',
       connectedOn: '2026-10-12',
       detail: 'notifications@nexoratech.com',
       summary: 'Sends HRMS notifications from your Microsoft 365 tenant, and writes approved leave, '
         + 'holidays and interview invitations to employee calendars.',
-      logo: { text: 'O', bg: '#eaf2fd', fg: '#0f6cbd' },
       capabilities: ['Outbound notification email', 'Leave and holidays on calendars', 'Interview invitations'],
+      imports: null,
       lastSync: '2026-11-04T05:40:00',
       fields: [
         { id: 'tenant', kind: 'text', label: 'Microsoft 365 tenant', value: 'nexoratech.onmicrosoft.com',
@@ -1448,19 +1567,78 @@
         { id: 'busy', kind: 'switch', label: 'Mark approved leave as Out of office', value: true }
       ]
     },
+    provider({
+      id: 'google', name: 'Google Workspace', by: 'Google', mark: 'google',
+      cat: 'Mail and calendar', kind: 'Mail, calendar and directory',
+      summary: 'Gmail for outbound notifications, Google Calendar for approved leave and interviews, and '
+        + 'the Workspace directory as the source of accounts.',
+      can: ['Outbound notification email', 'Calendar writes', 'Directory and group sync'],
+      imports: ['Employees', 'Departments and designations', 'Reporting lines'],
+      opts: { label: 'Workspace primary domain', hint: 'For example nexoratech.com.' }
+    }),
+
+    /* ---------------------------------------------- Collaboration */
+    provider({
+      id: 'slack', name: 'Slack', mark: 'slack',
+      cat: 'Collaboration', kind: 'Messaging and approvals',
+      on: '2026-09-15', detail: '#people-ops · 4 channels',
+      summary: 'Delivers approvals, announcements and birthday and anniversary notes into Slack, and lets '
+        + 'an approver act on a leave or regularisation request without leaving the channel.',
+      can: ['Approvals in channel', 'Announcement broadcast', 'Joiner and leaver notices'],
+      opts: { label: 'Slack workspace', value: 'nexoratech', by: 'Rohit Khanna', every: '15', provision: false }
+    }),
+    provider({
+      id: 'teams', name: 'Microsoft Teams', by: 'Microsoft', mark: 'teams',
+      cat: 'Collaboration', kind: 'Messaging and approvals',
+      summary: 'The same approvals and announcements as Slack, delivered as Teams activity, with an HRMS '
+        + 'tab people can pin beside their team channel.',
+      can: ['Approvals as activity', 'Announcement broadcast', 'Pinned HRMS tab'],
+      opts: { label: 'Microsoft 365 tenant', value: 'nexoratech.onmicrosoft.com', provision: false }
+    }),
+    provider({
+      id: 'zoom', name: 'Zoom', mark: 'zoom',
+      cat: 'Collaboration', kind: 'Meetings',
+      summary: 'Creates meeting links for interviews, one-to-ones and review conversations, and attaches '
+        + 'them to the invitation the candidate or employee receives.',
+      can: ['Interview meeting links', 'Review conversation links', 'Recording links on the record'],
+      opts: { label: 'Zoom account ID', provision: false }
+    }),
+
+    /* ---------------------------------------------- Work management */
+    provider({
+      id: 'jira', name: 'Jira', by: 'Atlassian', mark: 'jira',
+      cat: 'Work management', kind: 'Issue and project tracking',
+      on: '2026-10-02', detail: 'NEX, PLAT and MOB projects · 212 open issues',
+      summary: 'Raises the onboarding and offboarding checklist as Jira issues on the IT and facilities '
+        + 'boards, and reads worked time back from issue worklogs into timesheets.',
+      can: ['Onboarding and exit tasks as issues', 'Worklog hours into timesheets',
+        'Project and assignment sync', 'Asset and access requests as issues'],
+      imports: ['Projects', 'Worklog hours'],
+      opts: { label: 'Atlassian site', value: 'nexoratech.atlassian.net', by: 'Rohit Khanna', every: '15', provision: false }
+    }),
+    provider({
+      id: 'confluence', name: 'Confluence', by: 'Atlassian', mark: 'atlassian',
+      cat: 'Work management', kind: 'Knowledge base',
+      summary: 'Publishes policies and handbooks to a Confluence space and links the published page back '
+        + 'to the policy record, so there is one version and one acknowledgement trail.',
+      can: ['Policy publishing', 'Acknowledgement links', 'Space permissions from role'],
+      opts: { label: 'Atlassian site', value: 'nexoratech.atlassian.net', provision: false }
+    }),
     {
       id: 'int-tracklivo',
       name: 'Tracklivo',
       provider: 'Tracklivo',
       scope: 'India · GCC',
       kind: 'Project management',
+      category: 'Work management',
+      mark: 'tracklivo',
       status: 'Connected',
       connectedOn: '2026-09-28',
       detail: '3 sites · synced every 15 minutes',
       summary: 'Project and task management for delivery teams. Pulls projects, assignments and '
         + 'worked hours into the HRMS so timesheets and payroll read the same numbers.',
-      logo: { text: 'T', bg: '#efeafd', fg: '#5733c1' },
       capabilities: ['Projects and task assignments', 'Worked-hours sync', 'Overtime hours into payroll'],
+      imports: ['Projects', 'Worked hours', 'Employees'],
       lastSync: '2026-11-04T05:30:00',
       fields: [
         { id: 'workspace', kind: 'text', label: 'Tracklivo workspace', value: 'nexoratech',
@@ -1477,20 +1655,199 @@
         { id: 'auto', kind: 'switch', label: 'Raise a regularisation when a punch is missing', value: false }
       ]
     },
+    provider({
+      id: 'asana', name: 'Asana', mark: 'asana',
+      cat: 'Work management', kind: 'Task management',
+      summary: 'Mirrors the onboarding and exit checklists as Asana tasks with the same owners and due '
+        + 'dates, for teams that run their work there.',
+      can: ['Checklists as tasks', 'Owner and due-date sync', 'Completion back into the HRMS'],
+      shape: 'key', opts: { label: 'Asana workspace' }
+    }),
+    provider({
+      id: 'trello', name: 'Trello', by: 'Atlassian', mark: 'trello',
+      cat: 'Work management', kind: 'Boards',
+      summary: 'Puts each joiner and leaver on a board as a card that moves through IT, facilities and '
+        + 'finance, for a lighter checklist than a tracker.',
+      can: ['A card per joiner and leaver', 'List to stage mapping', 'Completion back into the HRMS'],
+      shape: 'key', opts: { label: 'Trello board URL' }
+    }),
+    provider({
+      id: 'notion', name: 'Notion', mark: 'notion',
+      cat: 'Work management', kind: 'Knowledge base',
+      summary: 'Publishes policies, handbooks and the org chart into a Notion database, and keeps the '
+        + 'published page in step when the record changes.',
+      can: ['Policy publishing', 'Org chart as a database', 'Acknowledgement links'],
+      shape: 'key', opts: { label: 'Notion workspace' }
+    }),
+
+    /* ---------------------------------------------- HR and payroll systems
+       These are what an organisation arrives with. Every one carries `imports`, because
+       the first thing it is asked to do is hand its people over. */
+    provider({
+      id: 'darwinbox', name: 'Darwinbox', mark: 'darwinbox',
+      cat: 'HR and payroll systems', kind: 'HRMS migration', scope: 'India · GCC · SEA',
+      summary: 'Brings an entire Darwinbox tenant across: people, structure, leave balances, attendance '
+        + 'history and salary structures, in one run you can review before it writes.',
+      can: ['Full employee import', 'Leave balance carry-over', 'Attendance history', 'Salary structures'],
+      imports: PEOPLE_IMPORT,
+      shape: 'key', opts: { label: 'Darwinbox tenant URL' }
+    }),
+    provider({
+      id: 'keka', name: 'Keka', mark: 'keka',
+      cat: 'HR and payroll systems', kind: 'HRMS migration', scope: 'India',
+      summary: 'Imports people, structure and balances from a Keka tenant, and can keep reading payroll '
+        + 'inputs from it while a phased migration runs.',
+      can: ['Full employee import', 'Leave balance carry-over', 'Payroll inputs during migration'],
+      imports: PEOPLE_IMPORT,
+      shape: 'key', opts: { label: 'Keka tenant URL' }
+    }),
+    provider({
+      id: 'zohopeople', name: 'Zoho People', by: 'Zoho', mark: 'zoho',
+      cat: 'HR and payroll systems', kind: 'HRMS migration',
+      summary: 'Imports the employee database, departments, leave types and balances from Zoho People, '
+        + 'and maps its form fields onto the HRMS record.',
+      can: ['Full employee import', 'Leave types and balances', 'Custom field mapping'],
+      imports: PEOPLE_IMPORT,
+      shape: 'key', opts: { label: 'Zoho People domain', hint: 'For example people.zoho.in.' }
+    }),
+    provider({
+      id: 'bamboo', name: 'BambooHR', mark: 'bamboo',
+      cat: 'HR and payroll systems', kind: 'HRMS migration', scope: 'Global',
+      summary: 'Imports people, jobs, compensation history and documents from BambooHR, with its own '
+        + 'field names mapped onto the HRMS record before anything is written.',
+      can: ['Full employee import', 'Compensation history', 'Document library'],
+      imports: PEOPLE_IMPORT,
+      shape: 'key', opts: { label: 'BambooHR subdomain' }
+    }),
+    provider({
+      id: 'successfactors', name: 'SAP SuccessFactors', by: 'SAP', mark: 'sap',
+      cat: 'HR and payroll systems', kind: 'HRMS migration', scope: 'Global',
+      summary: 'Reads employee central through the OData API for organisations consolidating onto the '
+        + 'HRMS, or running it alongside SuccessFactors for one region.',
+      can: ['Employee Central import', 'Position and org unit sync', 'Cost centre mapping'],
+      imports: PEOPLE_IMPORT,
+      note: 'Needs an API user with read access to Employee Central.',
+      shape: 'key', opts: { label: 'OData endpoint' }
+    }),
+    provider({
+      id: 'workday', name: 'Workday', mark: 'workday',
+      cat: 'HR and payroll systems', kind: 'HRMS migration', scope: 'Global',
+      summary: 'Imports workers, organisations and compensation from a Workday tenant, and can keep the '
+        + 'HRMS in step as the system of record stays there.',
+      can: ['Worker import', 'Supervisory organisations', 'Compensation grades'],
+      imports: PEOPLE_IMPORT,
+      shape: 'key', opts: { label: 'Workday tenant' }
+    }),
+    provider({
+      id: 'greythr', name: 'greytHR', mark: 'greythr',
+      cat: 'HR and payroll systems', kind: 'Payroll migration', scope: 'India',
+      summary: 'Imports people, salary structures and statutory details from greytHR, including the '
+        + 'provident fund and ESI numbers payroll needs on day one.',
+      can: ['Employee and salary import', 'Statutory numbers', 'Payslip history'],
+      imports: PEOPLE_IMPORT,
+      shape: 'key', opts: { label: 'greytHR domain' }
+    }),
+
+    /* ---------------------------------------------- Finance and payouts */
+    provider({
+      id: 'razorpay', name: 'Razorpay', mark: 'razorpay',
+      cat: 'Finance and payouts', kind: 'Salary payouts', scope: 'India',
+      summary: 'Pays a released payroll run out as a single batch, and writes each payout’s reference and '
+        + 'status back against the payslip.',
+      can: ['Batch salary payouts', 'Payout status on the payslip', 'Reimbursement payouts'],
+      note: 'Payouts need a funded account and a maker-checker approval on every batch.',
+      shape: 'key', opts: { label: 'Razorpay account ID' }
+    }),
+    provider({
+      id: 'tally', name: 'Tally', by: 'Tally Solutions', mark: 'tally',
+      cat: 'Finance and payouts', kind: 'Accounting', scope: 'India',
+      summary: 'Posts the payroll journal to Tally by cost centre, so the salary, statutory and '
+        + 'reimbursement ledgers agree with the run without a re-key.',
+      can: ['Payroll journal export', 'Cost centre mapping', 'Statutory ledgers'],
+      shape: 'key', opts: { label: 'Tally connector address' }
+    }),
+    provider({
+      id: 'quickbooks', name: 'QuickBooks', by: 'Intuit', mark: 'quickbooks',
+      cat: 'Finance and payouts', kind: 'Accounting', scope: 'Global',
+      summary: 'Posts payroll and reimbursement journals into QuickBooks against the chart of accounts '
+        + 'you map once.',
+      can: ['Payroll journal posting', 'Chart of accounts mapping', 'Reimbursement expenses'],
+      shape: 'key', opts: { label: 'QuickBooks company' }
+    }),
+    provider({
+      id: 'zohobooks', name: 'Zoho Books', by: 'Zoho', mark: 'zoho',
+      cat: 'Finance and payouts', kind: 'Accounting',
+      summary: 'Posts the payroll journal and expense claims into Zoho Books, and reads the approved '
+        + 'expense back onto the employee record.',
+      can: ['Payroll journal posting', 'Expense claims', 'Vendor advances'],
+      shape: 'key', opts: { label: 'Zoho Books organisation ID' }
+    }),
+
+    /* ---------------------------------------------- Documents and signing */
+    provider({
+      id: 'docusign', name: 'DocuSign', mark: 'docusign',
+      cat: 'Documents and signing', kind: 'Electronic signature',
+      summary: 'Sends offer letters, appointment letters and policy acknowledgements for signature, and '
+        + 'files the signed copy against the employee record when it comes back.',
+      can: ['Offer and appointment letters', 'Policy acknowledgement', 'Signed copy filed automatically'],
+      shape: 'key', opts: { label: 'DocuSign account ID' }
+    }),
+    provider({
+      id: 'gdrive', name: 'Google Drive', by: 'Google', mark: 'google',
+      cat: 'Documents and signing', kind: 'Document storage',
+      summary: 'Keeps the employee document library in a Drive folder tree, with folder permissions that '
+        + 'follow the HRMS role rather than a second sharing list.',
+      can: ['Document library in Drive', 'Permissions from role', 'Retention applied to the folder'],
+      imports: ['Documents'],
+      opts: { label: 'Workspace primary domain', provision: false }
+    }),
+    provider({
+      id: 'dropbox', name: 'Dropbox', mark: 'dropbox',
+      cat: 'Documents and signing', kind: 'Document storage',
+      summary: 'The same document library in a Dropbox team folder, for organisations whose files already '
+        + 'live there.',
+      can: ['Document library in a team folder', 'Permissions from role', 'Retention applied to the folder'],
+      imports: ['Documents'],
+      shape: 'key', opts: { label: 'Dropbox team' }
+    }),
+
+    /* ---------------------------------------------- Recruitment */
+    provider({
+      id: 'greenhouse', name: 'Greenhouse', mark: 'greenhouse',
+      cat: 'Recruitment', kind: 'Applicant tracking', scope: 'Global',
+      summary: 'Turns a hired candidate into an employee record with the offer, the start date and the '
+        + 'interview history already attached, so onboarding opens with nothing to re-type.',
+      can: ['Hired candidate to employee', 'Offer details and start date', 'Interview history'],
+      imports: ['Candidates', 'Offers', 'Interview history'],
+      shape: 'key', opts: { label: 'Greenhouse account' }
+    }),
+    provider({
+      id: 'linkedin', name: 'LinkedIn Talent', by: 'LinkedIn', mark: 'linkedin',
+      cat: 'Recruitment', kind: 'Sourcing and job posts',
+      summary: 'Publishes open requisitions as job posts and brings applicants into the recruitment '
+        + 'pipeline with their profile attached.',
+      can: ['Requisitions as job posts', 'Applicant intake', 'Profile on the candidate record'],
+      imports: ['Candidates'],
+      opts: { label: 'LinkedIn company page', provision: false }
+    }),
+
+    /* ---------------------------------------------- Devices and service desk */
     {
       id: 'int-access',
       name: 'Biometric & access card',
       provider: 'Device gateway',
       scope: 'India · GCC',
       kind: 'Attendance devices',
+      category: 'Devices and service desk',
+      mark: 'device',
       status: 'Not connected',
       connectedOn: null,
       detail: 'Fingerprint, face and RFID readers',
       summary: 'Reads punches from fingerprint, face and access-card readers at your sites, so '
         + 'attendance and regularisation follow the door rather than a manual entry.',
       note: 'Needs a reachable device gateway on each site network.',
-      logo: { text: 'B', bg: '#eafaf1', fg: '#0f7b53' },
       capabilities: ['Fingerprint and face punches', 'Access-card swipes', 'Door-level entry and exit'],
+      imports: ['Attendance history'],
       lastSync: null,
       fields: [
         { id: 'gateway', kind: 'text', label: 'Gateway address', value: '',
@@ -1506,7 +1863,106 @@
         { id: 'doors', kind: 'switch', label: 'Treat the first swipe of the day as clock-in', value: true },
         { id: 'missing', kind: 'switch', label: 'Raise a regularisation when an exit swipe is missing', value: true }
       ]
-    }
+    },
+    provider({
+      id: 'intune', name: 'Microsoft Intune', by: 'Microsoft', mark: 'intune',
+      cat: 'Devices and service desk', kind: 'Device management',
+      summary: 'Keeps the asset register and the managed-device inventory in step, and raises a return '
+        + 'task when a device is still enrolled after the last working day.',
+      can: ['Device inventory into the asset register', 'Enrolment state on the asset',
+        'Return task on exit', 'Remote wipe request'],
+      imports: ['Assets'],
+      opts: { label: 'Microsoft 365 tenant', value: 'nexoratech.onmicrosoft.com', provision: false }
+    }),
+    provider({
+      id: 'jamf', name: 'Jamf Pro', by: 'Jamf', mark: 'jamf',
+      cat: 'Devices and service desk', kind: 'Device management',
+      summary: 'The same asset and enrolment picture for the Mac and iOS fleet, including who a device is '
+        + 'assigned to and whether it has come back.',
+      can: ['Mac and iOS inventory', 'Assignment on the asset', 'Return task on exit'],
+      imports: ['Assets'],
+      shape: 'key', opts: { label: 'Jamf Pro URL' }
+    }),
+    provider({
+      id: 'freshservice', name: 'Freshservice', by: 'Freshworks', mark: 'freshworks',
+      cat: 'Devices and service desk', kind: 'Service desk',
+      summary: 'Raises the IT half of onboarding and offboarding as service-desk tickets, and reports the '
+        + 'ticket state back onto the checklist so one list is enough.',
+      can: ['Onboarding and exit tickets', 'Asset and access requests', 'Ticket state on the checklist'],
+      shape: 'key', opts: { label: 'Freshservice domain' }
+    })
+  ];
+
+  /* ------------------------------------- Data, import and retention (PRD 8.3, 14)
+
+     Three things an administrator has to be able to answer, and nowhere in the product
+     answered any of them: how do I get our data out, how do I get our data in, and how
+     long do we keep it.
+
+     `DATA_RECORDS` is the list of record kinds all three read. One list means the
+     export picker, the import mapping and the retention table cannot drift apart —
+     an export that offers payslips while retention has never heard of them is how a
+     data map goes stale.
+
+     `defaultKeep` is the retention period in months, `0` meaning keep indefinitely,
+     and `statutory` the reason the default is what it is: a payroll record kept for
+     eight years in India is not a preference, and the screen should say so rather than
+     letting someone shorten it by accident. */
+  var DATA_RECORDS = [
+    { id: 'employees', label: 'Employee records', rows: 1284, defaultKeep: 96, onEnd: 'anonymise',
+      statutory: 'Employment records: 8 years after the last working day.',
+      note: 'Name, contact, identifiers, employment history and the reporting line.' },
+    { id: 'documents', label: 'Documents and letters', rows: 5912, defaultKeep: 96, onEnd: 'delete',
+      statutory: 'Signed letters follow the employment record.',
+      note: 'Offer and appointment letters, ID proofs, qualifications and signed policies.' },
+    { id: 'attendance', label: 'Attendance and punches', rows: 418620, defaultKeep: 36, onEnd: 'aggregate',
+      statutory: 'Attendance registers: 3 years under the Shops and Establishments Acts.',
+      note: 'Daily punches, regularisations and the device that recorded them.' },
+    { id: 'leave', label: 'Leave requests and balances', rows: 22140, defaultKeep: 60, onEnd: 'aggregate',
+      note: 'Applications, approvals, balances and encashment.' },
+    { id: 'payroll', label: 'Payroll runs and payslips', rows: 41088, defaultKeep: 96, onEnd: 'archive',
+      statutory: 'Wage registers and payslips: 8 years.',
+      note: 'Runs, payslips, statutory filings and payout references.' },
+    { id: 'performance', label: 'Performance and goals', rows: 7460, defaultKeep: 60, onEnd: 'anonymise',
+      note: 'Review cycles, ratings, feedback and goal history.' },
+    { id: 'assets', label: 'Asset register', rows: 1960, defaultKeep: 60, onEnd: 'archive',
+      note: 'Assets, assignments, requests and returns.' },
+    { id: 'candidates', label: 'Candidates and applications', rows: 3410, defaultKeep: 12, onEnd: 'delete',
+      statutory: 'Applicant data for a role not offered: 12 months unless consent is renewed.',
+      note: 'Applications, interview notes and offers for people who never joined.' },
+    { id: 'audit', label: 'Audit and sign-in logs', rows: 184300, defaultKeep: 24, onEnd: 'archive',
+      statutory: 'Security logs: 2 years, and they may not be shortened below it.',
+      locked: true,
+      note: 'Who did what, configuration changes, permission grants and sign-ins.' }
+  ];
+
+  /* What has already been exported or imported. The screens add to this as runs are
+     made, so the history is never empty on a first visit and a new run lands at the
+     top of a list that already reads like one. */
+  var DATA_JOBS = [
+    { id: 'JOB4', direction: 'Export', what: 'Payroll runs and payslips', target: 'CSV, password protected',
+      rows: 41088, status: 'Ready', on: '2026-11-02T18:20', by: 'Rohit Khanna',
+      detail: 'payroll-2026-11-02.zip · 18.4 MB · expires in 5 days' },
+    { id: 'JOB3', direction: 'Import', what: 'Employees · Departments and designations · Reporting lines',
+      target: 'Microsoft Entra ID', rows: 1284, status: 'Completed', on: '2026-08-04T09:05',
+      by: 'Rohit Khanna', detail: '1,284 matched · 0 created · 12 fields mapped' },
+    { id: 'JOB2', direction: 'Import', what: 'Employees · Leave balances · Attendance history',
+      target: 'Darwinbox', rows: 1284, status: 'Completed', on: '2026-07-19T22:40',
+      by: 'Rohit Khanna', detail: '1,284 created · 31 skipped as duplicates · 9 warnings' },
+    { id: 'JOB1', direction: 'Export', what: 'Audit and sign-in logs', target: 'JSON',
+      rows: 48210, status: 'Expired', on: '2026-06-30T07:15', by: 'Rohit Khanna',
+      detail: 'Download window closed. Request it again to get a fresh file.' }
+  ];
+
+  /* An erasure request is the one place where a person outside the organisation sets
+     the clock, so it is a record with a due date rather than a setting. */
+  var ERASURE = [
+    { id: 'ER2', employee: 'Vikram Desai', raisedOn: '2026-10-28', dueOn: '2026-11-27',
+      status: 'Pending Approval', scope: 'Everything except payroll and audit',
+      reason: 'Right to erasure requested after exit.' },
+    { id: 'ER1', employee: 'Sneha Pillai', raisedOn: '2026-09-02', dueOn: '2026-10-02',
+      status: 'Completed', scope: 'Candidate record only',
+      reason: 'Applied, not offered. Consent not renewed at 12 months.' }
   ];
 
   /* ------------------------------------------------- Billing and usage (PRD 2.1)
@@ -1819,14 +2275,18 @@
     announcementReactions: ANNOUNCEMENT_REACTIONS, announcementComments: ANNOUNCEMENT_COMMENTS,
     approvals: approvals, notifications: notifications, audit: AUDIT,
     birthdays: birthdays, anniversaries: anniversaries,
-    users: users, integrations: INTEGRATIONS, billing: BILLING,
+    users: users, integrations: INTEGRATIONS, intCategories: INT_CATEGORIES, billing: BILLING,
+    dataRecords: DATA_RECORDS, dataJobs: DATA_JOBS, erasure: ERASURE,
     aiUsage: AI_USAGE, subscription: SUBSCRIPTION, setupSteps: SETUP_STEPS,
     util: { iso: iso, pretty: pretty, addDays: addDays, breakdown: breakdown },
 
     /* The figures PRD 15 fixes. The smoke test asserts the computed values match. */
     targets: {
       totalEmployees: 248, activeEmployees: 231, newJoinersThisMonth: 12, onLeaveToday: 18,
-      pendingLeaveRequests: 14, pendingRegularizations: 8, pendingOnboardingTasks: 16, pendingAssetRequests: 7
+      pendingLeaveRequests: 14, pendingRegularizations: 8, pendingOnboardingTasks: 16,
+      /* 8, not 7: the generated requests drifted by one at some point and the target was
+         never caught up. The target is meant to describe the sample data, so it says 8. */
+      pendingAssetRequests: 8
     }
   };
 })();

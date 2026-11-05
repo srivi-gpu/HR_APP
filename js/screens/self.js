@@ -797,57 +797,43 @@
             }))
           : h(ui.Empty, {
               icon: I.package, title: 'Nothing assigned to you',
-              body: 'Request an asset and HR will check availability.',
-              actions: h(V.Button, { variant: 'primary', onClick: function () { router.go('me/assets/requests'); } }, 'Request an asset')
+              body: 'Asset requests are raised in Tracklivo; their approvals show up here.',
+              actions: h(V.Button, { variant: 'outline', onClick: function () { router.go('me/assets/requests'); } }, 'See my requests')
             })));
   }
 
+  /* Your own asset requests.
+
+     Asking for something, and the decision on it, both happen in Tracklivo. What this
+     screen keeps is the record: what you asked for, when, and whether a unit is on its
+     way to you. */
   function MyAssetRequests() {
     var m = me();
-    var openSt = React.useState(false);
-    var form = ui.useForm({});
     var rows = store.collection('assetRequests').filter(function (a) { return a.employee === m.id; });
+    var chip = HRMS.assetRequestChip;
 
-    function save() {
-      var res = form.submit(function (v) { return ui.report(act.requestAsset(m.id, v)); });
-      if (res && res.ok) { openSt[1](false); form.reset({}); }
-    }
-
-    return h(React.Fragment, null,
-      h(Card, {
-        title: 'My asset requests',
-        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Request an asset')
-      },
-        h(ui.DataTable, {
-          exportName: 'my-asset-requests', label: 'My asset requests', rows: rows, pageSize: 10, onExport: false,
-          columns: [
-            { key: 'id', header: 'Request', cell: function (a) { return h('span', { className: 'mono' }, a.id); } },
-            { key: 'category', header: 'Category' },
-            { key: 'reason', header: 'Reason' },
-            { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (a) { return ui.dateLabel(a.requestedOn); } },
-            { key: 'approver', header: 'Approver', csv: function (a) { return emp(a.approver) ? emp(a.approver).name : ''; },
-              cell: function (a) { return emp(a.approver) ? emp(a.approver).name : '—'; } },
-            { key: 'status', header: 'Status', cell: function (a) { return h(ui.StatusChip, { status: a.status }); } },
-            { key: 'fulfilled', header: 'Allocated', csv: function (a) { return a.fulfilledWith || ''; },
-              cell: function (a) { return a.fulfilledWith ? h('span', { className: 'mono' }, a.fulfilledWith) : ''; } }
-          ],
-          emptyIcon: I.package, emptyTitle: 'No requests raised',
-          emptyBody: 'Ask for a laptop, monitor, headset or anything else you need to work.',
-          emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Request an asset')
-        })),
-
-      openSt[0] ? h(ui.Modal, {
-        title: 'Request an asset', description: 'HR checks inventory before approving.',
-        onClose: function () { openSt[1](false); },
-        footer: h(React.Fragment, null,
-          h(V.Button, { variant: 'outline', onClick: function () { openSt[1](false); } }, 'Cancel'),
-          h(V.Button, { variant: 'primary', onClick: save }, 'Submit request'))
-      },
-        h(V.Select, Object.assign({ label: 'Asset category', required: true, placeholder: 'Choose',
-          options: seed.assetCategories }, form.select('category'))),
-        h(V.TextArea, Object.assign({ label: 'Reason', required: true, rows: 3,
-          placeholder: 'Why do you need it?' }, form.field('reason')))) : null);
+    return h(Card, {
+      title: 'My asset requests',
+      description: 'Ask for a new asset, or report a fault on one you hold. Requests are decided in Tracklivo; ' +
+        'once one is cleared there, IT issues the unit from here.',
+      aside: h(HRMS.assetRequest.Button, { role: 'me', employee: m.id, label: 'Raise a request' })
+    },
+      h(ui.DataTable, {
+        exportName: 'my-asset-requests', label: 'My asset requests', rows: rows, pageSize: 10, onExport: false,
+        columns: [
+          { key: 'id', header: 'Request', cell: function (a) { return h('span', { className: 'mono' }, a.id); } },
+          { key: 'kind', header: 'Kind', cell: function (a) { return a.kind || 'New asset'; } },
+          { key: 'category', header: 'Category' },
+          { key: 'reason', header: 'Reason' },
+          { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (a) { return ui.dateLabel(a.requestedOn); } },
+          { key: 'status', header: 'Status', cell: function (a) { return chip ? chip(a.status) : a.status; } }
+        ],
+        emptyIcon: I.package, emptyTitle: 'No requests raised',
+        emptyBody: 'Ask for a new asset, or report a fault on one you hold, and it shows up here.'
+      }));
   }
+
+
 
   function MyAssetHistory() {
     var m = me();

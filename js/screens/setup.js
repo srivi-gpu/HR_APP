@@ -69,7 +69,7 @@
   ];
   var TITLES = ['Start with your documents', 'Confirm the legal entity', 'Confirm the offices', 'Confirm the structure', 'Who runs HR', 'Review and go live'];
   var SUBS = [
-    'Drop in what you already have. The assistant reads them and fills in the steps that follow — you confirm every value.',
+    'Three ways in: drop in the documents you already have, bring it over from the application you run today, or type it in yourself. The first two fill in the steps that follow — you confirm every value.',
     'Filled from your documents. Each field says where it came from; anything marked “Check this” was inferred rather than stated.',
     'Taken from your employee sheet. The working week, calendar and geo-fence are defaults for each time zone.',
     'Counted from your employee sheet. Each of these becomes a dropdown value everywhere else in the system.',
@@ -138,9 +138,45 @@
     function toast(m) { ui.toast(m); }
     function addFiles(list) {
       filesSt[1](filesSt[0].concat(list.map(function (f, i) {
-        return { id: Date.now() + '-' + i, name: f.name, size: f.size || 120000, status: 'queued' };
+        return { id: Date.now() + '-' + i, name: f.name, size: f.size || 120000, status: 'queued',
+          from: f.from || null, mark: f.mark || null };
       })));
       scannedSt[1](false);
+    }
+
+    /* Bringing the organisation over from an application it already runs on.
+
+       Setting up by hand, or by dropping documents in, were the only two ways through
+       this wizard — and the most common case is neither: the company already has an
+       HRMS and wants its contents moved. So a provider is a third way in, and it lands
+       in exactly the same place the other two do. What a provider hands over is a set
+       of extracts, and an extract is read by the same reader that reads an uploaded
+       file, which is why this adds named extracts rather than a parallel code path:
+       one reader means the import cannot learn a fact the upload would have missed.
+
+       `imported` marks them so the file list says where each one came from, because
+       "we read this from your Keka tenant" and "you uploaded this" are different
+       claims and the screen should not blur them. */
+    var EXTRACTS = [
+      { suffix: 'company profile — incorporation.pdf' },
+      { suffix: 'tax registration — GST.pdf' },
+      { suffix: 'tax registration — PAN.pdf' },
+      { suffix: 'employee master.xlsx', size: 240000 }
+    ];
+    function importFrom(src) {
+      addFiles(EXTRACTS.map(function (x) {
+        return { name: src.name + ' — ' + x.suffix, size: x.size || 160000, from: src.name, mark: src.mark };
+      }));
+      ui.toast('Pulled 4 extracts from ' + src.name + '. Read them to fill in the steps.', 'success');
+    }
+
+    /* Who can hand an organisation over. Read from the integration catalogue — anything
+       that declares it can import employees — so a provider added there turns up here
+       without this screen being touched. */
+    function importSources() {
+      return store.collection('integrations')
+        .filter(function (x) { return (x.imports || []).indexOf('Employees') >= 0; })
+        .slice(0, 8);
     }
 
     function analyse() {
@@ -291,13 +327,35 @@
                   onChange: function (e) { addFiles(Array.prototype.slice.call(e.target.files)); e.target.value = ''; } }),
                 h('span', { className: 'vi-btn vi-btn--outline vi-btn--sm', role: 'button', tabIndex: 0 }, h('span', { className: 'vi-btn__label' }, 'Choose files'))),
               h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { addFiles(SAMPLES); } }, 'Use samples'))),
+
+          /* The third way in. Most organisations arriving here are not starting from
+             nothing — they are leaving something — and the wizard used to offer only
+             "upload" or "type it all in". */
+          h('div', { className: 'imps' },
+            h('span', { className: 'imps__h' }, 'Or bring it over from the application you run today'),
+            h('div', { className: 'imps__g' }, importSources().map(function (x) {
+              return h('button', {
+                key: x.id, type: 'button', className: 'imps__b', onClick: function () { importFrom(x); }
+              },
+                h('span', { className: 'imps__l' }, HRMS.logos.mark(x.mark, 24, x.name)),
+                h('span', null, x.name));
+            })),
+            h('span', { className: 'muted-s' },
+              'It reads the same four things out of a provider that it reads out of your documents, '
+              + 'and you confirm every value either way. Nothing is written to that application.')),
           n ? h('div', { className: 'files' }, filesSt[0].map(function (f) {
             return h('div', { className: 'file' + (f.status === 'read' ? ' is-read' : f.status === 'blank' ? ' is-blank' : ''), key: f.id },
               h('span', { className: 'file__i' }, f.status === 'read' ? CHECK : f.status === 'blank' ? I.warn : I.file),
-              h('span', { className: 'file__m' }, h('strong', null, f.name),
+              h('span', { className: 'file__m' },
+                h('strong', null,
+                  f.from ? h('span', { className: 'file__from' }, HRMS.logos.mark(f.mark, 14, f.from)) : null,
+                  f.name),
                 f.status === 'reading'
                   ? h('span', { className: 'shimmer', style: { height: 9, width: '40%', marginTop: 3 } })
-                  : h('span', null, f.status === 'read' ? f.note : f.status === 'blank' ? 'Nothing recognised in this one' : 'Waiting to be read')),
+                  : h('span', null, f.status === 'read'
+                      ? (f.from ? 'Read from ' + f.from + ' · ' + f.note : f.note)
+                      : f.status === 'blank' ? 'Nothing recognised in this one'
+                      : f.from ? 'Pulled from ' + f.from + ', waiting to be read' : 'Waiting to be read')),
               h(V.IconButton, { icon: I.close, 'aria-label': 'Remove ' + f.name,
                 onClick: function () { filesSt[1](filesSt[0].filter(function (x) { return x.id !== f.id; })); } }));
           })) : null,
