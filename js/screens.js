@@ -13,7 +13,6 @@
   function emp(id) { return store.employee(id); }
   function who(name) { return store.employeeByName(name); }
   function deptName(id) { var d = store.department(id); return d ? d.name : '—'; }
-  function locName(id) { var l = store.location(id); return l ? l.name : '—'; }
 
   var Bars = ui.Bars, relTime = ui.relTime;
 
@@ -225,141 +224,6 @@
                   h('span', { style: { width: 90 } }, h(V.ProgressBar, { value: o.clearance, size: 'sm', 'aria-label': 'Clearance' })));
               }))
             : h(ui.Empty, { icon: I.logout, title: 'No exits in progress' }))));
-  }
-
-  /* ========================================================= EMPLOYEE HOME */
-  function MeDashboard() {
-    var me = store.persona('me');
-    var shift = store.shift(me.shift);
-    var balances = store.balancesFor(me.id);
-    var punch = store.pref('punch') || {};
-    var today = seed.todayIso;
-    var inAt = punch.date === today ? punch.in : null;
-    var outAt = punch.date === today ? punch.out : null;
-
-    var clockSt = React.useState(new Date());
-    React.useEffect(function () {
-      var t = setInterval(function () { clockSt[1](new Date()); }, 1000);
-      return function () { clearInterval(t); };
-    }, []);
-    function hhmm(d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
-
-    var myLeave = store.collection('leaveRequests').filter(function (l) { return l.employee === me.id; });
-    var myPending = myLeave.filter(function (l) { return l.status === 'Pending Approval'; });
-    var myAssets = store.collection('assets').filter(function (a) { return a.assignedTo === me.id; });
-    var el = balances.filter(function (b) { return b.type === 'lt-el'; })[0] || { available: 0, entitled: 0 };
-    var upcoming = seed.holidays.filter(function (x) { return x.date >= today; });
-    var myAssessment = seed.assessments.filter(function (a) { return a.employee === me.id; })[0];
-
-    var tasks = [
-      { label: 'Read the Information Security Policy v5.0', due: 'Due 15 Nov', tone: 'warning', to: 'me/documents' },
-      { label: 'Complete Q4 engagement pulse', due: 'Closes 14 Nov', tone: 'info', to: 'me/engagement/surveys' },
-      { label: 'Submit tax declaration for FY 2026-27', due: 'Due 31 Dec', tone: 'neutral', to: 'me/payroll/tax' },
-      { label: 'Self-appraisal for H2 FY2026', due: 'Opens 15 Nov', tone: 'neutral', to: 'me/performance/self' }
-    ];
-
-    function setPunch(next) {
-      store.setPref('punch', Object.assign({ date: today }, punch.date === today ? punch : {}, next));
-    }
-
-    return h(React.Fragment, null,
-      h(PageHead, {
-        eyebrow: seed.todayLabel, title: 'Hello, ' + me.name.split(' ')[0],
-        description: me.designation + ' · ' + deptName(me.department) + ' · ' + locName(me.location) + ' · ' + me.id,
-        actions: [h(V.Button, { key: 'a', variant: 'outline', iconStart: I.calendar, onClick: function () { router.go('me/leave/apply'); } }, 'Apply for leave')]
-      }),
-
-      h(Stats, null,
-        h(Stat, { label: 'Earned leave available', value: el.available, unit: 'of ' + el.entitled, sub: 'Accrues 1.5 days a month' }),
-        h(Stat, { label: 'My shift', value: shift.start, unit: '– ' + shift.end, sub: shift.name + ' · ' + shift.days }),
-        h(Stat, { label: 'Open requests', value: myPending.length, sub: myPending.length ? 'Awaiting approval' : 'Nothing pending', tone: myPending.length ? 'warn' : 'good' }),
-        h(Stat, { label: 'Assets held', value: myAssets.length, sub: myAssets.length ? myAssets.map(function (a) { return a.category; }).slice(0, 2).join(', ') : 'None assigned' })),
-
-      h(Grid, null,
-        h(Card, { span: 5, title: "Today's attendance" },
-          h('div', { className: 'punch' },
-            h('span', { className: 'punch__clock' }, hhmm(clockSt[0])),
-            h('div', { className: 'punch__meta' },
-              h('span', null, 'Checked in', h('b', null, inAt || '—')),
-              h('span', null, 'Checked out', h('b', null, outAt || '—')),
-              h('span', null, 'Shift', h('b', null, shift.start + ' – ' + shift.end))),
-            h('div', { className: 'row gap-2 wrap' },
-              !inAt
-                ? h(V.Button, { variant: 'primary', iconStart: I.play, onClick: function () { setPunch({ in: hhmm(new Date()) }); } }, 'Check in')
-                : !outAt
-                  ? h(V.Button, { variant: 'primary', iconStart: I.stop, onClick: function () { setPunch({ out: hhmm(new Date()) }); } }, 'Check out')
-                  : h(V.Chip, { shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Day complete'),
-              h(V.Button, { variant: 'ghost', onClick: function () { router.go('me/attendance/regularization'); } }, 'Raise a correction')),
-            inAt ? h('p', { className: 'muted', style: { fontSize: 12 } },
-              'Saved in this browser, so it survives a reload. Reset prototype data from the profile menu to clear it.') : null)),
-
-        h(Card, { span: 7, title: 'Leave balance',
-          aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { router.go('me/leave/balance'); } }, 'View details') },
-          h(V.Table, {
-            density: 'compact',
-            columns: [
-              { key: 'type', header: 'Leave type', cell: function (x) { return store.leaveType(x.type).name; } },
-              { key: 'entitled', header: 'Entitled', numeric: true, align: 'right' },
-              { key: 'used', header: 'Used', numeric: true, align: 'right' },
-              { key: 'available', header: 'Available', numeric: true, align: 'right',
-                cell: function (x) { return h('strong', { style: { fontWeight: 500 } }, x.available); } }
-            ],
-            rows: balances.map(function (b, i) { return Object.assign({ id: i }, b); })
-          })),
-
-        h(Card, { span: 6, title: 'My tasks', aside: h(V.Chip, { size: 'sm', shape: 'tag' }, tasks.length + ' open') },
-          h('div', { className: 'list' }, tasks.map(function (t) {
-            return h('div', { className: 'list__row', key: t.label },
-              h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: t.tone, dot: true }, t.due),
-              h('div', { className: 'list__main' }, h('span', { className: 'list__title' }, t.label)),
-              h(V.IconButton, { icon: I.right, 'aria-label': 'Open: ' + t.label, onClick: function () { router.go(t.to); } }));
-          }))),
-
-        h(Card, { span: 6, title: 'Announcements',
-          aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { router.go('me/announcements'); } }, 'See all') },
-          h('div', { className: 'list' }, seed.announcements.slice(0, 3).map(function (a) {
-            return h('div', { className: 'list__row', key: a.id },
-              h(V.Avatar, { name: emp(a.by).name, size: 'sm' }),
-              h('div', { className: 'list__main' },
-                h('span', { className: 'list__title row gap-2' },
-                  a.pinned ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.flag }, 'Pinned') : null,
-                  /* A titleless announcement leads with its text. */
-                  h('span', null, a.title || a.body)),
-                h('span', { className: 'list__meta' }, a.body)));
-          }))),
-
-        h(Card, { span: 4, title: 'Latest payslip' },
-          h(ui.KeyValue, { rows: [
-            ['Period', 'October 2026'],
-            ['Net pay', ui.inr((me.ctc / 12) * 0.827)],
-            ['Credited', '31 Oct 2026'],
-            ['Account', me.bank.name + ' ' + me.bank.account],
-            ['Status', h(ui.StatusChip, { status: 'Paid' })]
-          ]}),
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.download, onClick: function () { router.go('me/payroll/payslips'); } }, 'Download payslip')),
-
-        h(Card, { span: 4, title: 'Upcoming holidays' },
-          upcoming.length
-            ? h('div', { className: 'list' }, upcoming.slice(0, 4).map(function (hd) {
-                return h('div', { className: 'list__row', key: hd.date },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' }, hd.name),
-                    h('span', { className: 'list__meta' }, seed.util.pretty(new Date(hd.date + 'T00:00')))),
-                  h(V.Chip, { size: 'sm', shape: 'tag', variant: hd.type === 'Optional' ? 'outline' : 'soft', tone: hd.type === 'Optional' ? 'neutral' : 'info' }, hd.type));
-              }))
-            : h(ui.Empty, { icon: I.star, title: 'No holidays left this year' })),
-
-        h(Card, { span: 4, title: 'My performance' },
-          myAssessment
-            ? h(React.Fragment, null,
-                h(ui.KeyValue, { rows: [
-                  ['Cycle', 'H2 FY2026'],
-                  ['Self-assessment', h(ui.StatusChip, { status: myAssessment.self === 'Submitted' ? 'Approved' : 'Not Started' })],
-                  ['Manager review', h(ui.StatusChip, { status: myAssessment.manager === 'Submitted' ? 'Approved' : 'Not Started' })],
-                  ['Reviewer', myAssessment.reviewer ? emp(myAssessment.reviewer).name : '—']
-                ]}),
-                h(V.Button, { variant: 'outline', className: 'vi-btn--sm', onClick: function () { router.go('me/performance/self'); } }, 'Open self-appraisal'))
-            : h(ui.Empty, { icon: I.target, title: 'No open cycle', body: 'H2 FY2026 opens on 15 November.' }))));
   }
 
   /* ======================================================= APPROVAL INBOX */
@@ -934,7 +798,6 @@
        is kept below only as the source of the alert list the setup wizard still reads;
        it is no longer routed to. */
     'hr/dashboard': HrDashboard,
-    'me/dashboard': MeDashboard,
     'hr/approvals': ApprovalInbox,
     'global/notifications': Notifications,
     'admin/roles/predefined': RolesPredefined,
