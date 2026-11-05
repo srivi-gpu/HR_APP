@@ -813,9 +813,15 @@
             ? h('div', { className: 'adm-tabbed__p', role: 'tabpanel', id: 'admpanel-mfa', 'aria-labelledby': 'admtab-mfa' },
                 h('p', { className: 'adm-tabbed__s' }, h('b', { className: 'adm-inl' }, num(mfaOn)), ' of ' + num(users.length) + ' accounts on MFA \u00b7 ',
                   h('b', { className: 'adm-inl' }, Math.round(mfaOn / (users.length || 1) * 100) + '%')),
+          /* The uncovered half of a coverage bar is a remainder, not an alarm. It used
+             to be the danger colour at a third opacity, which painted two thirds of
+             the card pink and said "emergency" about the ordinary state of an
+             organisation that has not finished rolling MFA out. Slate is the chart
+             palette's neutral; the green carries the reading and the row's own
+             percentage still turns red when it is low. */
           h('div', { className: 'adm-legend' },
             h('span', null, h('i', { style: { background: 'var(--success-fg)' } }), 'MFA on'),
-            h('span', null, h('i', { style: { background: 'var(--danger-fg)', opacity: .35 } }), 'Password only')),
+            h('span', null, h('i', { style: { background: 'var(--chart-6)', opacity: .45 } }), 'Password only')),
           h('div', { className: 'adm-stack adm-stack--mfa' }, mfa.map(function (r) {
             var pct = r.n ? r.on / r.n * 100 : 0;
             return h('button', { type: 'button', className: 'adm-stack__r', key: r.k,
@@ -824,7 +830,7 @@
               h('span', { className: 'adm-stack__l' }, r.t, h('small', null, num(r.n))),
               h('span', { className: 'adm-stack__bar' },
                 r.on ? h('i', { style: { width: pct + '%', background: 'var(--success-fg)' } }) : null,
-                r.n - r.on ? h('i', { style: { width: (100 - pct) + '%', background: 'var(--danger-fg)', opacity: .35 } }) : null),
+                r.n - r.on ? h('i', { style: { width: (100 - pct) + '%', background: 'var(--chart-6)', opacity: .45 } }) : null),
               h('b', { className: pct < 50 ? 'is-low' : null }, Math.round(pct) + '%'));
           })),
           h('p', { className: 'adm-card__foot' }, 'Privileged roles first: their accounts can change everyone else’s.'))
