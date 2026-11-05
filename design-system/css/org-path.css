@@ -252,3 +252,71 @@ html[data-theme="dark"] .ast-iso { --iso-l1: #5b44a6; --iso-l2: #3a2a72; --iso-r
   .ast-iso__shadow, .ast-iso .isoG, .ast-iso__spark, .ast-iso__dot { animation: none; }
 }
 }
+
+/* ---------------------------------------------------------- the ApexTree org chart
+   Every colour is a token, so the chart follows the accent set on Branding and reads
+   in dark mode. The library is given transparent node fills and no border, because the
+   card is ours: it is an HTML node template, which is also why it can be styled from
+   here at all rather than through the library's options. */
+@layer tl {
+.axwrap { display: flex; flex-direction: column; gap: 10px; padding: 0 20px 18px; }
+.axwrap.is-full { padding-bottom: 8px; }
+.apextree { width: 100%; min-height: 540px; }
+.axwrap.is-full .apextree { min-height: calc(100vh - 230px); }
+.apextree svg { display: block; width: 100%; }
+.apextree foreignObject { overflow: visible; }
+
+/* The line from the top of the organisation down to the person this view is rooted
+   at. Three levels at a time means you need to know where you are. */
+.axcrumb { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: 12.5px; }
+.axcrumb__c { all: unset; box-sizing: border-box; cursor: pointer; padding: 3px 9px; border-radius: 999px;
+  color: var(--text-secondary); }
+.axcrumb__c:hover { background: var(--bg-hover); color: var(--text-primary); }
+.axcrumb__c:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 1px; }
+.axcrumb__c.is-on { cursor: default; color: var(--text-primary); font-weight: 600; background: var(--brand-softer); }
+.axcrumb__s { color: var(--text-muted); }
+
+.axn { display: flex; align-items: center; gap: 10px; width: 100%; height: 100%; box-sizing: border-box;
+  padding: 10px 12px; border-radius: 16px; border: 1px solid var(--border-subtle);
+  background: var(--bg-surface); box-shadow: var(--tl-elevation-1);
+  transition: border-color .14s ease, box-shadow .14s ease, transform .14s ease; cursor: pointer; }
+.axn:hover { border-color: var(--brand-solid); box-shadow: var(--tl-elevation-2); transform: translateY(-1px); }
+.axn__a { flex: none; width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center;
+  font-size: 12.5px; font-weight: 600; letter-spacing: .02em;
+  background: var(--ax-bg); color: var(--ax-fg); }
+.axn__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.axn__m strong { font-size: 13.5px; font-weight: 600; line-height: 1.25; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.axn__m span { font-size: 11.5px; line-height: 1.3; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.axn__m em { font-size: 10.5px; font-style: normal; line-height: 1.3; color: var(--text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.axn__b { flex: none; align-self: flex-start; font-size: 10px; font-weight: 700; letter-spacing: .05em;
+  padding: 2px 7px; border-radius: 999px; background: var(--ax-bg); color: var(--ax-fg); }
+/* A card with people hidden below it says how many, and opening it makes that person
+   the top of the view. A leaf that is not a leaf is the one thing a tree must not
+   imply. The count is the whole signal: twelve of thirteen cards have people under
+   them, so a second marker on all of them would mark nothing. */
+.axn.has-more:hover { border-color: var(--brand-solid); }
+.axn__more { position: absolute; left: 50%; bottom: -11px; transform: translateX(-50%);
+  font-size: 10.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px;
+  background: var(--brand-solid); color: var(--brand-on-solid, #fff); box-shadow: var(--tl-elevation-1); }
+.axn { position: relative; }
+
+/* The ramp. Five steps of the brand plus two cool neutrals — no orange, because an
+   org chart has no warning in it and orange reads as one. A department picks its step
+   by name, so a branch is one colour without anybody choosing. */
+.axn--root { --ax-bg: var(--brand-solid); --ax-fg: var(--brand-on-solid, #fff); }
+.axn--root { border-color: var(--brand-solid); box-shadow: var(--tl-elevation-2); }
+.axn--t0 { --ax-bg: var(--brand-soft); --ax-fg: var(--text-brand); }
+.axn--t1 { --ax-bg: color-mix(in srgb, var(--brand-solid) 16%, var(--bg-surface)); --ax-fg: var(--text-brand); }
+.axn--t2 { --ax-bg: color-mix(in srgb, #2f7ae5 16%, var(--bg-surface)); --ax-fg: #1d5fbd; }
+.axn--t3 { --ax-bg: color-mix(in srgb, #1f7a6e 16%, var(--bg-surface)); --ax-fg: #166055; }
+.axn--t4 { --ax-bg: var(--bg-muted); --ax-fg: var(--text-secondary); }
+html[data-theme="dark"] .axn--t2 { --ax-fg: #8fbaf5; }
+html[data-theme="dark"] .axn--t3 { --ax-fg: #7ccfc2; }
+@media (prefers-color-scheme: dark) {
+  html:not([data-theme="light"]) .axn--t2 { --ax-fg: #8fbaf5; }
+  html:not([data-theme="light"]) .axn--t3 { --ax-fg: #7ccfc2; }
+}
+}
