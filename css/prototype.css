@@ -100,8 +100,18 @@
 .filterbar__head .card__title { margin: 0; }
 .filterbar__desc { margin: 2px 0 0; font-size: 13px; }
 /* What is left of a card whose body was only a table: no border, no padding, no
-   background — just the grid span it had, so the layout around it is unchanged. */
-.tablewrap { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+   background — just the grid span it had, so the layout around it is unchanged.
+   The gap is what now separates the heading row from the table, so it carries the
+   spacing the card's padding used to give. */
+.tablewrap { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+/* The header row sat tight against the controls above it and ran its labels close
+   to the table's edge. A little more of both, for every table. */
+.vi-th { height: 54px; padding-left: 20px; padding-right: 20px; }
+.vi-td { padding-left: 20px; padding-right: 20px; }
+.vi-table--compact .vi-th { height: 44px; padding-left: 14px; padding-right: 14px; }
+.vi-table--compact .vi-td { padding-left: 14px; padding-right: 14px; }
+.vi-th--select, .vi-td--select { padding-right: 0; }
 .filterbar--titled { align-items: flex-end; }
 /* Capped, so a long description wraps under the title instead of pushing the
    controls onto a line of their own. */
@@ -515,14 +525,16 @@
    so each gets its own card, and the whole card is the button that opens the ledger. */
 .lkpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); gap: 12px; }
 .lkpi {
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 16px 18px 15px; text-align: left;
+  display: flex; flex-direction: column; gap: 12px;
+  text-align: left;
   background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 18px;
   box-shadow: var(--tl-elevation-1);
   transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
-/* It is a <button>, so it has to beat .linklike's link colouring and left padding. */
-.lkpi.linklike { color: inherit; width: 100%; }
+/* It is a <button>, so it has to beat .linklike, which resets padding to zero and
+   colours its text like a link. The padding belongs on the compound selector or the
+   card's contents sit against its border. */
+.lkpi.linklike { color: inherit; width: 100%; padding: 20px 22px 18px; }
 .lkpi.linklike:hover { text-decoration: none; border-color: var(--lkpi-fg, var(--brand-border)); box-shadow: var(--tl-elevation-2); }
 .lkpi.linklike:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
 .lkpi__top { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -538,10 +550,9 @@
 }
 .lkpi__n { font: 300 34px/1 var(--font-flex); color: var(--lkpi-fg, var(--text-brand)); font-variant-numeric: tabular-nums; }
 .lkpi__n small { font-size: 19px; color: var(--text-muted); }
-.lkpi__meter { height: 6px; border-radius: var(--tl-round); background: var(--bg-subtle); overflow: hidden; }
-.lkpi__fill { display: block; height: 100%; border-radius: inherit; background: var(--lkpi-fg, var(--brand-solid)); }
 .lkpi__foot {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-subtle);
   font-size: 12px; color: var(--text-secondary);
 }
 .lkpi__foot b { font: 400 16px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }

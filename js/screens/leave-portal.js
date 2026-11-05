@@ -258,7 +258,6 @@
       /* One card per leave type. Each is the button that opens its ledger. */
       balances.length ? h('div', { className: 'lkpis' }, balances.map(function (b, i) {
         var total = b.entitled + (b.carried || 0);
-        var pct = total ? Math.max(0, Math.min(100, Math.round((b.available / total) * 100))) : 0;
         return h('button', {
           type: 'button', className: 'lkpi linklike lkpi--a' + (i % 5), key: b.type,
           title: 'Every line behind ' + typeName(b.type),
@@ -269,8 +268,6 @@
             h('span', { className: 'lkpi__t' }, typeName(b.type)),
             typeCode(b.type) ? h('span', { className: 'lkpi__code' }, typeCode(b.type)) : null),
           h('span', { className: 'lkpi__n' }, b.available, h('small', null, '/' + total)),
-          h('span', { className: 'lkpi__meter' },
-            h('span', { className: 'lkpi__fill', style: { width: pct + '%' } })),
           h('span', { className: 'lkpi__foot' },
             h('span', null, 'Available (this month)'),
             h('b', null, availableThisMonth(b))));
@@ -282,7 +279,9 @@
         h(ui.DataTable, {
           title: 'Applied leaves',
           description: 'Edit or cancel a request while it is still waiting on a decision.',
-          exportName: 'my-leave', label: 'Applied leaves', rows: rows, pageSize: 10,
+          /* No Export here. It is a handful of your own requests, all of them on
+             screen, and the button was the widest thing on a crowded toolbar. */
+          onExport: false, label: 'Applied leaves', rows: rows, pageSize: 10,
           search: function (l) { return typeName(l.type) + ' ' + (l.reason || '') + ' ' + l.status; },
           searchPlaceholder: 'Search your requests',
           filters: h(React.Fragment, null,
@@ -594,7 +593,7 @@
 
     return h(React.Fragment, null,
       h(ui.PageHead, {
-        eyebrow: 'My leave', title: 'Holiday calendar',
+        title: 'Holiday calendar',
         description: 'The holidays this organization observes. Optional ones are taken by request.'
       }),
       ahead.length
