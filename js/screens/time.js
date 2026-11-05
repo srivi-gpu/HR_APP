@@ -887,11 +887,11 @@
           columns: [
             { key: 'name', header: 'Leave type', sortable: true },
             { key: 'code', header: 'Code', cell: function (t) { return h('span', { className: 'mono' }, t.code); } },
-            { key: 'paid', header: 'Paid', align: 'center', csv: function (t) { return t.paid ? 'Paid' : 'Unpaid'; },
+            { key: 'paid', header: 'Paid', csv: function (t) { return t.paid ? 'Paid' : 'Unpaid'; },
               cell: function (t) { return h(ui.StatusChip, { status: t.paid ? 'Paid' : 'Unpaid' }); } },
             { key: 'annual', header: 'Annual days', numeric: true, align: 'right', sortable: true,
               cell: function (t) { return t.annual ? t.annual : h('span', { className: 'muted' }, 'Accrued'); } },
-            { key: 'carry', header: 'Carry forward', align: 'center',
+            { key: 'carry', header: 'Carry forward',
               csv: function (t) { return t.carry ? (t.carryPct || 100) + '%' : 'No'; },
               cell: function (t) {
                 return t.carry
@@ -907,7 +907,7 @@
               cell: function (t) { return t.maxConsecutive ? t.maxConsecutive : h('span', { className: 'muted' }, 'No cap'); } },
             { key: 'notice', header: 'Notice days', numeric: true, align: 'right',
               cell: function (t) { return t.notice ? t.notice : h('span', { className: 'muted' }, 'None'); } },
-            { key: 'docRequired', header: 'Document', align: 'center', csv: function (t) { return t.docRequired ? 'Required' : 'Not required'; },
+            { key: 'docRequired', header: 'Document', csv: function (t) { return t.docRequired ? 'Required' : 'Not required'; },
               cell: function (t) { return yesNo(t.docRequired); } },
             { key: 'status', header: 'Status', cell: function (t) { return h(ui.StatusChip, { status: t.status || 'Active' }); } }
           ],
@@ -1204,7 +1204,7 @@
     }].concat(dates.map(function (d, idx) {
       var day = new Date(d + 'T00:00');
       return {
-        key: 'd' + idx, align: 'center',
+        key: 'd' + idx,
         header: WEEK[idx] + ' ' + day.getDate(),
         csv: function (r) { return r.assigned[d] ? (shiftOf(r.assigned[d].shift) || {}).code || '' : ''; },
         cell: function (r) {
@@ -1392,7 +1392,7 @@
             h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, (shiftOf(x.to) || {}).code || '—'));
         } },
       { key: 'reason', header: 'Reason' },
-      { key: 'counterpartyAgreed', header: 'Counterparty', align: 'center',
+      { key: 'counterpartyAgreed', header: 'Counterparty',
         csv: function (x) { return x.counterpartyAgreed ? 'Agreed' : 'Not confirmed'; },
         cell: function (x) {
           return x.counterpartyAgreed

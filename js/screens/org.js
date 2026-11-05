@@ -303,7 +303,7 @@
           } },
         { key: 'role', header: 'Role', sortable: true, cell: function (u) { return ROLE_LABEL[u.role] || u.role; } },
         { key: 'status', header: 'Status', cell: function (u) { return h(ui.StatusChip, { status: u.status }); } },
-        { key: 'mfa', header: 'MFA', align: 'center', csv: function (u) { return u.mfa ? 'On' : 'Off'; },
+        { key: 'mfa', header: 'MFA', csv: function (u) { return u.mfa ? 'On' : 'Off'; },
           cell: function (u) { return u.mfa ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, 'On') : h('span', { className: 'muted' }, 'Off'); } },
         { key: 'lastSignIn', header: 'Last sign-in', sortable: true, cell: function (u) { return u.lastSignIn ? ui.relTime(u.lastSignIn) : h('span', { className: 'muted' }, 'Never'); } },
         { key: 'actions', header: '', align: 'right',

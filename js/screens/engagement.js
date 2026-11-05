@@ -1260,7 +1260,7 @@
             { key: 'text', header: 'Question', sortable: true },
             { key: 'kind', header: 'Answer type', sortable: true,
               cell: function (q) { return h(V.Chip, { size: 'sm', shape: 'tag' }, q.kind); } },
-            { key: 'scored', header: 'Scored', align: 'center',
+            { key: 'scored', header: 'Scored',
               csv: function (q) { return q.kind === 'Text Response' ? 'No' : 'Yes'; },
               cell: function (q) {
                 return q.kind === 'Text Response'

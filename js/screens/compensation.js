@@ -636,7 +636,7 @@
             columns: [
               { key: 'name', header: 'Component', sortable: true },
               { key: 'calc', header: 'Calculation method' },
-              { key: 'taxable', header: 'Taxable', align: 'center', csv: function (c) { return c.taxable ? 'Yes' : 'No'; },
+              { key: 'taxable', header: 'Taxable', csv: function (c) { return c.taxable ? 'Yes' : 'No'; },
                 cell: function (c) {
                   return c.taxable
                     ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning' }, 'Taxable')
