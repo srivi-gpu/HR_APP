@@ -20,6 +20,10 @@ p { margin: 0; }
 .grow { flex: 1; min-width: 0; }
 .link {
   background: none; border: 0; padding: 0; font: inherit; cursor: pointer;
+  /* A <button class="link"> stretches to its container in a flex column, and a
+     button's own default centres its text. Follow the surrounding text instead,
+     so a name in a table cell reads from the left edge like every other cell. */
+  text-align: inherit;
   color: var(--text-brand); font-weight: 500; text-decoration: underline; text-underline-offset: 3px;
 }
 .link:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; border-radius: 2px; }
