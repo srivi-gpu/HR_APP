@@ -607,16 +607,23 @@
       toast(rows.length + ' rows exported', 'success');
     }
 
-    var hasToolbar = p.search || p.filters || p.onExport !== false || p.toolbar;
+    /* A table may own its heading. When it does, the title sits at the left of the
+       toolbar row and the search, filters and Export line up with it, rather than the
+       title sitting in a card head with a separate band of controls below it. */
+    var hasToolbar = p.search || p.filters || p.onExport !== false || p.toolbar || p.title;
     return h(React.Fragment, null,
-      hasToolbar ? h('div', { className: 'filterbar' },
+      hasToolbar ? h('div', { className: 'filterbar' + (p.title ? ' filterbar--titled' : '') },
+        p.title ? h('div', { className: 'filterbar__head' },
+          h('h2', { className: 'card__title' }, p.title),
+          p.description ? h('p', { className: 'muted filterbar__desc' }, p.description) : null) : null,
+        p.title ? h('span', { className: 'filterbar__spacer' }) : null,
         p.search ? h('div', { className: 'filterbar__search' },
           h(V.SearchField, {
             placeholder: p.searchPlaceholder || 'Search',
             value: qSt[0], onChange: function (e) { qSt[1](e.target.value); }
           })) : null,
         p.filters || null,
-        h('span', { className: 'filterbar__spacer' }),
+        p.title ? null : h('span', { className: 'filterbar__spacer' }),
         p.toolbar || null,
         p.onExport !== false
           ? h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.download, onClick: exportCsv }, 'Export')

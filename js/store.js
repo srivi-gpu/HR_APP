@@ -75,13 +75,22 @@
     write(); notify();
   }
 
-  /* Next id in a collection's own series, e.g. nextId('leaveRequests', 'LV'). */
+  /* Next id in a collection's own series, e.g. nextId('leaveRequests', 'LV').
+
+     Tombstones count towards the high-water mark as well as live rows. A removed id is
+     spent: handing it to a new record gives that record an id the removal list already
+     names, so collectionOf filters the new row straight back out and the add reports
+     success while nothing appears. Deleting the last holiday and adding another one did
+     exactly that. */
   function nextId(collection, prefix) {
     var max = 0;
-    collectionOf(collection).forEach(function (row) {
-      var m = String(row.id || '').match(new RegExp('^' + prefix + '(\\d+)$'));
+    var re = new RegExp('^' + prefix + '(\\d+)$');
+    function consider(id) {
+      var m = String(id || '').match(re);
       if (m) max = Math.max(max, Number(m[1]));
-    });
+    }
+    collectionOf(collection).forEach(function (row) { consider(row.id); });
+    removed(collection).forEach(consider);
     return prefix + (max + 1);
   }
 
