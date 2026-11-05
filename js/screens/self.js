@@ -1604,10 +1604,9 @@
     }
     var tasks = c.tasks || [];
     var done = tasks.filter(function (t) { return t.done; }).length;
-    /* The clearance and the approvals live here now rather than on the request. The
-       request is what you asked for; this is everything that has to happen before
-       you leave, which is one list in one place. */
-    var approvals = store.collection('approvals').filter(function (a) { return a.id === c.id; });
+    /* The clearance lives here rather than on the request. The request is what you
+       asked for; this is everything that has to happen before you leave, which is
+       one list in one place, with the settlement it releases beside it. */
 
     return h(Grid, null,
       h(Card, { span: 7, title: 'Clearance',
@@ -1625,19 +1624,7 @@
                 t.done ? 'Completed' : (t.owner && emp(t.owner) ? 'With ' + emp(t.owner).name : 'Pending'))));
         }))),
 
-      h(Card, { span: 5, title: 'Approvals', description: 'Who has to agree before your notice starts.' },
-        approvals.length
-          ? h('div', { className: 'list' }, approvals.map(function (a) {
-            var who = emp(a.approver);
-            return h('div', { className: 'list__row', key: a.id },
-              h(V.Avatar, { name: who ? who.name : 'HR', size: 'sm' }),
-              h('div', { className: 'list__main' },
-                h('span', { className: 'list__title' }, who ? who.name : 'HR'),
-                h('span', { className: 'list__meta' }, a.kind + ' · raised ' + ui.dateLabel(a.submitted))),
-              h(ui.StatusChip, { status: a.status }));
-          }))
-          : h(ui.Empty, { icon: I.ok, title: 'No approval outstanding' })),
-      h(Card, { span: 12, title: 'Final settlement' },
+      h(Card, { span: 5, title: 'Final settlement' },
         h(ui.KeyValue, { rows: [
           ['Status', h(ui.StatusChip, { status: c.settlement })],
           ['Amount', c.settlementAmount ? ui.inr(c.settlementAmount) : null],
