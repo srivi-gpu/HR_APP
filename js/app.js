@@ -131,6 +131,22 @@
       palette, h(ui.ToastHost));
   }
 
+  /* The team workspace is the employee workspace plus an approval inbox, so it is the
+     employee's screens that have to answer under it. Aliasing them here, once every
+     screen module has registered, is what makes "plus one item" true: a screen added
+     to the employee workspace tomorrow reaches a manager with no second registration
+     to remember, and the two cannot drift apart.
+
+     Anything already registered under team/ — the inbox — is left alone. */
+  (function aliasEmployeeScreens() {
+    var reg = HRMS.screens.registry;
+    Object.keys(reg).forEach(function (path) {
+      if (path.indexOf('me/') !== 0) return;
+      var mirrored = 'team/' + path.slice(3);
+      if (!reg[mirrored]) reg[mirrored] = reg[path];
+    });
+  })();
+
   HRMS.App = App;   // exported so the smoke test can render routes outside a browser
   ReactDOM.createRoot(document.getElementById('root')).render(h(App));
 })();

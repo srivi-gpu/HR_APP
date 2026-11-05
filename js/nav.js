@@ -399,6 +399,22 @@
     ]}
   ];
 
+  /* --------------------------------------------------------- TEAM MEMBER
+
+     A team member is an employee who also approves. Everything in the employee
+     workspace is theirs unchanged — their own leave, their own payslips, their own
+     record — and the approval inbox is added to it, because somebody reports to them.
+
+     It is the employee list plus one item rather than a list of its own, so a screen
+     added to the employee workspace reaches a manager too and the two cannot drift
+     apart. Whether the inbox actually appears is not decided here: js/permissions.js
+     asks the reporting tree, and somebody with nobody under them does not get it
+     however their account is labelled. */
+  var TEAM_ITEMS = ME_ITEMS.concat([
+    { path: 'approvals', label: 'Approval inbox', icon: 'checklist', section: '6.5',
+      note: 'Leave, regularizations, swaps and claims from the people who report to you.' }
+  ]);
+
   /* ------------------------------------------------- Global, outside a role */
   var GLOBAL = [
     { path: 'global/login', label: 'Login', section: '11.1', note: 'Email and password sign-in, with SSO where enabled.' },
@@ -458,7 +474,7 @@
       { label: 'Payroll', icon: 'card', path: 'payroll' },
       /* An employee's own assets, and HR's requests for joiners. Admin's register is
          under Administration. */
-      { label: 'Assets', icon: 'package', as: { me: 'assets', hr: 'assets' } }
+      { label: 'Assets', icon: 'package', as: { me: 'assets', team: 'assets', hr: 'assets' } }
     ]},
     { label: 'Organization', slots: [
       { label: 'Organization', icon: 'building', path: 'org' },
@@ -488,7 +504,7 @@
       { label: 'Configuration', icon: 'sliders', as: { hr: 'config' } }
     ]},
     { label: 'Leaving', slots: [
-      { label: 'Offboarding', icon: 'logout', as: { me: 'exit' } }
+      { label: 'Offboarding', icon: 'logout', as: { me: 'exit', team: 'exit' } }
     ]}
   ];
 
@@ -498,11 +514,11 @@
      Employees slot, which is a roster everywhere else. The routes stay; only the row
      goes. Listed here so the orphan check below still means something. */
   var OFF_PLAN = {
-    'me/profile': true,
+    'me/profile': true, 'team/profile': true,
     /* Search keeps its route and its place in the command palette, but not a sidebar
        row: the header's search field is the way in, and a rail row for it was a second
        door onto the same screen. */
-    'admin/search': true, 'hr/search': true, 'me/search': true
+    'admin/search': true, 'hr/search': true, 'me/search': true, 'team/search': true
   };
 
   /* A role's sidebar: the plan, carrying that role's items. The slot owns the label
@@ -543,7 +559,13 @@
     { id: 'hr', label: 'HR', icon: 'users', items: HR_ITEMS, groups: build('hr', HR_ITEMS), home: 'hr/dashboard',
       persona: 'Priya Sharma', blurb: 'People operations, policies, workflows and the employee lifecycle.' },
     { id: 'me', label: 'Employee', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
-      persona: 'Ananya Rao', blurb: 'Self-service: attendance, leave, payslips, documents and reviews.' }
+      persona: 'Ananya Rao', blurb: 'Self-service: attendance, leave, payslips, documents and reviews.' },
+    /* The persona has to be somebody with reports, or the workspace would open on an
+       approval inbox its own rule hides — and with enough waiting on them that the
+       inbox has something in it. Venkat Wadhwa leads sixteen people and has the most
+       requests pending of anyone who is not HR. */
+    { id: 'team', label: 'Team member', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
+      persona: 'Venkat Wadhwa', blurb: 'Everything an employee has, plus the requests from the people who report to you.' }
   ];
 
   /* Flattened route table: 'role/item[/tab]' -> metadata.

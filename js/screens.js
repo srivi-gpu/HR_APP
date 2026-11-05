@@ -231,7 +231,20 @@
     var tabSt = React.useState('pending');
     var rejectSt = React.useState(null);
     var reasonSt = React.useState('');
-    var rows = store.collection('approvals');
+    var role = store.pref('role');
+    var me = store.persona(role);
+
+    /* HR and the administrator carry the organisation's queue; a team member carries
+       their own. Scoping it by the reporting line rather than by the role means a
+       manager sees exactly the requests they are answerable for, and nobody has to
+       keep a second list of who approves what. */
+    var orgWide = role === 'hr' || role === 'admin';
+    var rows = store.collection('approvals').filter(function (a) {
+      if (orgWide || !me) return true;
+      if (a.approver === me.id) return true;
+      var subject = store.employee(a.employee);
+      return !!(subject && subject.manager === me.id);
+    });
     var pending = rows.filter(function (a) { return a.status === 'Pending Approval'; });
     var filtered = tabSt[0] === 'pending' ? pending
       : tabSt[0] === 'actioned' ? rows.filter(function (a) { return a.status !== 'Pending Approval'; })
@@ -807,7 +820,13 @@
        is kept below only as the source of the alert list the setup wizard still reads;
        it is no longer routed to. */
     'hr/dashboard': HrDashboard,
+    /* One inbox, three ways in. An approval is the same object whether a manager, HR
+       or the IT administrator is looking at it; what differs is whose requests reach
+       them, and the screen decides that from the reporting line rather than from the
+       route. */
     'hr/approvals': ApprovalInbox,
+    'team/approvals': ApprovalInbox,
+    'admin/approvals': ApprovalInbox,
     'global/notifications': Notifications,
     'admin/roles/predefined': RolesPredefined,
     'admin/roles/modules': RolesModules,

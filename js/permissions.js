@@ -96,14 +96,28 @@
     var store = HRMS.store;
     return store ? store.find('roles', id) : null;
   }
+  /* A team member is an employee who also approves, so they read the employee column
+     of the matrix with one row changed. Writing the whole column out again would have
+     been twenty-four more cells to keep in step with the employee's, and the first
+     time somebody changed one and not the other the two roles would have silently
+     diverged. */
+  var TEAM_BASE = 'me';
+  var TEAM_OVERRIDE = { approvals: 'manage' };
+
+  function matrixLevel(role, moduleId) {
+    var m = byModule[moduleId];
+    if (!m) return 'full';
+    if (role === 'team') return TEAM_OVERRIDE[moduleId] || m[TEAM_BASE] || 'none';
+    return m[role] || 'none';
+  }
+
   function levelName(role, moduleId, depth) {
     var rec = roleRecord(role);
     if (rec && rec.perms && rec.perms[moduleId]) return rec.perms[moduleId];
     if (rec && rec.basedOn && rec.basedOn !== role && (depth || 0) < 8) {
       return levelName(rec.basedOn, moduleId, (depth || 0) + 1);
     }
-    var m = byModule[moduleId];
-    return m ? (m[role] || 'none') : 'full';
+    return matrixLevel(role, moduleId);
   }
 
   /* What the role would fall back to if its explicit level were cleared. The roles
@@ -111,8 +125,7 @@
   function baselineLevel(role, moduleId) {
     var rec = roleRecord(role);
     if (rec && rec.basedOn && rec.basedOn !== role) return levelName(rec.basedOn, moduleId);
-    var m = byModule[moduleId];
-    return m ? (m[role] || 'none') : 'full';
+    return matrixLevel(role, moduleId);
   }
   /* ------------------------------------------------- Per-user module grants
 
@@ -160,8 +173,29 @@
     return !!g && g.indexOf(moduleId) < 0;
   }
 
+  /* ------------------------------------------- Who approves
+
+     Approving is not a rank, it is a position in the reporting line: a manager, an HR
+     administrator and the IT administrator all stand above somebody, and an approval
+     is the same object whichever of them is looking at it. So one inbox, reached by
+     all three — and the rule for who reaches it is read off the tree rather than
+     written down, which means only a leaf, with nobody under them, has none.
+
+     The alternative was a flag on the role, and a flag would have been wrong the day
+     somebody's last report moved to another team. */
+  function hasReports(role) {
+    var store = HRMS.store;
+    if (!store) return false;
+    var who = store.persona(role);
+    if (!who) return false;
+    return store.collection('employees').some(function (e) {
+      return e.manager === who.id && e.status !== 'Exited';
+    });
+  }
+
   function actions(role, moduleId) {
     if (isNarrowed(role, moduleId)) return [];
+    if (moduleId === 'approvals' && !hasReports(role)) return [];
     return LEVELS[levelName(role, moduleId)] || [];
   }
   function can(role, moduleId, action) { return actions(role, moduleId).indexOf(action) >= 0; }
@@ -227,6 +261,7 @@
     matrix: MATRIX, byModule: byModule, levels: LEVELS, scopes: SCOPES, allActions: FULL,
     moduleOf: moduleOf, levelName: levelName, baselineLevel: baselineLevel, actions: actions,
     roleRecord: roleRecord,
+    hasReports: hasReports,
     grants: grants, grantFor: grantFor, setGrant: setGrant, userFor: userFor,
     activeGrant: activeGrant, isNarrowed: isNarrowed, modulesForRole: modulesForRole,
     can: can, scope: scope, allows: allows, allowsRecord: allowsRecord, isPersonal: isPersonal,
@@ -237,8 +272,11 @@
         description: 'Governs the organization, users, permissions, billing and platform configuration.' },
       { id: 'hr', name: 'HR Administrator', workspace: 'HR', users: 4,
         description: 'Operates the employee lifecycle, policies, workflows, payroll and performance.' },
-      { id: 'manager', name: 'Manager', workspace: 'Employee', users: 31,
-        description: 'An employee with team-level view and approval rights. Not a separate workspace.' },
+      /* It is a workspace now. "An employee with approval rights" was always a
+         workspace wearing a disclaimer: the rights are real, they need a screen to be
+         used on, and the screen needs a sidebar to be reached from. */
+      { id: 'team', name: 'Team member', workspace: 'Team member', users: 31,
+        description: 'An employee who also approves: everything in the employee workspace, plus the requests from the people who report to them.' },
       { id: 'me', name: 'Employee', workspace: 'Employee', users: 248,
         description: 'Self-service access to own records, requests and tasks.' }
     ],

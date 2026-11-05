@@ -63,7 +63,22 @@
     var counts = p.counts;
 
     function badgeFor(item) {
-      if (item.path === 'approvals') return counts.pendingApprovals || null;
+      if (item.path === 'approvals') {
+        /* The badge has to count what the inbox will show. HR and the administrator
+           carry the organisation's queue; a team member carries their own, so the
+           org-wide figure on their rail promised twenty-six requests and opened on
+           one. */
+        if (p.role === 'hr' || p.role === 'admin') return counts.pendingApprovals || null;
+        var me = HRMS.store.persona(p.role);
+        if (!me) return null;
+        var mine = HRMS.store.collection('approvals').filter(function (a) {
+          if (a.status !== 'Pending Approval') return false;
+          if (a.approver === me.id) return true;
+          var subject = HRMS.store.employee(a.employee);
+          return !!(subject && subject.manager === me.id);
+        }).length;
+        return mine || null;
+      }
       if (item.path === 'leave' && p.role === 'hr') return counts.pendingLeave || null;
       return null;
     }
