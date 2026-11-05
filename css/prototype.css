@@ -103,8 +103,18 @@
 .filterbar__head .card__title { margin: 0; }
 .filterbar__desc { margin: 2px 0 0; font-size: 13px; }
 /* What is left of a card whose body was only a table: no border, no padding, no
-   background — just the grid span it had, so the layout around it is unchanged. */
-.tablewrap { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+   background — just the grid span it had, so the layout around it is unchanged.
+   The gap is what now separates the heading row from the table, so it carries the
+   spacing the card's padding used to give. */
+.tablewrap { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+
+/* The header row sat tight against the controls above it and ran its labels close
+   to the table's edge. A little more of both, for every table. */
+.vi-th { height: 54px; padding-left: 20px; padding-right: 20px; }
+.vi-td { padding-left: 20px; padding-right: 20px; }
+.vi-table--compact .vi-th { height: 44px; padding-left: 14px; padding-right: 14px; }
+.vi-table--compact .vi-td { padding-left: 14px; padding-right: 14px; }
+.vi-th--select, .vi-td--select { padding-right: 0; }
 .filterbar--titled { align-items: flex-end; }
 /* Capped, so a long description wraps under the title instead of pushing the
    controls onto a line of their own. */
@@ -407,6 +417,189 @@
 .checks__name { font-size: 14px; }
 .checks__note { font-size: 12px; color: var(--text-secondary); }
 
+/* ---------- Employee dashboard ----------
+   A banner, then what needs me beside where the month stands, then the week, the
+   goals and the shortcuts, then who is around. It borrows the admin dashboard's
+   card shell (.adm-card) and pills (.adm-p); the rest is its own. */
+.edash { display: flex; flex-direction: column; gap: 16px; }
+
+/* ---- banner ---- */
+.ehero {
+  display: flex; align-items: center; justify-content: space-between; gap: 24px; flex-wrap: wrap;
+  padding: 26px 28px; border-radius: 22px;
+  background: linear-gradient(120deg, var(--brand-softer), var(--brand-soft) 120%);
+  border: 1px solid var(--brand-border);
+}
+.ehero__m { min-width: 0; flex: 1 1 340px; }
+.ehero__eyebrow { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--text-secondary); }
+.ehero__m h1 { margin: 8px 0 0; font: 600 32px/1.15 var(--font-flex); color: var(--text-primary); }
+.ehero__m p { margin: 8px 0 0; font-size: 14.5px; color: var(--text-secondary); }
+.ehero__punch {
+  flex: 0 0 auto; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 14px 20px; border-radius: 16px;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle); box-shadow: var(--tl-elevation-1);
+}
+.ehero__p1 { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; }
+.ehero__p1 > span:nth-child(2) { font-size: 12.5px; color: var(--text-secondary); }
+.ehero__p1 b { grid-column: 2; font: 400 28px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ehero__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success-fg); }
+.ehero__dot.is-off { background: var(--text-muted); }
+.ehero__p2 { display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  padding-left: 20px; border-left: 1px solid var(--border-subtle); font-size: 12.5px; color: var(--text-secondary); }
+@media (max-width: 860px) {
+  .ehero { padding: 22px; }
+  .ehero__m h1 { font-size: 27px; }
+  .ehero__punch { flex: 1 1 100%; }
+}
+
+/* ---- the two grids ---- */
+.edash-a { display: grid; grid-template-columns: minmax(0, 1.85fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.edash-b { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.edash-b > .adm-card { height: 100%; }
+@media (max-width: 1180px) {
+  .edash-a { grid-template-columns: minmax(0, 1fr); }
+  .edash-b { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .edash-b > :last-child { grid-column: 1 / -1; }
+}
+@media (max-width: 780px) {
+  .edash-b { grid-template-columns: minmax(0, 1fr); }
+  .edash-b > :last-child { grid-column: auto; }
+}
+
+/* A count beside a card's title, and the quiet note opposite it. */
+.ecount {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; margin-left: 8px; padding: 0 7px; border-radius: var(--tl-round);
+  background: var(--bg-muted); color: var(--text-secondary);
+  font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; vertical-align: 2px;
+}
+.ecount.is-warn { background: var(--warning-bg); color: var(--warning-fg); }
+.ecount.is-bad { background: var(--danger-bg); color: var(--danger-fg); }
+.adm-card__hint { flex: none; font-size: 12.5px; color: var(--text-muted); white-space: nowrap; }
+
+/* ---- needs your action ---- */
+.nact { display: flex; flex-direction: column; margin-top: 6px; }
+.nact__r { display: flex; align-items: center; gap: 13px; padding: 13px 0; min-width: 0; }
+.nact__r + .nact__r { border-top: 1px solid var(--border-subtle); }
+.nact__i { flex: none; width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand-solid); }
+.nact__i svg { width: 19px; height: 19px; }
+.nact__i.is-bad { background: var(--danger-bg); color: var(--danger-fg); }
+.nact__i.is-warn { background: var(--warning-bg); color: var(--warning-fg); }
+.nact__i.is-info { background: var(--info-bg); color: var(--info-fg); }
+.nact__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.nact__m strong { font-size: 14px; font-weight: 600; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nact__m > span { font-size: 12.5px; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nact__r .adm-p { flex: none; }
+.nact__r .vi-btn { flex: none; }
+@media (max-width: 620px) {
+  .nact__r { flex-wrap: wrap; }
+  .nact__m { flex: 1 1 100%; order: 1; }
+}
+
+/* ---- this month ---- */
+.emonth { display: flex; flex-direction: column; gap: 16px; margin-top: 14px; }
+.emonth__top { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.ering { position: relative; flex: none; width: 118px; height: 118px; }
+.ering svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
+.ering__mid { position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1px; }
+.ering__mid b { font: 500 30px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ering__mid > span { font-size: 11px; color: var(--text-muted); }
+.emonth__key { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.emonth__k { display: flex; gap: 10px; min-width: 0; }
+.emonth__k i { flex: none; width: 10px; height: 10px; margin-top: 5px; border-radius: 3px; }
+.emonth__k > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.emonth__k strong { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.emonth__k span span, .emonth__k > span > span { font-size: 12px; color: var(--text-secondary); }
+
+.ehol { display: flex; flex-direction: column; border-top: 1px solid var(--border-subtle); }
+.ehol__r { display: flex; align-items: center; gap: 12px; padding: 12px 0; min-width: 0; }
+.ehol__r + .ehol__r { border-top: 1px solid var(--border-subtle); }
+.ehol__d { flex: none; width: 44px; display: flex; flex-direction: column; align-items: center;
+  padding: 5px 0 6px; border-radius: 11px; background: var(--bg-subtle); }
+.ehol__d b { font: 500 17px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ehol__d span { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--text-muted); }
+.ehol__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.ehol__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ehol__m span { font-size: 12px; color: var(--text-secondary); }
+
+.echips { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 10px; }
+.echip { display: flex; flex-direction: column; gap: 3px; padding: 12px 13px; border-radius: 13px;
+  background: var(--bg-subtle); min-width: 0; }
+.echip b { font: 400 22px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.echip span { font-size: 11.5px; line-height: 1.3; color: var(--text-secondary); }
+
+/* ---- this week ---- */
+.eweek { display: flex; flex-direction: column; margin-top: 8px; }
+.eweek__r { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto; align-items: center;
+  gap: 10px; padding: 11px 0; }
+.eweek__r + .eweek__r { border-top: 1px solid var(--border-subtle); }
+.eweek__d { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+.eweek__d.is-now { color: var(--text-brand); }
+.eweek__t { font-size: 13px; color: var(--text-primary); font-variant-numeric: tabular-nums;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eweek__p { justify-self: end; min-height: 22px; display: inline-flex; align-items: center;
+  padding: 0 10px; border-radius: var(--tl-round); background: var(--bg-muted);
+  font-size: 12px; font-weight: 600; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.eweek__p.is-ok { background: var(--success-bg); color: var(--success-fg); }
+.eweek__p.is-bad { background: var(--danger-bg); color: var(--danger-fg); }
+.eweek__p.is-off { background: var(--bg-muted); color: var(--text-muted); }
+.eweek__p:empty { background: none; }
+.eweek__fix { justify-self: end; font-size: 12.5px; font-weight: 600; color: var(--text-brand); }
+
+/* ---- goals ---- */
+.egoals { display: flex; flex-direction: column; gap: 14px; margin-top: 10px; }
+.egoal { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; }
+.egoal__t { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.egoal__t strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.egoal__t span { font-size: 12px; color: var(--text-secondary); }
+.egoal__bar { grid-column: 1; height: 8px; border-radius: var(--tl-round); background: var(--bg-muted); overflow: hidden; }
+.egoal__bar i { display: block; height: 100%; border-radius: inherit; }
+.egoal__n { grid-column: 2; grid-row: 2; font-size: 12.5px; font-weight: 700; color: var(--text-primary);
+  font-variant-numeric: tabular-nums; }
+
+/* ---- shortcuts ---- */
+.eshort { display: flex; flex-direction: column; margin-top: 6px; }
+.eshort__r { display: flex; align-items: center; gap: 12px; padding: 12px 0; min-width: 0; }
+.eshort__r + .eshort__r { border-top: 1px solid var(--border-subtle); }
+.eshort__i { flex: none; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand-solid); }
+.eshort__i svg { width: 17px; height: 17px; }
+.eshort__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.eshort__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.eshort__m span { font-size: 12px; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eshort__r .vi-btn { flex: none; }
+
+/* ---- around the team ---- */
+.eteam__tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 4px; }
+.eteam__tab {
+  all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 7px;
+  height: 32px; padding: 0 13px; border-radius: var(--tl-round);
+  border: 1px solid var(--border-subtle); background: var(--bg-surface);
+  font-family: var(--font-sans); font-size: 13px; color: var(--text-secondary);
+}
+.eteam__tab span { font-size: 11.5px; font-weight: 700; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.eteam__tab:hover { border-color: var(--brand-border); color: var(--text-primary); }
+.eteam__tab.is-on { background: var(--brand-soft); border-color: transparent; color: var(--text-brand); font-weight: 600; }
+.eteam__tab.is-on span { color: var(--text-brand); }
+.eteam__tab:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.eteam { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 10px 18px; margin-top: 12px; }
+.eteam__c { display: flex; align-items: center; gap: 11px; padding: 11px 0; min-width: 0;
+  border-top: 1px solid var(--border-subtle); }
+.eteam__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.eteam__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eteam__m span { font-size: 12px; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.eteam__c .adm-p { flex: none; }
+
 /* ---------- Approval chain builder (the workflow dialog) ---------- */
 .chain { display: flex; flex-direction: column; gap: 8px; }
 .chain__row {
@@ -521,14 +714,16 @@
    so each gets its own card, and the whole card is the button that opens the ledger. */
 .lkpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); gap: 12px; }
 .lkpi {
-  display: flex; flex-direction: column; gap: 10px;
-  padding: 16px 18px 15px; text-align: left;
+  display: flex; flex-direction: column; gap: 12px;
+  text-align: left;
   background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 18px;
   box-shadow: var(--tl-elevation-1);
   transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
-/* It is a <button>, so it has to beat .linklike's link colouring and left padding. */
-.lkpi.linklike { color: inherit; width: 100%; }
+/* It is a <button>, so it has to beat .linklike, which resets padding to zero and
+   colours its text like a link. The padding belongs on the compound selector or the
+   card's contents sit against its border. */
+.lkpi.linklike { color: inherit; width: 100%; padding: 20px 22px 18px; }
 .lkpi.linklike:hover { text-decoration: none; border-color: var(--lkpi-fg, var(--brand-border)); box-shadow: var(--tl-elevation-2); }
 .lkpi.linklike:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
 .lkpi__top { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -544,10 +739,9 @@
 }
 .lkpi__n { font: 300 34px/1 var(--font-flex); color: var(--lkpi-fg, var(--text-brand)); font-variant-numeric: tabular-nums; }
 .lkpi__n small { font-size: 19px; color: var(--text-muted); }
-.lkpi__meter { height: 6px; border-radius: var(--tl-round); background: var(--bg-subtle); overflow: hidden; }
-.lkpi__fill { display: block; height: 100%; border-radius: inherit; background: var(--lkpi-fg, var(--brand-solid)); }
 .lkpi__foot {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-subtle);
   font-size: 12px; color: var(--text-secondary);
 }
 .lkpi__foot b { font: 400 16px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }

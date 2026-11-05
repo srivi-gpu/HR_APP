@@ -25,6 +25,9 @@
   var React = window.React, h = React.createElement, V = window.Violet, I = window.Icons;
   var store = HRMS.store, router = HRMS.router, ui = HRMS.ui, seed = HRMS.seed;
 
+  function deptName(id) { var d = store.department(id); return d ? d.name : '\u2014'; }
+  function locName(id) { var l = store.location(id); return l ? l.name : '\u2014'; }
+
   /* ---------- glyphs the Tracklivo set does not carry ---------- */
   function g(d, s) {
     return h('svg', { viewBox: '0 0 24 24', width: s || 20, height: s || 20, fill: 'none', 'aria-hidden': 'true' },
@@ -966,5 +969,524 @@
       : h(AdminDashA, { switcher: switcher });
   }
 
-  HRMS.screens.register({ 'admin/dashboard': AdminDashboard });
+
+  /* ================================================== The employee dashboard
+     A working day, in the order somebody actually asks about it: what needs me,
+     where my month stands, how the week has gone, what I promised, what I open
+     most, and who is around.
+
+     Everything on it is derived from the store — the action list, the week, the
+     month, the team — so nothing here can say something the module it links to
+     would contradict. Two exceptions are stated where they occur.
+
+     No KPI strip and no "My tasks": the first restated the cards below it and the
+     second was a hard-coded list nothing could complete. */
+
+  var MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var WEEKDAY = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+  function dayOf(iso) { return new Date(iso + 'T00:00'); }
+  function daysFromToday(iso) {
+    return Math.round((dayOf(iso) - dayOf(seed.todayIso)) / 864e5);
+  }
+  function shortWhen(iso) {
+    var d = dayOf(iso);
+    return d.getDate() + ' ' + MONTH_ABBR[d.getMonth()];
+  }
+  function relDays(n) {
+    return n === 0 ? 'today' : n === 1 ? 'tomorrow' : n > 0 ? 'in ' + n + ' days'
+      : n === -1 ? 'yesterday' : Math.abs(n) + ' days ago';
+  }
+  function greeting() {
+    var hr = new Date().getHours();
+    return hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  }
+  function minutesOf(hhmm) {
+    var p = String(hhmm || '').split(':');
+    return Number(p[0]) * 60 + Number(p[1] || 0);
+  }
+  function spell(mins) {
+    if (mins < 0) mins = 0;
+    var hrs = Math.floor(mins / 60);
+    return (hrs ? hrs + 'h ' : '') + (mins % 60) + 'm';
+  }
+
+  /* ------------------------------------------------------ Needs your action
+     Four sources, each a real record: a goal that is behind, a day the clock did
+     not record, the appraisal window, and a survey still open. Sorted by how late
+     the thing is, so the first row is the one that has waited longest. */
+  function actionsFor(who) {
+    var out = [];
+
+    store.collection('goals')
+      .filter(function (g) { return g.employee === who.id && g.status !== 'Achieved'; })
+      .forEach(function (g) {
+        var left = daysFromToday(g.due);
+        out.push({
+          id: g.id, icon: I.target,
+          tone: left < 0 ? 'bad' : left <= 14 ? 'warn' : 'info',
+          title: g.title,
+          sub: 'Goal · ' + (left < 0 ? 'was due ' : 'due ') + ui.dateLabel(g.due)
+            + ' · ' + g.progress + '% complete',
+          pill: left < 0 ? Math.abs(left) + ' days overdue' : 'Due ' + relDays(left),
+          pillTone: left < 0 ? 'fail' : left <= 14 ? 'warn' : 'sched',
+          action: 'Update', to: 'me/performance/goals', urgency: left
+        });
+      });
+
+    /* A day inside the correction window with no punches on it. PRD 14.3 lets an
+       employee fix one, and this is the only place that tells them there is one. */
+    var recent = (HRMS.attendanceHistory ? HRMS.attendanceHistory(who, 30) : [])
+      .filter(function (r) { return r.status === 'Absent'; });
+    if (recent.length) {
+      var gap = recent[0];
+      out.push({
+        id: 'gap-' + gap.date, icon: I.clock, tone: 'warn',
+        title: 'No punches recorded on ' + WEEKDAY[dayOf(gap.date).getDay()] + ' ' + shortWhen(gap.date),
+        sub: 'Attendance · raise a correction while it is inside the 30-day window',
+        pill: 'Needs fix', pillTone: 'warn',
+        action: 'Regularize', to: 'me/attendance/regularization',
+        urgency: daysFromToday(gap.date)
+      });
+    }
+
+    var cycle = seed.perfCycles.filter(function (c) { return c.status !== 'Completed'; })[0];
+    if (cycle) {
+      var opens = daysFromToday(cycle.from);
+      var closes = daysFromToday(cycle.to);
+      out.push({
+        id: cycle.id, icon: I.star, tone: 'info',
+        title: 'Submit your ' + cycle.name.replace(' Appraisal', '') + ' self-review',
+        sub: 'Performance · ' + (opens > 0 ? 'opens ' + ui.dateLabel(cycle.from) : 'open now')
+          + ', closes ' + ui.dateLabel(cycle.to),
+        pill: opens > 0 ? 'Opens ' + relDays(opens) : 'Due ' + relDays(closes),
+        pillTone: opens > 0 ? 'sched' : closes <= 7 ? 'warn' : 'ok',
+        action: 'Start', to: 'me/performance/self', urgency: opens > 0 ? opens : closes
+      });
+    }
+
+    var answered = {};
+    store.collection('surveyResponses')
+      .filter(function (r) { return r.employee === who.id; })
+      .forEach(function (r) { answered[r.survey] = true; });
+    store.collection('surveys')
+      .filter(function (s) { return s.status === 'Live' && !answered[s.id]; })
+      .slice(0, 1)
+      .forEach(function (sv) {
+        var closes = sv.to ? daysFromToday(sv.to) : 14;
+        out.push({
+          id: sv.id, icon: I.checklist, tone: closes <= 7 ? 'warn' : 'info',
+          title: sv.name,
+          sub: 'Survey \u00b7 ' + sv.questions + ' questions'
+            + (sv.anonymous ? ', anonymous' : '') + ', a couple of minutes',
+          pill: sv.to ? 'Closes ' + relDays(closes) : 'Open now',
+          pillTone: closes <= 7 ? 'warn' : 'sched',
+          action: 'Answer', to: 'me/engagement/surveys', urgency: closes
+        });
+      });
+
+    /* Not sliced here: the banner and the card's count state how many there are,
+       and only the list itself is cut, so a sixth item is still counted. */
+    return out.sort(function (a, b) { return a.urgency - b.urgency; });
+  }
+
+  /* ----------------------------------------------------------- This month */
+  function monthRows(who) {
+    var monthStart = seed.todayIso.slice(0, 8) + '01';
+    var days = daysFromToday(monthStart) * -1 + 1;
+    return (HRMS.attendanceHistory ? HRMS.attendanceHistory(who, days) : [])
+      .filter(function (r) { return r.date >= monthStart; });
+  }
+  var MONTH_TALLY = [
+    { k: 'Present', l: 'Present' },
+    { k: 'Work From Home', l: 'Work from home' },
+    { k: 'Late', l: 'Late' },
+    { k: 'On Leave', l: 'On leave' },
+    { k: 'Absent', l: 'Not recorded' }
+  ];
+
+  /* A ring, not a pie: one figure in the middle and the rest of the year's
+     entitlement behind it. */
+  function Ring(p) {
+    var R = 52, C = 2 * Math.PI * R;
+    var on = Math.max(0, Math.min(1, p.value)) * C;
+    return h('div', { className: 'ering' },
+      h('svg', { viewBox: '0 0 128 128', 'aria-hidden': 'true' },
+        h('circle', { cx: 64, cy: 64, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 16 }),
+        h('circle', {
+          cx: 64, cy: 64, r: R, fill: 'none', stroke: p.color || 'var(--brand-solid)', strokeWidth: 16,
+          strokeDasharray: on + ' ' + (C - on), strokeDashoffset: C / 4, strokeLinecap: 'butt'
+        })),
+      h('span', { className: 'ering__mid' }, h('b', null, p.big), h('span', null, p.small)));
+  }
+
+  /* -------------------------------------------------------- Around the team
+     Colleagues are the people sharing a department: the ones whose absence or
+     first week actually lands on the same work. */
+  function teamOf(who) {
+    /* Not you: your own birthday under "Around the team" reads as a mistake. */
+    return store.collection('employees').filter(function (e) {
+      return e.department === who.department && e.status !== 'Exited' && e.id !== who.id;
+    });
+  }
+  function daysToAnniversary(mmdd) {
+    var today = seed.today;
+    var d = new Date(today.getFullYear(), Number(mmdd.slice(0, 2)) - 1, Number(mmdd.slice(3)));
+    if (d < today) d = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
+    return Math.round((d - today) / 864e5);
+  }
+  var TEAM_WINDOW = 30;
+
+  function teamGroups(who) {
+    var mates = teamOf(who);
+    var ids = {};
+    mates.forEach(function (e) { ids[e.id] = e; });
+
+    var out = store.collection('leaveRequests')
+      .filter(function (l) {
+        return ids[l.employee] && l.status === 'Approved'
+          && l.from <= seed.todayIso && l.to >= seed.todayIso;
+      })
+      .map(function (l) {
+        var back = seed.util.iso(seed.util.addDays(dayOf(l.to), 1));
+        return { id: 'o' + l.id, employee: ids[l.employee], tag: 'Back ' + WEEKDAY[dayOf(back).getDay()] + ' ' + shortWhen(back), sort: 0 };
+      });
+
+    var birthdays = mates
+      .filter(function (e) { return e.dob && daysToAnniversary(e.dob.slice(5)) <= TEAM_WINDOW; })
+      .map(function (e) {
+        var n = daysToAnniversary(e.dob.slice(5));
+        return { id: 'b' + e.id, employee: e, tag: shortWhen(e.dob.slice(0, 4) + '-' + e.dob.slice(5)) + ' · ' + relDays(n), sort: n };
+      }).sort(function (a, b) { return a.sort - b.sort; });
+
+    var joiners = mates
+      .filter(function (e) {
+        return e.joined <= seed.todayIso && daysFromToday(e.joined) >= -TEAM_WINDOW;
+      })
+      .map(function (e) {
+        return { id: 'n' + e.id, employee: e, tag: 'Joined ' + shortWhen(e.joined), sort: -daysFromToday(e.joined) };
+      }).sort(function (a, b) { return a.sort - b.sort; });
+
+    var years = mates
+      .map(function (e) {
+        var served = seed.today.getFullYear() - Number(e.joined.slice(0, 4));
+        return { e: e, served: served, n: daysToAnniversary(e.joined.slice(5)) };
+      })
+      .filter(function (x) { return x.served > 0 && x.n <= TEAM_WINDOW; })
+      .map(function (x) {
+        return { id: 'a' + x.e.id, employee: x.e,
+          tag: x.served + (x.served === 1 ? ' year' : ' years') + ' · ' + relDays(x.n), sort: x.n };
+      }).sort(function (a, b) { return a.sort - b.sort; });
+
+    return [
+      { k: 'out', label: 'Out today', rows: out },
+      { k: 'birthdays', label: 'Birthdays', rows: birthdays },
+      { k: 'joiners', label: 'New joiners', rows: joiners },
+      { k: 'years', label: 'Anniversaries', rows: years }
+    ];
+  }
+
+  function MeCard(p) {
+    return h('section', { className: 'adm-card' + (p.className ? ' ' + p.className : '') },
+      h('div', { className: 'adm-card__head' },
+        h('div', null,
+          h('h2', null, p.title, p.count !== undefined
+            ? h('span', { className: 'ecount' + (p.countTone ? ' is-' + p.countTone : '') }, p.count) : null),
+          p.sub ? h('p', null, p.sub) : null),
+        p.right || null),
+      p.children);
+  }
+
+  /* Each line says something about the signed-in person, so every one of these is
+     scoped to them. Reading the latest payslip in the organisation, rather than
+     theirs, is how a dashboard ends up quoting somebody else's salary. */
+  var SHORTCUTS = [
+    { t: 'Latest payslip', icon: I.download, act: 'Download', to: 'me/payroll/payslips',
+      sub: function (who) {
+        var ps = store.collection('payslips')
+          .filter(function (x) { return x.employee === who.id && x.status === 'Published'; })
+          .sort(function (a, b) { return a.paidOn < b.paidOn ? 1 : -1; })[0];
+        return ps ? ps.period + ' · ' + ui.inr(ps.net) + ' net' : 'Nothing published yet';
+      } },
+    { t: 'Upload a document', icon: I.clip, act: 'Upload', to: 'me/profile/documents',
+      sub: function () { return 'Saved against your own record'; } },
+    { t: 'Tax declaration', icon: I.reports, act: 'Open', to: 'me/payroll/tax',
+      sub: function (who) {
+        var td = store.collection('taxDeclarations')
+          .filter(function (x) { return x.employee === who.id; })[0];
+        return td ? (td.fy || 'This year') + ' · ' + (td.status || 'Draft') : 'Not started yet';
+      } },
+    { t: 'My assets', icon: I.package, act: 'View', to: 'me/assets/assigned',
+      sub: function (who) {
+        var n = store.collection('assets').filter(function (a) { return a.assignedTo === who.id; }).length;
+        return n ? n + ' item' + (n === 1 ? '' : 's') + ' in your name' : 'Nothing assigned';
+      } }
+  ];
+
+  function MeDashboard() {
+    var who = store.persona('me');
+    var tabSt = React.useState('leave');
+    var teamSt = React.useState('out');
+    var clockSt = React.useState(new Date());
+    React.useEffect(function () {
+      var t = setInterval(function () { clockSt[1](new Date()); }, 30000);
+      return function () { clearInterval(t); };
+    }, []);
+    if (!who) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
+
+    var shift = store.shift(who.shift) || seed.shifts[0];
+    var balances = store.balancesFor(who.id);
+    var punch = store.pref('punch') || {};
+    var today = seed.todayIso;
+    var inAt = punch.date === today ? punch.in : null;
+    var outAt = punch.date === today ? punch.out : null;
+    function hhmm(d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+    function setPunch(next) {
+      store.setPref('punch', Object.assign({ date: today }, punch.date === today ? punch : {}, next));
+    }
+
+    var actions = actionsFor(who);
+    var rows = monthRows(who);
+    var counts = {};
+    rows.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+    var worked = (counts.Present || 0) + (counts['Work From Home'] || 0) + (counts.Late || 0);
+    var working = rows.filter(function (r) { return r.status !== 'Weekly Off' && r.status !== 'Holiday'; }).length;
+
+    var left = balances.reduce(function (n, b) { return n + b.available; }, 0);
+    var entitled = balances.reduce(function (n, b) { return n + b.entitled; }, 0);
+    var monthStart = today.slice(0, 8) + '01';
+    var takenThisMonth = store.collection('leaveRequests')
+      .filter(function (l) { return l.employee === who.id && l.status === 'Approved' && l.from >= monthStart && l.from <= today; })
+      .reduce(function (n, l) { return n + l.days; }, 0);
+
+    var holidays = store.collection('holidays')
+      .filter(function (x) { return x.date >= today; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    var nextHoliday = holidays[0];
+
+    var goals = store.collection('goals').filter(function (g) { return g.employee === who.id; });
+    var overdue = goals.filter(function (g) { return g.status !== 'Achieved' && daysFromToday(g.due) < 0; }).length;
+
+    /* Monday to Sunday of the week today falls in, from the same derivation the
+       attendance screens use. */
+    var weekStart = seed.util.addDays(seed.today, -((seed.today.getDay() + 6) % 7));
+    var byDate = {};
+    (HRMS.attendanceHistory ? HRMS.attendanceHistory(who, 14) : [])
+      .forEach(function (r) { byDate[r.date] = r; });
+    var week = [];
+    for (var d = 0; d < 5; d++) {
+      var day = seed.util.addDays(weekStart, d);
+      var key = seed.util.iso(day);
+      week.push({ iso: key, day: WEEKDAY[day.getDay()], row: byDate[key] || null, future: key > today });
+    }
+
+    var groups = teamGroups(who);
+    var group = groups.filter(function (g) { return g.k === teamSt[0]; })[0] || groups[0];
+
+    var elapsed = inAt ? Math.max(0, (clockSt[0].getHours() * 60 + clockSt[0].getMinutes()) - minutesOf(inAt)) : 0;
+    var toGo = inAt ? Math.max(0, (minutesOf(shift.end) - minutesOf(shift.start)) - elapsed) : 0;
+
+    function link(label, to) {
+      return h('button', { type: 'button', className: 'dash__link',
+        onClick: function () { router.go(to); } }, label, I.right);
+    }
+
+    return h('div', { className: 'edash' },
+
+      /* ---- the banner: who, what is waiting, and where the day is up to ---- */
+      h('div', { className: 'ehero' },
+        h('div', { className: 'ehero__m' },
+          h('span', { className: 'ehero__eyebrow' },
+            dayOf(today).toLocaleDateString('en-GB', { weekday: 'long' }) + ', ' + ui.dateLabel(today)),
+          h('h1', null, greeting() + ', ' + who.name.split(' ')[0]),
+          h('p', null,
+            actions.length
+              ? actions.length + ' item' + (actions.length === 1 ? '' : 's') + ' need' + (actions.length === 1 ? 's' : '') + ' you.'
+              : 'Nothing is waiting on you.',
+            nextHoliday
+              ? ' The office is closed ' + relDays(daysFromToday(nextHoliday.date)) + ' for ' + nextHoliday.name + '.'
+              : '')),
+        h('div', { className: 'ehero__punch' },
+          inAt
+            ? h(React.Fragment, null,
+                h('div', { className: 'ehero__p1' },
+                  h('span', { className: 'ehero__dot' }),
+                  h('span', null, outAt ? 'Checked out at ' + outAt : 'Checked in at ' + inAt),
+                  h('b', null, outAt ? spell(minutesOf(outAt) - minutesOf(inAt)) : spell(elapsed))),
+                h('div', { className: 'ehero__p2' },
+                  h('span', null, 'Shift ' + shift.start + ' – ' + shift.end),
+                  h('span', null, outAt ? 'Day complete' : spell(toGo) + ' to go'),
+                  outAt ? null : h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.stop,
+                    onClick: function () { setPunch({ out: hhmm(new Date()) }); } }, 'Check out')))
+            : h(React.Fragment, null,
+                h('div', { className: 'ehero__p1' },
+                  h('span', { className: 'ehero__dot is-off' }),
+                  h('span', null, 'Not checked in'),
+                  h('b', null, '—')),
+                h('div', { className: 'ehero__p2' },
+                  h('span', null, 'Shift ' + shift.start + ' – ' + shift.end),
+                  h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.play,
+                    onClick: function () { setPunch({ in: hhmm(new Date()) }); } }, 'Check in'))))),
+
+      /* ---- what needs me, and where the month stands ---- */
+      h('div', { className: 'edash-a' },
+        h(MeCard, { title: 'Needs your action', count: actions.length,
+          countTone: actions.length ? 'warn' : null,
+          right: actions.length
+            ? h('span', { className: 'adm-card__hint' },
+              actions.length > 5 ? 'Most urgent 5 of ' + actions.length : 'Most urgent first')
+            : null },
+          actions.length
+            ? h('div', { className: 'nact' }, actions.slice(0, 5).map(function (a) {
+                return h('div', { className: 'nact__r', key: a.id },
+                  h('span', { className: 'nact__i is-' + a.tone }, a.icon),
+                  h('span', { className: 'nact__m' },
+                    h('strong', null, a.title),
+                    h('span', null, a.sub)),
+                  h('span', { className: 'adm-p adm-p--' + a.pillTone }, a.pill),
+                  h(V.Button, { variant: a.pillTone === 'fail' ? 'primary' : 'outline', className: 'vi-btn--sm',
+                    onClick: function () { router.go(a.to); } }, a.action));
+              }))
+            : h(ui.Empty, { icon: I.ok, title: 'Nothing is waiting on you',
+              body: 'Goals, corrections, reviews and surveys appear here when they need an answer.' })),
+
+        h(MeCard, { title: 'This month',
+          right: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+            onClick: function () { router.go('me/leave/overview'); } }, 'Apply leave') },
+          h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'This month' },
+            [['leave', 'Leave'], ['attendance', 'Attendance']].map(function (t) {
+              return h('button', { key: t[0], type: 'button', role: 'tab',
+                'aria-selected': tabSt[0] === t[0] ? 'true' : 'false',
+                className: 'ad-seg__b' + (tabSt[0] === t[0] ? ' is-on' : ''),
+                onClick: function () { tabSt[1](t[0]); } }, t[1]);
+            })),
+
+          tabSt[0] === 'leave'
+            ? h('div', { className: 'emonth' },
+                h('div', { className: 'emonth__top' },
+                  h(Ring, { value: entitled ? left / entitled : 0, big: left, small: 'days left',
+                    color: 'var(--av-green-fg)' }),
+                  h('div', { className: 'emonth__key' },
+                    h('div', { className: 'emonth__k' },
+                      h('i', { style: { background: 'var(--brand-solid)' } }),
+                      h('span', null, h('strong', null, 'Taken · ' + takenThisMonth + ' day' + (takenThisMonth === 1 ? '' : 's')),
+                        h('span', null, 'This month'))),
+                    h('div', { className: 'emonth__k' },
+                      h('i', { style: { background: 'var(--av-green-fg)' } }),
+                      h('span', null, h('strong', null, 'Left · ' + left + ' days'),
+                        h('span', null, balances.map(function (b) {
+                          var t = store.leaveType(b.type) || {};
+                          return (t.code || t.name) + ' ' + b.available;
+                        }).join(' · ')))))),
+                holidays.length
+                  ? h('div', { className: 'ehol' }, holidays.slice(0, 2).map(function (hd) {
+                      var n = daysFromToday(hd.date);
+                      return h('div', { className: 'ehol__r', key: hd.id || hd.date },
+                        h('span', { className: 'ehol__d' },
+                          h('b', null, dayOf(hd.date).getDate()),
+                          h('span', null, MONTH_ABBR[dayOf(hd.date).getMonth()].toUpperCase())),
+                        h('span', { className: 'ehol__m' },
+                          h('strong', null, hd.name),
+                          h('span', null, dayOf(hd.date).toLocaleDateString('en-GB', { weekday: 'long' })
+                            + ' · ' + relDays(n))),
+                        h('span', { className: 'adm-p adm-p--' + (hd.type === 'Optional' ? 'sched' : 'ok') },
+                          hd.type === 'Optional' ? 'Optional' : 'Office closed'));
+                    }))
+                  : null)
+            : h('div', { className: 'emonth' },
+                h('div', { className: 'echips' }, MONTH_TALLY.map(function (t) {
+                  return h('div', { className: 'echip', key: t.k },
+                    h('b', null, counts[t.k] || 0), h('span', null, t.l));
+                })),
+                h('p', { className: 'adm-card__foot' },
+                  working
+                    ? 'Worked ' + worked + ' of ' + working + ' working day' + (working === 1 ? '' : 's')
+                      + ' this month. Weekends and holidays are not counted.'
+                    : 'The month has not reached a working day yet.')))),
+
+      /* ---- the week, the promises, the shortcuts ---- */
+      h('div', { className: 'edash-b' },
+        h(MeCard, { title: 'This week',
+          right: h('span', { className: 'adm-card__hint' },
+            shortWhen(seed.util.iso(weekStart)) + ' – ' + shortWhen(seed.util.iso(seed.util.addDays(weekStart, 4)))) },
+          h('div', { className: 'eweek' }, week.map(function (w) {
+            var r = w.row;
+            var tone = !r ? '' : r.status === 'Holiday' || r.status === 'Weekly Off' ? 'is-off'
+              : r.status === 'Absent' ? 'is-bad' : 'is-ok';
+            return h('div', { className: 'eweek__r', key: w.iso },
+              h('span', { className: 'eweek__d' + (w.iso === today ? ' is-now' : '') }, w.day),
+              h('span', { className: 'eweek__t' },
+                w.future ? h('span', { className: 'muted' }, '—')
+                  : r && r.status === 'Holiday' ? (r.holiday || 'Holiday')
+                    : r && r.status === 'Weekly Off' ? 'Weekly off'
+                      : r && r.status === 'Absent' ? 'No punches recorded'
+                        : r ? r.checkIn + ' – ' + (w.iso === today && !outAt ? 'now' : r.checkOut)
+                          : '—'),
+              w.future ? h('span', { className: 'eweek__p' })
+                : r && r.status === 'Absent'
+                  ? h('button', { type: 'button', className: 'linklike eweek__fix',
+                      onClick: function () { router.go('me/attendance/regularization'); } }, 'Regularize')
+                  : h('span', { className: 'eweek__p ' + tone },
+                      w.iso === today ? 'Today'
+                        : r && r.status === 'Holiday' ? 'Holiday'
+                          : r && r.status === 'Weekly Off' ? 'Off'
+                            : r ? r.hours + 'h' : ''));
+          }))),
+
+        h(MeCard, { title: 'My goals', count: overdue || undefined, countTone: 'bad',
+          right: link('All goals', 'me/performance/goals') },
+          goals.length
+            ? h(React.Fragment, null,
+                h('div', { className: 'egoals' }, goals.slice(0, 3).map(function (g) {
+                  var late = g.status !== 'Achieved' && daysFromToday(g.due) < 0;
+                  return h('div', { className: 'egoal', key: g.id },
+                    h('span', { className: 'egoal__t' },
+                      h('strong', null, g.title),
+                      h('span', null, (late ? 'Was due ' : 'Due ') + ui.dateLabel(g.due))),
+                    h('span', { className: 'egoal__bar' },
+                      h('i', { style: { width: g.progress + '%',
+                        background: g.progress >= 100 ? 'var(--success-fg)' : late ? 'var(--danger-fg)' : 'var(--brand-solid)' } })),
+                    h('b', { className: 'egoal__n' }, g.progress + '%'));
+                })),
+                h('div', { className: 'row gap-2', style: { marginTop: 14 } },
+                  h(V.Button, { variant: 'primary', className: 'vi-btn--sm',
+                    onClick: function () { router.go('me/performance/goals'); } }, 'Update progress')))
+            : h(ui.Empty, { icon: I.target, title: 'No goals set',
+              body: 'Goals for the open cycle appear here once your manager sets them.' })),
+
+        h(MeCard, { title: 'Shortcuts', sub: 'The things people open most' },
+          h('div', { className: 'eshort' }, SHORTCUTS.map(function (s) {
+            return h('div', { className: 'eshort__r', key: s.t },
+              h('span', { className: 'eshort__i' }, s.icon),
+              h('span', { className: 'eshort__m' },
+                h('strong', null, s.t),
+                h('span', null, s.sub(who))),
+              h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
+                onClick: function () { router.go(s.to); } }, s.act));
+          })))),
+
+      /* ---- who is around ---- */
+      h(MeCard, { title: 'Around the team',
+        sub: (store.department(who.department) || {}).name + ' · next 30 days' },
+        h('div', { className: 'eteam__tabs' }, groups.map(function (g) {
+          return h('button', { key: g.k, type: 'button',
+            className: 'eteam__tab' + (teamSt[0] === g.k ? ' is-on' : ''),
+            'aria-pressed': teamSt[0] === g.k ? 'true' : 'false',
+            onClick: function () { teamSt[1](g.k); } },
+            g.label, h('span', null, g.rows.length));
+        })),
+        group.rows.length
+          ? h('div', { className: 'eteam' }, group.rows.slice(0, 8).map(function (r) {
+              return h('div', { className: 'eteam__c', key: r.id },
+                h(V.Avatar, { name: r.employee.name, size: 'sm' }),
+                h('span', { className: 'eteam__m' },
+                  h('strong', null, r.employee.name),
+                  h('span', null, r.employee.designation)),
+                h('span', { className: 'adm-p adm-p--sched' }, r.tag));
+            }))
+          : h(ui.Empty, { icon: I.users, title: 'Nothing under ' + group.label.toLowerCase(),
+            body: 'Try another tab — the counts show what each one holds.' })));
+  }
+
+  HRMS.screens.register({ 'admin/dashboard': AdminDashboard, 'me/dashboard': MeDashboard });
 })();
