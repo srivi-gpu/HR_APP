@@ -127,11 +127,17 @@
   }
 
   /* ---- Notifications ---- */
-  function notificationsFor(role) {
+  /* Read through the collection, not off the seed: a notification raised in this
+     session — an invitation resent, an MFA nudge, an asset request — is added to the
+     store, and reading the seed directly meant nobody ever saw one. Newest first, and
+     a notification addressed to one person is only theirs. */
+  function notificationsFor(role, employeeId) {
     var readIds = pref('readNotifications') || [];
-    return HRMS.seed.notifications
-      .filter(function (n) { return n.roles.indexOf(role) >= 0; })
-      .map(function (n) { return Object.assign({}, n, { read: n.read || readIds.indexOf(n.id) >= 0 }); });
+    return collectionOf('notifications')
+      .filter(function (n) { return (n.roles || []).indexOf(role) >= 0; })
+      .filter(function (n) { return !n.employee || !employeeId || n.employee === employeeId; })
+      .map(function (n) { return Object.assign({}, n, { read: n.read || readIds.indexOf(n.id) >= 0 }); })
+      .sort(function (a, b) { return String(b.on).localeCompare(String(a.on)); });
   }
   function markRead(ids) {
     var next = (pref('readNotifications') || []).slice();

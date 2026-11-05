@@ -448,7 +448,7 @@
   /* ==================================================== NOTIFICATION CENTRE */
   function Notifications(p) {
     var role = (p.route && p.route.role) || store.pref('role');
-    var notes = store.notificationsFor(role);
+    var notes = store.notificationsFor(role, (store.persona(role) || {}).id);
     var unread = notes.filter(function (n) { return !n.read; });
 
     return h(React.Fragment, null,
