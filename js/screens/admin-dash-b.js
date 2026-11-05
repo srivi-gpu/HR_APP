@@ -32,7 +32,7 @@
      headcount donut is not a warning, and painting one orange means the dashboard has
      nothing left to say when something actually needs attention. */
   var RAMP = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)',
-    'var(--chart-5)', 'var(--chart-6)'];
+    'var(--chart-5)', 'var(--chart-neutral)'];
 
   function greeting() {
     var hr = new Date().getHours();

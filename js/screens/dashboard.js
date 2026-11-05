@@ -541,7 +541,7 @@
     { k: 'revoke', t: 'Revoke access', c: 'var(--danger-fg)', to: 'admin/roles/review' },
     { k: 'mfa', t: 'Require MFA', c: 'var(--chart-1)', to: 'admin/settings' },
     { k: 'invite', t: 'Resend invite', c: 'var(--chart-4)', to: 'admin/users/all' },
-    { k: 'suspend', t: 'Decide suspension', c: 'var(--chart-6)', to: 'admin/users/all' }
+    { k: 'suspend', t: 'Decide suspension', c: 'var(--chart-neutral)', to: 'admin/users/all' }
   ];
 
   function Donut(p) {
@@ -568,7 +568,7 @@
        semantic colours. */
     { s: 'Approved', t: 'Ready to issue', c: 'var(--success-fg)' },
     { s: 'Pending Approval', t: 'In Tracklivo', c: 'var(--chart-1)' },
-    { s: 'Rejected', t: 'Declined', c: 'var(--chart-6)' }
+    { s: 'Rejected', t: 'Declined', c: 'var(--chart-neutral)' }
   ];
   function tracklivoRows() {
     var by = {};
@@ -821,7 +821,7 @@
              percentage still turns red when it is low. */
           h('div', { className: 'adm-legend' },
             h('span', null, h('i', { style: { background: 'var(--success-fg)' } }), 'MFA on'),
-            h('span', null, h('i', { style: { background: 'var(--chart-6)', opacity: .45 } }), 'Password only')),
+            h('span', null, h('i', { style: { background: 'var(--chart-neutral)' } }), 'Password only')),
           h('div', { className: 'adm-stack adm-stack--mfa' }, mfa.map(function (r) {
             var pct = r.n ? r.on / r.n * 100 : 0;
             return h('button', { type: 'button', className: 'adm-stack__r', key: r.k,
@@ -830,7 +830,7 @@
               h('span', { className: 'adm-stack__l' }, r.t, h('small', null, num(r.n))),
               h('span', { className: 'adm-stack__bar' },
                 r.on ? h('i', { style: { width: pct + '%', background: 'var(--success-fg)' } }) : null,
-                r.n - r.on ? h('i', { style: { width: (100 - pct) + '%', background: 'var(--chart-6)', opacity: .45 } }) : null),
+                r.n - r.on ? h('i', { style: { width: (100 - pct) + '%', background: 'var(--chart-neutral)' } }) : null),
               h('b', { className: pct < 50 ? 'is-low' : null }, Math.round(pct) + '%'));
           })),
           h('p', { className: 'adm-card__foot' }, 'Privileged roles first: their accounts can change everyone else’s.'))
