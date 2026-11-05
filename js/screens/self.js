@@ -207,8 +207,12 @@
           h(V.TextField, Object.assign({ label: 'IFSC' }, form.field('bankIfsc'))));
       }
 
+      /* The "My record" card beside this one is gone: the avatar, name, designation,
+         status, department and location it repeated are all in the header above the
+         tabs now, on every tab, so it was saying the same thing twice on three of
+         them. The detail card takes the full width it left behind. */
       return h(Grid, null,
-        h(Card, { span: 8, title: TITLES[kind],
+        h(Card, { span: 12, title: TITLES[kind],
           aside: h(V.Button, {
             variant: editSt[0] ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.pencil,
             onClick: function () { form.reset(currentValues()); editSt[1](!editSt[0]); }
@@ -219,20 +223,7 @@
                   h(V.Button, { variant: 'primary', onClick: save },
                     NEEDS_APPROVAL[kind] ? 'Request change' : 'Save changes'),
                   h(V.Button, { variant: 'outline', onClick: function () { editSt[1](false); } }, 'Cancel')))
-            : view()),
-        h(Card, { span: 4, title: 'My record' },
-          h('div', { className: 'row gap-3' },
-            h(V.Avatar, { name: m.name, size: 'xl' }),
-            h('div', { className: 'stack gap-1' },
-              h('strong', { style: { fontWeight: 500 } }, m.name),
-              h('span', { className: 'muted', style: { fontSize: 12 } }, m.designation),
-              h(ui.StatusChip, { status: m.status }))),
-          h(ui.KeyValue, { rows: [
-            ['Department', deptName(m.department)],
-            ['Location', locName(m.location)],
-            ['Joined', m.joinedLabel],
-            ['Manager', m.manager ? emp(m.manager).name : null]
-          ]})));
+            : view()));
     };
   }
 

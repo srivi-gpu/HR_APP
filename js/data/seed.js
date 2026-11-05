@@ -196,6 +196,12 @@
     throw new Error('ran out of unique names');
   }
 
+  var STREETS = ['Lake View Road', 'MG Road', 'Jubilee Enclave', 'Park Street', 'Residency Lane',
+    '4th Cross', 'Green Avenue', 'Temple Road', 'Hill Side', 'Station Road'];
+  var CITY_OF = { 'loc-hyd': 'Hyderabad', 'loc-blr': 'Bengaluru', 'loc-pun': 'Pune' };
+  var HOME_TOWNS = ['Vijayawada 520001', 'Mysuru 570001', 'Nashik 422001', 'Kochi 682001',
+    'Coimbatore 641001', 'Indore 452001', 'Guwahati 781001', 'Jaipur 302001'];
+
   function makeEmployee(name, dept, designation, type, status, loc, monthsAgo, joinedOverride) {
     seq += 1;
     var id = 'NEX' + String(seq).padStart(4, '0');
@@ -218,6 +224,13 @@
       joined: iso(joined), joinedLabel: pretty(joined),
       workEmail: mail + '@nexoratech.com',
       personalEmail: mail.replace(/\./g, '') + '@gmail.com',
+      /* Addresses were never seeded, so the contact fields read as blank wherever they
+         were shown. Derived from the sequence, not from r(), so the stream the PRD 15
+         figures depend on stays where it is. */
+      address: (101 + (seq % 80)) + ', ' + STREETS[seq % STREETS.length] + ', '
+        + CITY_OF[loc] + ' ' + (500000 + ((seq * 7) % 90000)),
+      permanentAddress: (12 + (seq % 60)) + ', ' + STREETS[(seq + 3) % STREETS.length] + ', '
+        + HOME_TOWNS[seq % HOME_TOWNS.length],
       phone: '+91 9' + String(100000000 + Math.floor(r() * 899999999)).slice(0, 9),
       ctc: ctc,
       dob: iso(addDays(TODAY, -Math.floor(7600 + r() * 6600))),
