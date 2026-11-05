@@ -2357,6 +2357,133 @@
               body: 'An account that blocks itself after ' + pol.tries + ' would show up here.' })));
   }
 
+
+  /* ===================================================== Joiner setup (PRD 5.1)
+
+     The IT half of a joiner. HR starting an onboarding raises work here, and until
+     this screen existed that work was a checkbox on HR's list called "IT setup" with
+     nothing behind it: a joiner could not sign in until somebody made them an account,
+     and nobody could.
+
+     The queue is derived from the onboarding cases rather than stored (js/actions.js,
+     `joinerQueue`) — a case whose IT setup task is still open is waiting on IT, and
+     that is the only fact involved. A second collection would have been a second place
+     for it to be wrong.
+
+     The employee ID is not typed. It comes from the organisation's numbering series
+     and is already on the record by the time it reaches this queue; what IT decides is
+     the mailbox, and the address offered is a proposal from the person's name. */
+  function JoinerSetup() {
+    var openSt = React.useState(null);
+    var queue = act.joinerQueue();
+    var waiting = queue.length;
+
+    /* Recently issued, so the screen is not empty the moment the queue is cleared and
+       so there is somewhere to check what was sent. */
+    var issued = store.collection('employees')
+      .filter(function (e) { return e.credentialsIssuedOn; })
+      .sort(function (a, b) { return a.credentialsIssuedOn < b.credentialsIssuedOn ? 1 : -1; })
+      .slice(0, 8);
+
+    return h(React.Fragment, null,
+      h(PageHead, {
+        eyebrow: 'Users', title: 'Joiner setup',
+        description: 'Every onboarding raises an account here. Issue the employee ID and the work email '
+          + 'together, and they go to the joiner’s personal address — the work one is the thing being '
+          + 'created, so it cannot carry its own announcement.'
+      }),
+
+      h(Card, {
+        title: 'Waiting on IT',
+        description: waiting
+          ? plural(waiting, 'joiner') + ' cannot sign in until an account exists.'
+          : 'Nothing is waiting.',
+        aside: h('span', { className: 'muted' }, plural(waiting, 'joiner'))
+      },
+        waiting
+          ? h('div', { className: 'jq' }, queue.map(function (j) {
+              return h('div', { className: 'jq__r', key: j.id },
+                h(V.Avatar, { name: j.name, size: 'sm' }),
+                h('span', { className: 'jq__m' },
+                  h('strong', null, j.name),
+                  h('span', null, (j.designation || '') + ' · starts ' + (j.startDateLabel || ui.dateLabel(j.startDate))),
+                  h('em', null, j.personalEmail
+                    ? 'Personal address on file: ' + j.personalEmail
+                    : 'No personal address on the record — add one before issuing')),
+                h('span', { className: 'jq__id mono' }, j.employee),
+                h(V.Button, {
+                  variant: 'primary', className: 'vi-btn--sm', iconStart: I.mail,
+                  disabled: !j.personalEmail,
+                  onClick: function () { openSt[1](j); }
+                }, 'Issue credentials'));
+            }))
+          : h(ui.Done, { title: 'Every joiner has an account',
+              body: 'The next onboarding HR starts will raise one here.' })),
+
+      issued.length
+        ? h(Card, { title: 'Recently issued', description: 'What was sent, and when.' },
+            h(ui.DataTable, {
+              exportName: 'joiner-credentials', label: 'Recently issued', rows: issued, pageSize: 8,
+              onExport: false,
+              columns: [
+                { key: 'name', header: 'Joiner', cell: function (e) { return h(ui.Person, { employee: e }); } },
+                { key: 'id', header: 'Employee ID', cell: function (e) { return h('span', { className: 'mono' }, e.id); } },
+                { key: 'workEmail', header: 'Work email' },
+                { key: 'personalEmail', header: 'Sent to' },
+                { key: 'credentialsIssuedOn', header: 'Issued',
+                  cell: function (e) { return ui.dateLabel(e.credentialsIssuedOn); } }
+              ]
+            }))
+        : null,
+
+      openSt[0] ? h(IssueCredentials, {
+        joiner: openSt[0], onClose: function () { openSt[1](null); }
+      }) : null);
+  }
+
+  function IssueCredentials(p) {
+    var j = p.joiner;
+    var form = ui.useForm({ workEmail: j.proposed, role: 'me' });
+
+    function issue() {
+      var res = ui.report(act.issueJoinerCredentials(j.id, form.values));
+      if (res && res.ok) p.onClose();
+    }
+
+    return h(ui.Modal, {
+      title: 'Issue credentials to ' + j.name,
+      description: 'The employee ID is already theirs — it came from the numbering series when the record '
+        + 'was created. What is decided here is the mailbox.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', iconStart: I.mail, onClick: issue },
+          'Issue and send'))
+    },
+      h('div', { className: 'jq__sum' },
+        h('span', null, 'Employee ID'), h('strong', { className: 'mono' }, j.employee),
+        h('span', null, 'Starts'), h('strong', null, j.startDateLabel || ui.dateLabel(j.startDate)),
+        h('span', null, 'Sends to'), h('strong', null, j.personalEmail)),
+
+      h(V.TextField, Object.assign({
+        label: 'Work email', type: 'email', required: true,
+        hint: form.errors.workEmail || 'Proposed from their name. Change it if your convention differs.'
+      }, form.field('workEmail'))),
+
+      h(V.Select, Object.assign({
+        label: 'Workspace they sign in to',
+        options: [
+          { value: 'me', label: 'Employee — their own records and requests' },
+          { value: 'team', label: 'Team member — the same, plus an approval inbox' },
+          { value: 'hr', label: 'HR — people operations' },
+          { value: 'admin', label: 'Admin — the platform' }
+        ],
+        hint: 'Almost always Employee. A manager is given the team workspace once they have reports.'
+      }, form.select('role'))),
+
+      form.errors._ ? h('p', { className: 'muted', style: { color: 'var(--danger-fg)' } }, form.errors._) : null);
+  }
+
   /* ====================================================== Access review
      The standing question Tracklivo asks on this tab: who holds access they should not
      still have. Each finding is a real row in the users collection, so Keep and the fix
@@ -2445,6 +2572,7 @@
        holiday calendar is per office, inside Working hours. */
 
     'admin/users/all': usersScreen(null, 'Users', 'Every user account with role, status and last sign-in.'),
+    'admin/users/joiners': JoinerSetup,
 
     'admin/roles/review': AccessReview,
     'admin/settings/rules': SecurityRules,

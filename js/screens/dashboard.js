@@ -274,7 +274,7 @@
         },
         done: function (n) { return plural(n, 'owner') + ' told what is theirs, with the joiners it is holding up.'; },
         log: function (n) { return 'nudged ' + plural(n, 'onboarding task owner'); }, cat: 'User activity',
-        a: 'Open onboarding', to: 'hr/onboarding/dashboard'
+        a: 'Open onboarding', to: 'hr/onboarding/cases'
       });
     }
     if (quiet.length) {

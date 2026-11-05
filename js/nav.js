@@ -55,7 +55,13 @@
 
     { path: 'users', label: 'Users', icon: 'users', section: '2.1', tabs: [
       { path: 'all', label: 'Users', section: '2.1', note: 'Every user account with role, status and last sign-in, filtered by status.' },
-      { path: 'access', label: 'Access requests', section: '10', note: 'One inbox for new-user, role-change, team and system access requests.' }
+      { path: 'access', label: 'Access requests', section: '10', note: 'One inbox for new-user, role-change, team and system access requests.' },
+      /* The IT half of a joiner. Starting an onboarding raises work here: an employee
+         ID from the series, a mailbox, and both sent to the joiner's personal address
+         so they can sign in for the first time. It sits under Users because what it
+         produces is an account. */
+      { path: 'joiners', label: 'Joiner setup', section: '5.1',
+        note: 'Joiners waiting on an account: issue the employee ID and work email, and send them to the personal address.' }
     ]},
 
     /* Permissions, in Tracklivo's two tabs. Access review is the standing question —
@@ -149,15 +155,16 @@
       { path: 'notice', label: 'Notice period', section: '3.3', note: 'Employees serving notice, with last working day and clearance progress.' },
       { path: 'exited', label: 'Exited', section: '14.1', note: 'Archived records, excluded from active headcount.' }
     ]},
+    /* No dashboard tab on either of these. A dashboard counts the work on the tabs
+       beside it, which is one more click before you can do any of it; In progress
+       already opens on the people who are joining and what is blocking them. */
     { path: 'onboarding', label: 'Onboarding', icon: 'person', section: '4.6', tabs: [
-      { path: 'dashboard', label: 'Dashboard', section: '4.6', note: 'Yet to start, in progress, pending verification, completed and overdue tasks.' },
       { path: 'cases', label: 'In progress', section: '4.9', note: 'Each new joiner with task progress and the current blocker.' },
       { path: 'verification', label: 'Document verification', section: '4.8', note: 'Review uploaded documents and accept or reject each one.' },
       { path: 'completed', label: 'Completed', section: '4.9', note: 'Finished onboardings, with the full record of tasks, owners and documents.' },
       { path: 'templates', label: 'Templates', section: '4.7', note: 'Onboarding templates per employee type, department and location.' }
     ]},
     { path: 'offboarding', label: 'Offboarding', icon: 'logout', section: '4.48', tabs: [
-      { path: 'dashboard', label: 'Dashboard', section: '4.51', note: 'Open exits, notice periods ending and pending clearances.' },
       { path: 'resignations', label: 'Resignations', section: '4.49', note: 'Submitted resignations awaiting manager and HR decision.' },
       { path: 'notice', label: 'Notice period', section: '4.50', note: 'Notice period tracker with last working day per employee.' },
       { path: 'clearance', label: 'Clearance', section: '4.50', note: 'Knowledge transfer, asset return and access revocation checklists.' },
