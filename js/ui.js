@@ -339,8 +339,11 @@
     if (!item || !item.tabs) return null;
 
     function go(tab) {
-      /* A tab may keep a route of its own, so follow that where it has one. */
-      HRMS.router.go((tab && tab.route) || (role + '/' + item.path + '/' + tab.path));
+      /* A tab may keep a route of its own, so follow that where it has one —
+         rebased onto the workspace doing the looking, since an inherited item
+         names the one it was written for. */
+      HRMS.router.go((tab && tab.route ? HRMS.nav.rebase(tab.route, role) : null)
+        || (role + '/' + item.path + '/' + tab.path));
     }
     function row(tabs, variant, value, label) {
       return h(V.TabGroup, {

@@ -556,14 +556,17 @@
       persona: 'Rohit Khanna', blurb: 'Organization setup, users, permissions, billing and platform settings.' },
     { id: 'hr', label: 'HR', icon: 'users', items: HR_ITEMS, groups: build('hr', HR_ITEMS), home: 'hr/dashboard',
       persona: 'Priya Sharma', blurb: 'People operations, policies, workflows and the employee lifecycle.' },
-    { id: 'me', label: 'Employee', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
-      persona: 'Ananya Rao', blurb: 'Self-service: attendance, leave, payslips, documents and reviews.' },
+    /* Both of the last two are team members. The difference between them is not what
+       they can see about themselves — that is identical — but whether anybody reports
+       to them, and so whether anything comes to them to approve. */
+    { id: 'me', label: 'Team member', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
+      persona: 'Ananya Rao', blurb: 'A team member with nobody reporting to them: attendance, leave, payslips, documents and reviews.' },
     /* The persona has to be somebody with reports, or the workspace would open on an
        approval inbox its own rule hides — and with enough waiting on them that the
        inbox has something in it. Venkat Wadhwa leads sixteen people and has the most
        requests pending of anyone who is not HR. */
-    { id: 'team', label: 'Team member', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
-      persona: 'Venkat Wadhwa', blurb: 'Everything an employee has, plus the requests from the people who report to you.' }
+    { id: 'team', label: 'Manager', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
+      persona: 'Venkat Wadhwa', blurb: 'A team member who also approves: everything above, plus the requests from the people who report to them.' }
   ];
 
   /* Flattened route table: 'role/item[/tab]' -> metadata.
@@ -574,6 +577,24 @@
      supplies the group label where the item has a row, which is what the breadcrumb
      and the page eyebrow read. */
   var routes = {};
+  var ROLE_IDS = {};
+  ROLES.forEach(function (r) { ROLE_IDS[r.id] = true; });
+
+  /* An inherited item carries the route of the workspace it was written for — the
+     manager's list is the team member's plus one — so a tab naming `me/leave/overview`
+     has to read as `team/leave/overview` when a manager is the one looking at it.
+     Without this, following the rail would drop a manager into the other workspace,
+     because the route names it. A route under a prefix that is not a role is left
+     alone, as is one already under this role's own. */
+  /* Which workspace is built out of another's item list. The manager's is the team
+     member's plus an approval inbox, so a `me/` route is also a route of theirs. */
+  var INHERITS = { team: 'me' };
+
+  function rebase(route, roleId) {
+    if (!route || !roleId) return route;
+    var head = route.slice(0, route.indexOf('/'));
+    return (head !== roleId && ROLE_IDS[head]) ? roleId + route.slice(head.length) : route;
+  }
   ROLES.forEach(function (role) {
     var groupOf = {};
     role.groups.forEach(function (group) {
@@ -596,7 +617,7 @@
       (item.tabs || []).forEach(function (tab, i) {
         /* A tab may name an absolute route of its own, so one rail item can gather
            screens that already live under different paths without moving them. */
-        var at = tab.route || (base + '/' + tab.path);
+        var at = tab.route ? rebase(tab.route, role.id) : (base + '/' + tab.path);
         routes[at] = {
           role: role.id, group: group, item: item, tab: tab, label: tab.label,
           section: tab.section, note: tab.note, path: at, isFirstTab: i === 0
@@ -616,7 +637,7 @@
       var m = routes[path];
       if (m.item && m.item.tabs && !m.tab) {
         var first = m.item.tabs[0];
-        return routes[first.route || (path + '/' + first.path)];
+        return routes[first.route ? rebase(first.route, m.role) : (path + '/' + first.path)];
       }
       return m;
     }
@@ -624,7 +645,8 @@
   }
 
   HRMS.nav = {
-    roles: ROLES, global: GLOBAL, routes: routes, role: role, resolve: resolve,
+    roles: ROLES, global: GLOBAL, routes: routes, role: role, resolve: resolve, rebase: rebase,
+    inherits: INHERITS,
     count: Object.keys(routes).length
   };
 })();

@@ -71,6 +71,10 @@
        is the same authority as system settings. Without these two, a module grant that
        withheld attendance still left the row on the rail. */
     'hr/time': 'attendance', 'me/time': 'attendance', 'admin/data': 'settings',
+    /* The manager's workspace is the team member's under another prefix, so every
+       exception above that names a `me/` route needs its twin here. */
+    'team/dashboard': 'people', 'team/announcements': 'engagement', 'team/profile': 'people',
+    'team/exit': 'offboarding', 'team/time': 'attendance',
     /* Admin's People module governs accounts, access and the reporting structure, not
        employee records, so it is gated on User management rather than on `people` —
        which admin only reads. The HR workspace keeps `hr/people` on employee records. */
@@ -218,7 +222,7 @@
      the access-denied screen instead of rendering. */
   /* Routes a module grant may never take away: the way in, the way to find things, and
      a person's own record and notifications. */
-  var OPEN_PATHS = /^(admin|hr|me)\/(dashboard|search)(\/|$)|^me\/profile(\/|$)/;
+  var OPEN_PATHS = /^(admin|hr|me|team)\/(dashboard|search)(\/|$)|^(me|team)\/profile(\/|$)/;
   function allows(role, path) {
     if (OPEN_PATHS.test(path || '')) {
       var m0 = moduleOf(path);
