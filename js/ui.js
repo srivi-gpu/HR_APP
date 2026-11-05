@@ -554,6 +554,64 @@
     return ReactDOM.createPortal(node, document.body);
   }
 
+  /* ---------- Tip: what a mark stands for, on hover and on focus ----------
+
+     A table that shows a category as an icon has to be able to say which category,
+     and a status shown as a mark has to be able to say the rest — who holds it,
+     since when, what condition it came back in. The native `title` attribute does
+     that, badly: it waits a second, it cannot be reached from the keyboard, and it
+     renders in the operating system's font rather than this one.
+
+     The bubble is portalled to the body and positioned from the trigger's own
+     rectangle, because every table wrapper in this application sets `overflow:
+     hidden` to keep its columns in — an absolutely positioned bubble inside one is
+     cut off at the cell edge, which is exactly where a tooltip is least useful. It
+     opens on hover and on focus, closes on blur, leave and Escape, and the trigger
+     carries `aria-describedby`, so what the sighted user reads on hover is what a
+     screen reader is told. */
+  function Tip(p) {
+    var openSt = React.useState(null);
+    var ref = React.useRef(null);
+    var idRef = React.useRef(null);
+    if (!idRef.current) { tipSeq += 1; idRef.current = 'tip-' + tipSeq; }
+    var open = openSt[0];
+
+    function show() {
+      var el = ref.current;
+      if (!el) return;
+      var r = el.getBoundingClientRect();
+      openSt[1]({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top), bottom: Math.round(r.bottom) });
+    }
+    function hide() { openSt[1](null); }
+
+    React.useEffect(function () {
+      if (!open) return;
+      function onKey(e) { if (e.key === 'Escape') hide(); }
+      window.addEventListener('keydown', onKey);
+      window.addEventListener('scroll', hide, true);
+      return function () {
+        window.removeEventListener('keydown', onKey);
+        window.removeEventListener('scroll', hide, true);
+      };
+    }, [!!open]);
+
+    /* Above the trigger where there is room for it, below where there is not, so a
+       row near the top of the viewport does not hide its own tooltip off-screen. */
+    var above = !open || open.y > 120;
+    var bubble = open ? portal(h('span', {
+      className: 'vi-tip' + (above ? '' : ' vi-tip--below'), id: idRef.current, role: 'tooltip',
+      style: { left: open.x + 'px', top: (above ? open.y : open.bottom) + 'px' }
+    }, p.text)) : null;
+
+    return h('span', {
+      className: 'vi-tip__t' + (p.className ? ' ' + p.className : ''), ref: ref,
+      tabIndex: p.focusable === false ? undefined : 0,
+      'aria-describedby': open ? idRef.current : undefined,
+      onMouseEnter: show, onMouseLeave: hide, onFocus: show, onBlur: hide
+    }, p.children, bubble);
+  }
+  var tipSeq = 0;
+
   function Modal(p) {
     useEscape(p.onClose);
     return portal(h('div', {
@@ -788,7 +846,7 @@
     PageHead: PageHead, Card: Card, Grid: Grid, Stat: Stat, Stats: Stats, KeyValue: KeyValue,
     Person: Person, StatusChip: StatusChip, Empty: Empty, Done: Done, DoneArt: DoneArt, Stub: Stub, ModuleTabs: ModuleTabs,
     DataTable: DataTable, Bars: Bars, Timeline: Timeline,
-    Modal: Modal, Drawer: Drawer, Confirm: Confirm, portal: portal,
+    Modal: Modal, Drawer: Drawer, Confirm: Confirm, portal: portal, Tip: Tip,
     useForm: useForm, FieldRow: FieldRow, FormSection: FormSection,
     EmployeePicker: EmployeePicker, Filter: Filter, Nudge: Nudge,
     toast: toast, report: report, ToastHost: ToastHost

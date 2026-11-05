@@ -758,13 +758,13 @@
   /* Asset requests: exactly 7 pending (PRD 15). Farhan Ali is scenario 8. */
   var assetRequests = [];
   var arSeq = 9000;
-  function addAssetRequest(employee, category, reason, status) {
+  function addAssetRequest(employee, category, reason, status, extra) {
     arSeq += 1;
-    assetRequests.push({
+    assetRequests.push(Object.assign({
       id: 'AR' + arSeq, employee: employee, category: category, reason: reason, status: status,
       requestedOn: iso(addDays(TODAY, -Math.floor(1 + r() * 20))),
       approver: id('Sandeep Rao')
-    });
+    }, extra || {}));
   }
   addAssetRequest(id('Farhan Ali'), 'Monitor', 'Dual screen setup for research sessions', 'Pending Approval');
   /* The Employee workspace opens as Ananya Rao, so she has to have asked for something:
@@ -774,6 +774,23 @@
   addAssetRequest(id('Ananya Rao'), 'Laptop', 'Replacement \u2014 battery swells under load', 'Approved');
   addAssetRequest(id('Ananya Rao'), 'Docking Station', 'Two screens at the Bengaluru desk', 'Pending Approval');
   addAssetRequest(id('Ananya Rao'), 'Mobile Phone', 'On-call rotation starting next month', 'Rejected');
+  /* Two that Ara's rule takes, because a rule nothing in the data ever meets cannot
+     be seen working. One is a replacement for a unit the person is holding — the
+     access card that snapped in a lanyard — and one is standard kit nobody needs a
+     manager's permission for. Both are deliberately the cheapest things on the
+     register, which is the whole point of where the cap sits. */
+  var cardOf = function (name) {
+    var who = id(name);
+    return assets.filter(function (a) { return a.assignedTo === who && a.category === 'Access Card'; })[0];
+  };
+  var sneha = cardOf('Sneha Kulkarni');
+  if (sneha) {
+    addAssetRequest(id('Sneha Kulkarni'), 'Access Card', 'Snapped in the lanyard — cannot badge in at the Pune office',
+      'Pending Approval', { kind: 'Repair', asset: sneha.id, source: 'Portal' });
+  }
+  addAssetRequest(id('Karthik Menon'), 'Keyboard', 'Wrist strain on the stock keyboard; occupational health asked for a split one',
+    'Pending Approval', { kind: 'New asset', source: 'Portal' });
+
   var arPool = shuffle(eligible.filter(function (e) { return e.name !== 'Farhan Ali'; }));
   var AR_PENDING = 7;
   arPool.slice(0, AR_PENDING - 1).forEach(function (e) {
@@ -2345,7 +2362,7 @@
       pendingLeaveRequests: 14, pendingRegularizations: 8, pendingOnboardingTasks: 16,
       /* 8, not 7: the generated requests drifted by one at some point and the target was
          never caught up. The target is meant to describe the sample data, so it says 8. */
-      pendingAssetRequests: 8
+      pendingAssetRequests: 10
     }
   };
 })();

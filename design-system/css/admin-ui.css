@@ -1343,6 +1343,73 @@ html.lenis, html.lenis body { height: auto; }
 .ast-share__k span { font-variant-numeric: tabular-nums; }
 
 .ast-cell { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+
+/* ---------- The joiner's kit, in the issue-credentials modal ---------- */
+.jkit { margin-top: 18px; border: 1px solid var(--brand-border); border-radius: 16px;
+  background: var(--brand-softer); overflow: hidden; }
+.jkit__h { display: flex; gap: 11px; padding: 13px 14px; }
+.jkit__m { flex: none; width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center;
+  background: var(--brand-solid); color: var(--brand-on-solid); }
+.jkit__t { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.jkit__t strong { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.jkit__t span { font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
+.jkit__l { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 12px; }
+.jkit__r { display: flex; align-items: center; gap: 11px; padding: 9px 11px; border-radius: 12px;
+  border: 1px solid var(--border-subtle); background: var(--bg-surface); cursor: pointer; }
+.jkit__r.is-on { border-color: var(--brand-border); }
+.jkit__r input { width: 16px; height: 16px; accent-color: var(--brand-solid); margin: 0; flex: none; }
+.jkit__i { flex: none; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--bg-muted); color: var(--text-secondary); }
+.jkit__i svg { width: 16px; height: 16px; }
+.jkit__n { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.jkit__n strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.jkit__n span { font-size: 12px; color: var(--text-muted); }
+
+/* ---------- Ara on the asset queue ---------- */
+/* The band sits above the table and carries its own controls, so what Ara has
+   already done and the switch that stops it are never in two different places. */
+.ara-band { align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+.ara-band__c { display: flex; align-items: center; gap: 18px; flex: none; margin-left: auto; }
+.ara-band .vi-switch__label { font-size: 13px; }
+
+/* Who decided a request. Ara's carries the mark; a person's carries their name. */
+.dby { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px;
+  border-radius: var(--tl-round); background: var(--bg-muted); color: var(--text-secondary);
+  font-size: 12.5px; font-weight: 600; }
+.dby--ara { background: var(--brand-soft); color: var(--text-brand); }
+.dby svg { width: 15px; height: 15px; }
+
+/* The rule, in the modal: two cases Ara takes and one it does not. */
+.arule { display: flex; flex-direction: column; gap: 10px; }
+.arule__r { display: flex; gap: 12px; padding: 13px 14px; border-radius: 14px;
+  border: 1px solid var(--brand-border); background: var(--brand-softer); }
+.arule__r.is-off { border-color: var(--border-subtle); background: var(--bg-subtle); }
+.arule__n { flex: none; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--brand-solid); color: var(--brand-on-solid); font-size: 12.5px; font-weight: 700; }
+.arule__r.is-off .arule__n { background: var(--bg-muted); color: var(--text-muted); }
+.arule__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.arule__m strong { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.arule__m span { font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+.arule__q { display: flex; gap: 11px; align-items: flex-start; padding: 10px 12px; border-radius: 12px;
+  border: 1px solid var(--border-subtle); background: var(--bg-surface); }
+.arule__q.is-ara { border-color: var(--brand-border); background: var(--brand-softer); }
+.arule__q__i { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center;
+  background: var(--bg-muted); color: var(--text-secondary); }
+.arule__q.is-ara .arule__q__i { background: var(--brand-solid); color: var(--brand-on-solid); }
+.arule__q__i svg { width: 15px; height: 15px; }
+
+/* The category and the state as marks in the inventory. Both are one of a small
+   closed set, so a shape reads faster than the word and the word is a hover away. */
+.ast-mark { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  background: var(--bg-muted); color: var(--text-secondary); }
+.ast-mark svg { width: 18px; height: 18px; }
+.ast-state { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; }
+.ast-state svg { width: 17px; height: 17px; }
+.ast-state.is-on { background: var(--brand-soft); color: var(--text-brand); }
+.ast-state.is-free { background: var(--success-bg); color: var(--success-fg); }
+.ast-state.is-svc { background: var(--warning-bg); color: var(--warning-fg); }
+.ast-state.is-bad { background: var(--danger-bg); color: var(--danger-fg); }
+.ast-state.is-off { background: var(--bg-muted); color: var(--text-muted); }
 .ast-cell__i { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
   background: var(--bg-subtle, rgba(127,127,127,.07)); color: var(--text-secondary); }
 

@@ -2441,12 +2441,30 @@
       }) : null);
   }
 
+  /* Ara's mark, drawn here rather than imported: this file is loaded on its own and
+     the dashboard's copy is private to it. */
+  var ARA_GLYPH = h('svg', { viewBox: '0 0 24 24', width: 18, height: 18, fill: 'none', 'aria-hidden': 'true' },
+    h('path', { d: 'M12 3.2l1.9 4.7 4.9 1.8-4.9 1.8L12 16.2l-1.9-4.7-4.9-1.8 4.9-1.8L12 3.2Z', fill: 'currentColor' }),
+    h('circle', { cx: 18.4, cy: 17.6, r: 2.1, fill: 'currentColor', opacity: .85 }),
+    h('circle', { cx: 6.2, cy: 18.4, r: 1.3, fill: 'currentColor', opacity: .6 }));
+
   function IssueCredentials(p) {
     var j = p.joiner;
+    /* Read once, on open: the picks are a proposal about the store as it stood when
+       the screen opened, and a list that reshuffles under the person reading it is
+       worse than one that is a few seconds old. */
+    var kit = React.useState(function () { return act.araJoinerKit(j.employee); })[0];
+    var pickSt = React.useState(function () { return kit.map(function (x) { return x.unit.id; }); });
     var form = ui.useForm({ workEmail: j.proposed, role: 'me' });
 
+    function toggle(id) {
+      var on = pickSt[0].indexOf(id) > -1;
+      pickSt[1](on ? pickSt[0].filter(function (x) { return x !== id; }) : pickSt[0].concat([id]));
+    }
+
     function issue() {
-      var res = ui.report(act.issueJoinerCredentials(j.id, form.values));
+      var res = ui.report(act.issueJoinerCredentials(j.id,
+        Object.assign({}, form.values, { kit: pickSt[0] })));
       if (res && res.ok) p.onClose();
     }
 
@@ -2458,7 +2476,9 @@
       footer: h(React.Fragment, null,
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
         h(V.Button, { variant: 'primary', iconStart: I.mail, onClick: issue },
-          'Issue and send'))
+          pickSt[0].length
+            ? 'Issue and send \u00b7 ' + (pickSt[0].length + 1) + ' things'
+            : 'Issue and send'))
     },
       h('div', { className: 'jq__sum' },
         h('span', null, 'Employee ID'), h('strong', { className: 'mono' }, j.employee),
@@ -2473,13 +2493,36 @@
       h(V.Select, Object.assign({
         label: 'Workspace they sign in to',
         options: [
-          { value: 'me', label: 'Employee — their own records and requests' },
-          { value: 'team', label: 'Team member — the same, plus an approval inbox' },
+          { value: 'me', label: 'Team member — their own records and requests' },
+          { value: 'team', label: 'Manager — the same, plus an approval inbox' },
           { value: 'hr', label: 'HR — people operations' },
           { value: 'admin', label: 'Admin — the platform' }
         ],
-        hint: 'Almost always Employee. A manager is given the team workspace once they have reports.'
+        hint: 'Almost always Team member. The manager workspace is for somebody who has reports.'
       }, form.select('role'))),
+
+      /* The kit, picked by Ara and issued by whoever is reading this. It is a list
+         with checkboxes rather than a sentence, because the person handing the things
+         over is the one who knows which of them are actually in the drawer. */
+      kit.length
+        ? h('div', { className: 'jkit' },
+            h('div', { className: 'jkit__h' },
+              h('span', { className: 'jkit__m' }, ARA_GLYPH),
+              h('span', { className: 'jkit__t' },
+                h('strong', null, 'Ara set aside ' + kit.length + ' thing' + (kit.length === 1 ? '' : 's') + ' for day one'),
+                h('span', null, 'Standard kit under ' + ui.inr(act.araAssetCap)
+                  + ' they do not already hold. Anything larger \u2014 a laptop, a phone \u2014 is a '
+                  + 'request somebody decides. Nothing moves onto their name until you issue.'))),
+            h('div', { className: 'jkit__l' }, kit.map(function (x) {
+              var on = pickSt[0].indexOf(x.unit.id) > -1;
+              return h('label', { className: 'jkit__r' + (on ? ' is-on' : ''), key: x.unit.id },
+                h('input', { type: 'checkbox', checked: on, onChange: function () { toggle(x.unit.id); } }),
+                h('span', { className: 'jkit__i' }, I.package),
+                h('span', { className: 'jkit__n' },
+                  h('strong', null, x.unit.name),
+                  h('span', null, x.category + ' \u00b7 ' + x.unit.id + ' \u00b7 ' + ui.inr(x.unit.value))));
+            })))
+        : null,
 
       form.errors._ ? h('p', { className: 'muted', style: { color: 'var(--danger-fg)' } }, form.errors._) : null);
   }

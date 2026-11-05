@@ -1583,6 +1583,35 @@
 
   /* ========================================================= Assets (PRD 4.29–4.33) */
   var ASSET_STATUSES = ['Available', 'Assigned', 'Under Maintenance', 'Damaged', 'Lost', 'Retired'];
+
+  /* The six states as marks, for the inventory. A column of pills reading "Assigned"
+     four hundred times was the widest column in the table and the least informative:
+     the state is one of six, so it is a shape and a colour, and the words move into
+     the tooltip where there is room for all of them. */
+  var STATUS_MARK = {
+    'Available': { icon: I.package, tone: 'free' },
+    'Assigned': { icon: I.person, tone: 'on' },
+    'Under Maintenance': { icon: I.gear, tone: 'svc' },
+    'Damaged': { icon: I.warn, tone: 'bad' },
+    'Lost': { icon: I.close, tone: 'bad' },
+    'Retired': { icon: I.archive, tone: 'off' }
+  };
+
+  /* Everything the two columns used to spell out, on one hover: the state, who has
+     it and since when, the condition it is in, and where it lives. */
+  function statusDetail(a) {
+    var out = [a.status];
+    if (a.assignedTo) {
+      out.push('Held by ' + empName(a.assignedTo)
+        + (a.assignedOn ? ' since ' + ui.dateLabel(a.assignedOn) : '')
+        + (a.acknowledged === false ? ' \u00b7 handover not acknowledged' : ''));
+    } else if (a.status === 'Available') {
+      out.push('In the store at ' + locName(a.location));
+    }
+    out.push('Condition: ' + (a.condition || '\u2014'));
+    out.push(locName(a.location) + ' \u00b7 ' + ui.inr(a.value));
+    return out.join('\n');
+  }
   var CONDITIONS = ['Excellent', 'Good', 'Fair', 'Needs service', 'Damaged'];
   function assetsHeldBy(employeeId) {
     return store.collection('assets').filter(function (a) { return a.assignedTo === employeeId; });
@@ -1981,7 +2010,7 @@
          admin opens this page to act on, so they come first. The breakdown below is
          reference: true, useful, and not urgent. */
       h(Grid, null,
-        h(Card, { span: 8, title: 'Value by category',
+        h(Card, { span: 7, title: 'Value by category',
           description: 'Where the ' + ui.inr(value, { short: true }) + ' on the register actually sits.' },
           h('div', { className: 'ast-share' },
             h('span', { className: 'ast-share__bar', 'aria-hidden': 'true' },
@@ -2007,26 +2036,28 @@
                   return h('span', { className: 'ast-cell' },
                     h('span', { className: 'ast-cell__i' }, assetIcon(c.name, 16)), c.name);
                 } },
-              /* Four columns of one to three digits under headings two and three times
-                 their width: left to size themselves, the headings took the room and the
-                 category name and the amount were squeezed into two lines apiece. The
-                 widths are the amounts' own, with the heading and its sort control the
-                 widest thing each has to hold. */
-              { key: 'units', header: 'Units', width: 92, numeric: true, align: 'right', sortable: true },
-              { key: 'assigned', header: 'Assigned', width: 118, numeric: true, align: 'right', sortable: true },
-              { key: 'available', header: 'Available', width: 120, numeric: true, align: 'right', sortable: true },
-              { key: 'value', header: 'Value', width: 116, numeric: true, align: 'right', sortable: true,
+              /* Three numbers, not four. The amounts were being cut off at the card's
+                 edge — the wrapper hides its overflow — because the table could not get
+                 narrower than its headings: "Assigned" and "Available" are eight and
+                 nine characters over cells of one to three digits, and a column cannot
+                 shrink below the word at the top of it. Explicit widths did nothing,
+                 since a width under a column's own min-content is ignored.
+
+                 So one column goes instead. This card answers where the money sits;
+                 how much of it is out on loan is the hero's three pills directly
+                 above, and the Allocations tab unit by unit. Dropping Assigned takes
+                 the table's floor from 585px to about 460px, which fits the card at
+                 every width down to the point where the grid gives it the whole row. */
+              { key: 'units', header: 'Units', numeric: true, align: 'right', sortable: true },
+              { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true },
+              { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
                 csv: function (c) { return c.value; },
-                /* A non-breaking space, so the short form never breaks between the figure
-                   and its unit: "\u20b944.52" on one line and "L" on the next reads as a
-                   different number. The project has no nowrap class to reach for, so the
-                   amount carries it rather than the table. */
-                cell: function (c) { return ui.inr(c.value, { short: true }).replace(/ /g, '\u00a0'); } }
+                cell: function (c) { return ui.inr(c.value, { short: true }); } }
             ],
             emptyIcon: I.package, emptyTitle: 'Nothing in the register yet'
           })),
 
-        h(Card, { span: 4, title: 'Needs attention',
+        h(Card, { span: 5, title: 'Needs attention',
           description: 'Each one opens where it can be settled.' },
           h('div', { className: 'lrows' }, ATTENTION.map(function (a) {
             return h('button', { type: 'button', className: 'lrow lrow--go', key: a.t,
@@ -2102,7 +2133,8 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Asset inventory',
-        description: 'PRD 4.29: every asset with its serial, warranty, condition, location and current holder.',
+        description: 'PRD 4.29: every asset with its serial, warranty, condition, location and current holder. '
+          + 'The category and the state are marks — hover either one for the rest.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { addSt[1](true); } }, 'Add asset')
       },
@@ -2126,23 +2158,44 @@
               cell: function (a) {
                 return { children: a.name, subtext: a.id + ' · ' + a.serial };
               } },
-            { key: 'category', header: 'Category', sortable: true },
-            { key: 'location', header: 'Location', csv: function (a) { return locName(a.location); },
+            /* The category was the word, repeated down four hundred rows: eleven
+               identical "Access Card" cells say nothing the icon beside them does
+               not. It is the mark now, with the word on hover and in the export,
+               and the width it used to take goes to the name and the holder. */
+            { key: 'category', header: 'Category', width: 104, align: 'center', sortable: true,
+              cell: function (a) {
+                return h(ui.Tip, { text: a.category },
+                  h('span', { className: 'ast-mark' }, assetIcon(a.category, 18)));
+              } },
+            { key: 'location', header: 'Location', width: 132, csv: function (a) { return locName(a.location); },
               cell: function (a) { return locName(a.location); } },
-            { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
-              csv: function (a) { return a.value; }, cell: function (a) { return ui.inr(a.value); } },
-            { key: 'warranty', header: 'Warranty', sortable: true, csv: function (a) { return a.warranty || ''; },
+            { key: 'value', header: 'Value', width: 112, numeric: true, align: 'right', sortable: true,
+              csv: function (a) { return a.value; },
+              cell: function (a) { return ui.inr(a.value).replace(/ /g, '\u00a0'); } },
+            { key: 'warranty', header: 'Warranty', width: 134, sortable: true, csv: function (a) { return a.warranty || ''; },
               cell: function (a) {
                 if (!a.warranty) return h('span', { className: 'muted' }, '—');
                 return a.warranty < today()
                   ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'neutral' }, 'Expired')
                   : ui.dateLabel(a.warranty);
               } },
-            { key: 'condition', header: 'Condition' },
+            /* Condition had a column of its own for a word nobody sorts, filters or
+               acts on — it is what you read once you have already found the asset.
+               The status tooltip carries it now, and so does the status column's
+               export, which is where a spreadsheet would look for it. */
             { key: 'assignedTo', header: 'Holder', csv: function (a) { return a.assignedTo ? empName(a.assignedTo) : ''; },
               cell: function (a) { return a.assignedTo ? person(a.assignedTo, null) : h('span', { className: 'muted' }, 'In store'); } },
-            { key: 'status', header: 'Status', cell: function (a) { return h(ui.StatusChip, { status: a.status }); } },
-            { key: 'actions', header: '', align: 'right',
+            /* "Under Maintenance" set the width of this column for every row in the
+               table, most of which say "Assigned". The mark carries the state; the
+               tooltip carries everything the two columns used to spell out. */
+            { key: 'status', header: 'Status', width: 92, align: 'center',
+              csv: function (a) { return a.status + ' (' + (a.condition || '—') + ')'; },
+              cell: function (a) {
+                var m = STATUS_MARK[a.status] || STATUS_MARK.Retired;
+                return h(ui.Tip, { text: statusDetail(a) },
+                  h('span', { className: 'ast-state is-' + m.tone }, m.icon));
+              } },
+            { key: 'actions', header: '', width: 118, align: 'right',
               cell: function (a) {
                 if (a.status === 'Available') {
                   return h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
@@ -2257,31 +2310,145 @@
      there is no chain here, no approver and no approve or reject: what the register
      needs to know is whether a unit is waiting to be issued. "Ready to issue" is a
      request Tracklivo has cleared; "In Tracklivo" is one still being decided there. */
-  var REQ_WORD = { 'Pending Approval': 'In Tracklivo', Approved: 'Ready to issue', Rejected: 'Declined' };
+  /* Neutral on purpose: the same chip is read by the person who asked, for whom
+     “waiting on you” would be wrong, and by IT, for whom it is exactly right. */
+  var REQ_WORD = { 'Pending Approval': 'Being decided', Approved: 'Ready to issue', Rejected: 'Declined' };
   var REQ_TONE = { 'Pending Approval': 'neutral', Approved: 'success', Rejected: 'error' };
   function reqChip(status) {
     return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: REQ_TONE[status] || 'neutral' }, REQ_WORD[status] || status);
   }
   HRMS.assetRequestChip = reqChip;
 
+  /* ---------- Ara on this screen ----------
+     The rule itself is in js/actions.js, because onboarding applies the same one.
+     What is here is how it is shown: Ara says what it decided and why, the rule is
+     one click away rather than folklore, and the switch is the only thing that
+     turns it off. */
+  var ARA_MARK = h('svg', { viewBox: '0 0 24 24', width: 18, height: 18, fill: 'none', 'aria-hidden': 'true' },
+    h('path', { d: 'M12 3.2l1.9 4.7 4.9 1.8-4.9 1.8L12 16.2l-1.9-4.7-4.9-1.8 4.9-1.8L12 3.2Z', fill: 'currentColor' }),
+    h('circle', { cx: 18.4, cy: 17.6, r: 2.1, fill: 'currentColor', opacity: .85 }),
+    h('circle', { cx: 6.2, cy: 18.4, r: 1.3, fill: 'currentColor', opacity: .6 }));
+
+  function AraRuleModal(p) {
+    var cap = ui.inr(act.araAssetCap);
+    var queue = act.araAssetQueue();
+    var mine = queue.filter(function (x) { return x.verdict.approve; });
+    var theirs = queue.filter(function (x) { return !x.verdict.approve; });
+    return h(ui.Modal, {
+      title: 'What Ara decides', wide: true,
+      description: 'Two cases, and nothing else. Ara never issues — a unit only moves onto '
+        + 'somebody’s name when IT hands it over.',
+      onClose: p.onClose,
+      footer: h(V.Button, { variant: 'primary', onClick: p.onClose }, 'Close')
+    },
+      h('div', { className: 'arule' },
+        h('div', { className: 'arule__r' },
+          h('span', { className: 'arule__n' }, '1'),
+          h('span', { className: 'arule__m' },
+            h('strong', null, 'A replacement for something they already hold'),
+            h('span', null, 'A repair request against a unit on their own name. The entitlement '
+              + 'is not in question — only which unit. A card that snapped in a lanyard does not '
+              + 'need a manager.'))),
+        h('div', { className: 'arule__r' },
+          h('span', { className: 'arule__n' }, '2'),
+          h('span', { className: 'arule__m' },
+            h('strong', null, 'Standard kit, under ' + cap),
+            h('span', null, 'A category whose dearest unit on the register is at or under ' + cap
+              + '. Read off the register rather than written as a list, so a category added next '
+              + 'year is judged by what it costs.'))),
+        h('div', { className: 'arule__r is-off' },
+          h('span', { className: 'arule__n' }, '—'),
+          h('span', { className: 'arule__m' },
+            h('strong', null, 'Everything else waits for you'),
+            h('span', null, 'A first laptop, a phone, a second monitor, anything over the cap '
+              + 'that is not a replacement.')))),
+
+      h('div', { className: 'ara-tags', style: { marginTop: 18 } },
+        h('span', { className: 'ara-tag ara-tag--info' }, mine.length + ' waiting that Ara would take'),
+        h('span', { className: 'ara-tag' }, theirs.length + ' that need you')),
+
+      queue.length
+        ? h('div', { className: 'ara-pick__list' }, queue.map(function (x) {
+            return h('div', { className: 'arule__q' + (x.verdict.approve ? ' is-ara' : ''), key: x.request.id },
+              h('span', { className: 'arule__q__i' }, x.verdict.approve ? ARA_MARK : I.person),
+              h('span', { className: 'arule__m' },
+                h('strong', null, x.request.category + ' · ' + empName(x.request.employee)),
+                h('span', null, x.verdict.why)));
+          }))
+        : h('p', { className: 'muted', style: { marginTop: 14 } }, 'Nothing is waiting to be decided.'));
+  }
+
   function AssetRequests() {
     var statusSt = React.useState('');
+    var ruleSt = React.useState(false);
+    var auto = store.pref('araAssetAuto') !== false;
+
+    /* With the switch on, Ara decides what its rule covers as soon as the screen is
+       opened, which is what "automatically" has to mean for a queue nobody is
+       watching. Turning it off leaves every request for a person. */
+    React.useEffect(function () {
+      if (!auto) return;
+      var pending = act.araAssetQueue().filter(function (x) { return x.verdict.approve; });
+      if (!pending.length) return;
+      var res = act.araDecideAssetRequests();
+      if (res && res.n) ui.toast(res.message, 'success');
+    });
+
     var all = store.collection('assetRequests');
     var rows = statusSt[0] ? all.filter(function (r) { return REQ_WORD[r.status] === statusSt[0]; }) : all;
     function count(st) { return all.filter(function (r) { return r.status === st; }).length; }
 
+    var queue = act.araAssetQueue();
+    var araWould = queue.filter(function (x) { return x.verdict.approve; });
+    var byAra = all.filter(function (r) { return r.decidedBy === 'Ara'; });
+
+    function decide(r, ok) {
+      ui.report(act.decideAssetRequest(r.id, ok, (store.persona('admin') || {}).name || 'IT'));
+    }
+
     return h(React.Fragment, null,
       h(Stats, null,
-        h(Stat, { key: 1, label: 'Ready to issue', value: count('Approved'), sub: 'Cleared in Tracklivo, waiting on a unit', tone: count('Approved') ? 'warn' : 'good' }),
+        h(Stat, { key: 1, label: 'Ready to issue', value: count('Approved'), sub: 'Decided — waiting on a unit and a handover', tone: count('Approved') ? 'warn' : 'good' }),
         h(Stat, { key: 2, label: 'Available to issue', value: store.collection('assets').filter(function (a) { return a.status === 'Available'; }).length,
           sub: 'Units in the store across all categories' }),
-        h(Stat, { key: 3, label: 'In Tracklivo', value: count('Pending Approval'), sub: 'Still being decided there' }),
-        h(Stat, { key: 4, label: 'Declined', value: count('Rejected'), sub: 'Nothing to issue' })),
+        h(Stat, { key: 3, label: 'Waiting on you', value: count('Pending Approval'), sub: 'Outside what Ara decides', tone: count('Pending Approval') ? 'warn' : 'good' }),
+        h(Stat, { key: 4, label: 'Decided by Ara', value: byAra.length, sub: 'Every one of them logged with its reason' })),
+
+      /* Ara speaks before the table, because what it has already done changes how the
+         table reads. */
+      h('div', { className: 'adm-say ara-band' },
+        h('span', { className: 'adm-say__m' }, ARA_MARK),
+        h('p', null,
+          auto
+            ? (byAra.length
+                ? h(React.Fragment, null, h('strong', null, 'Ara decided ' + byAra.length + ' of these.'),
+                    ' Replacements of something the person already holds, and standard kit under '
+                    + ui.inr(act.araAssetCap) + '. '
+                    + (count('Pending Approval')
+                        ? count('Pending Approval') + ' need you: they are over the cap, or they are a first unit rather than a replacement.'
+                        : 'Nothing else is waiting.'))
+                : h(React.Fragment, null, h('strong', null, 'Ara is watching this queue.'),
+                    ' Nothing waiting falls inside its rule, so everything here is yours.'))
+            : h(React.Fragment, null, h('strong', null, 'Ara is switched off here.'),
+                ' Every request waits for a person, including the '
+                + araWould.length + ' it would otherwise take.')),
+        h('div', { className: 'ara-band__c' },
+          h('button', { type: 'button', className: 'dash__link', onClick: function () { ruleSt[1](true); } },
+            'What Ara decides', I.right),
+          h(V.Switch, {
+            size: 'sm', label: 'Decide automatically', checked: auto,
+            onChange: function (e) {
+              store.setPref('araAssetAuto', e.target.checked);
+              ui.toast(e.target.checked
+                ? 'Ara will decide the requests its rule covers.'
+                : 'Ara will leave every request for a person.');
+            }
+          }))),
 
       h(Card, {
         title: 'Asset requests',
-        description: 'From Tracklivo and from the portal. Decided in Tracklivo either way; this list is what the ' +
-          'register has to issue against.',
+        description: 'From Tracklivo and from the portal. Ara decides the two cases its rule covers; '
+          + 'the rest wait for you. Issuing a unit is IT’s either way.',
         aside: h(HRMS.assetRequest.Button, { role: 'admin', employee: (store.persona('admin') || {}).id,
           variant: 'outline', label: 'Raise a request' })
       },
@@ -2290,39 +2457,65 @@
           search: function (r) { return empName(r.employee) + ' ' + r.id + ' ' + r.category + ' ' + r.reason; },
           searchPlaceholder: 'Search by employee, category or reason',
           filters: h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1],
-            options: ['Ready to issue', 'In Tracklivo', 'Declined'] }),
+            options: ['Ready to issue', 'Being decided', 'Declined'] }),
           columns: [
-            { key: 'id', header: 'Request', cell: function (r) { return h('span', { className: 'mono' }, r.id); } },
+            { key: 'id', header: 'Request', width: 96, cell: function (r) { return h('span', { className: 'mono' }, r.id); } },
             { key: 'employee', header: 'Employee', sortable: true,
               sortValue: function (r) { return empName(r.employee); },
               csv: function (r) { return empName(r.employee); },
               cell: function (r) { return person(r.employee); } },
-            { key: 'kind', header: 'Kind', sortable: true,
-              sortValue: function (r) { return r.kind || 'New asset'; },
-              csv: function (r) { return r.kind || 'New asset'; },
-              cell: function (r) { return r.kind || 'New asset'; } },
-            { key: 'category', header: 'Category', sortable: true },
-            { key: 'reason', header: 'Reason' },
-            { key: 'source', header: 'Raised in', sortable: true,
-              sortValue: function (r) { return r.source || 'Tracklivo'; },
-              csv: function (r) { return r.source || 'Tracklivo'; },
-              cell: function (r) { return h('span', { className: 'atl__src' }, r.source || 'Tracklivo'); } },
-            { key: 'requestedOn', header: 'Requested', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
-            { key: 'status', header: 'Status', csv: function (r) { return REQ_WORD[r.status] || r.status; },
-              cell: function (r) { return reqChip(r.status); } },
-            { key: 'actions', header: '', align: 'right',
+            /* The category as its mark, as in the inventory: eight categories, each
+               one shape, with the word a hover away. */
+            { key: 'category', header: 'For', width: 92, align: 'center', sortable: true,
               cell: function (r) {
-                return r.status === 'Approved'
-                  ? h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.package,
-                      onClick: function () { router.go('admin/assets/allocations'); } }, 'Issue a unit')
-                  : null;
+                return h(ui.Tip, { text: r.category + '\n' + (r.kind || 'New asset') },
+                  h('span', { className: 'ast-mark' }, assetIcon(r.category, 18)));
+              } },
+            { key: 'reason', header: 'Reason' },
+            { key: 'requestedOn', header: 'Requested', width: 124, sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
+            /* Who decided it, and on what grounds. An automatic approval nobody can
+               read back is not an approval, so the reason is always one hover away. */
+            { key: 'decidedBy', header: 'Decided by', width: 128,
+              csv: function (r) { return r.decidedBy || ''; },
+              cell: function (r) {
+                if (!r.decidedBy) return h('span', { className: 'muted' }, '—');
+                if (r.decidedBy !== 'Ara') {
+                  return h(ui.Tip, { text: r.decidedBy + '\n' + (r.decidedWhy || 'Decided by hand.') },
+                    h('span', { className: 'dby' }, r.decidedBy.split(' ')[0]));
+                }
+                return h(ui.Tip, { text: 'Ara · ' + ui.dateLabel(r.decidedOn) + '\n' + (r.decidedWhy || '') },
+                  h('span', { className: 'dby dby--ara' }, ARA_MARK, 'Ara'));
+              } },
+            { key: 'status', header: 'Status', width: 128, csv: function (r) { return REQ_WORD[r.status] || r.status; },
+              cell: function (r) { return reqChip(r.status); } },
+            { key: 'actions', header: '', width: 188, align: 'right',
+              cell: function (r) {
+                if (r.status === 'Approved') {
+                  var unit = r.reserved && store.find('assets', r.reserved);
+                  return h(ui.Tip, {
+                    text: unit
+                      ? unit.name + ' · ' + unit.id + ' is set aside. Issuing moves it onto their name.'
+                      : 'Nothing of this category is free. Issuing waits for a return or a purchase.'
+                  },
+                    h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.package,
+                      onClick: function () { router.go('admin/assets/allocations'); } }, 'Issue a unit'));
+                }
+                if (r.status !== 'Pending Approval') return null;
+                /* Only the ones Ara will not take get a pair of buttons: a request Ara
+                   has already decided is not waiting for anybody to press anything. */
+                return h('span', { className: 'row gap-2', style: { justifyContent: 'flex-end' } },
+                  h(V.Button, { variant: 'ghost', className: 'vi-btn--sm',
+                    onClick: function () { decide(r, false); } }, 'Decline'),
+                  h(V.Button, { variant: 'primary', className: 'vi-btn--sm',
+                    onClick: function () { decide(r, true); } }, 'Approve'));
               } }
           ],
           emptyIcon: I.checklist, emptyTitle: 'No asset requests',
           emptyBody: 'Requests raised in Tracklivo, or in the portal, arrive here once they exist.'
-        })));
-  }
+        })),
 
+      ruleSt[0] ? h(AraRuleModal, { onClose: function () { ruleSt[1](false); } }) : null);
+  }
 
 
   function Returns() {
