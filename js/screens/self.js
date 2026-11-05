@@ -1536,20 +1536,19 @@
         eyebrow: c.id, title: 'Exit request',
         description: 'Submitted ' + ui.dateLabel(c.resignedOn) + ' · last working day ' + c.lastWorkingDayLabel + '.',
         actions: [
-          h(V.Button, { key: 'n', variant: 'outline', iconStart: I.calendar,
-            onClick: function () { router.go('me/exit/notice'); } }, 'Notice period'),
           h(V.Button, { key: 'f', variant: 'outline', iconStart: I.checklist,
             onClick: function () { router.go('me/exit/formalities'); } }, 'Exit formalities')
         ]
       }),
 
-      h(Stats, { cols: 4 },
+      /* The clearance figure and the approvals live on Exit formalities now, so this
+         screen is the request: where it stands, when it ends, and what was asked. */
+      h(Stats, { cols: 3 },
         h(Stat, { label: 'Stage', value: c.stage, sub: accepted ? 'Resignation accepted' : 'Awaiting a decision',
           tone: accepted ? 'good' : 'warn' }),
         h(Stat, { label: 'Last working day', value: ui.shortDate(c.lastWorkingDay), sub: c.lastWorkingDayLabel }),
         h(Stat, { label: 'Days remaining', value: daysLeft, sub: 'Of a ' + c.noticeDays + '-day notice',
-          tone: daysLeft < 15 ? 'warn' : null }),
-        h(Stat, { label: 'Clearance', value: c.clearance, unit: '%', sub: done + ' of ' + tasks.length + ' tasks done' })),
+          tone: daysLeft < 15 ? 'warn' : null })),
 
       h(Grid, null,
         h(Card, { span: 7, title: 'Resignation details' },
@@ -1586,129 +1585,15 @@
               when: 'On your last working day', tone: 'neutral' }
           ]})),
 
-        h(Card, { span: 5, title: 'Approvals', description: 'Who has to agree before your notice starts.' },
-          approvals.length
-            ? h('div', { className: 'list' }, approvals.map(function (a) {
-              var who = emp(a.approver);
-              return h('div', { className: 'list__row', key: a.id },
-                h(V.Avatar, { name: who ? who.name : 'HR', size: 'sm' }),
-                h('div', { className: 'list__main' },
-                  h('span', { className: 'list__title' }, who ? who.name : 'HR'),
-                  h('span', { className: 'list__meta' }, a.kind + ' · raised ' + ui.dateLabel(a.submitted))),
-                h(ui.StatusChip, { status: a.status }));
-            }))
-            : h(ui.Empty, { icon: I.ok, title: 'No approval outstanding' })),
-
-        h(Card, { span: 7, title: 'Clearance',
-          description: 'Everything that has to be signed off before your settlement is released.',
-          aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
-            onClick: function () { router.go('me/exit/formalities'); } }, 'All formalities') },
-          h(V.ProgressBar, { label: 'Clearance', value: c.clearance, showValue: true,
-            tone: c.clearance >= 100 ? 'success' : 'primary' }),
-          h('div', { className: 'checks', style: { marginTop: 10 } }, tasks.map(function (t) {
-            return h('div', { className: 'checks__row' + (t.done ? ' is-done' : ''), key: t.name },
-              h('span', { className: 'steps__tick' + (t.done ? ' is-done' : '') }, I.check),
-              h('div', { className: 'checks__main' },
-                h('span', { className: 'checks__name' }, t.name),
-                h('span', { className: 'checks__meta' },
-                  t.done ? 'Completed' : (t.owner && emp(t.owner) ? 'With ' + emp(t.owner).name : 'Pending'))));
-          })))));
-  }
-
-  function NoticePeriod() {
-    var c = myCase();
-    if (!c) {
-      return h(Card, { title: 'Notice period' },
-        h(ui.Empty, { icon: I.calendar, title: 'Not applicable', body: 'You have not submitted a resignation.' }));
-    }
-    var daysLeft = Math.max(0, Math.round((new Date(c.lastWorkingDay + 'T00:00') - seed.today) / 86400000));
-    var served = c.noticeDays - daysLeft;
-    return h(React.Fragment, null,
-      h(Stats, { cols: 3 },
-        h(Stat, { label: 'Last working day', value: ui.shortDate(c.lastWorkingDay), sub: c.lastWorkingDayLabel }),
-        h(Stat, { label: 'Days remaining', value: daysLeft, sub: 'Of a ' + c.noticeDays + '-day notice', tone: daysLeft < 15 ? 'warn' : null }),
-        h(Stat, { label: 'Clearance', value: c.clearance, unit: '%', sub: c.tasksDone + ' of ' + c.tasksTotal + ' tasks done' })),
-      h(Grid, null,
-        h(Card, { span: 7, title: 'Notice period' },
-          h(V.ProgressBar, { label: 'Notice served', value: ui.pct(Math.max(0, served), c.noticeDays), showValue: true }),
-          h(ui.KeyValue, { rows: [
-            ['Resignation accepted', c.approvedOn ? ui.dateLabel(c.approvedOn) : 'Awaiting approval'],
-            ['Notice period', c.noticeDays + ' days'],
-            ['Last working day', c.lastWorkingDayLabel],
-            ['Assets outstanding', c.assetsOutstanding],
-            ['Final settlement', h(ui.StatusChip, { status: c.settlement })]
-          ]})),
-        h(Card, { span: 5, title: 'My exit checklist' },
-          h('div', { className: 'checks' }, (c.tasks || []).map(function (t) {
-            return h('div', { className: 'checks__row' + (t.done ? ' is-done' : ''), key: t.name },
-              h('span', { className: 'steps__tick' }, I.check),
-              h('div', { className: 'checks__main' },
-                h('span', { className: 'checks__name' }, t.name),
-                h('span', { className: 'checks__meta' }, t.owner && emp(t.owner) ? 'Owner: ' + emp(t.owner).name : '')));
-          })))));
-  }
-
-  function Handover() {
-    var c = myCase();
-    if (!c) {
-      return h(Card, { title: 'Knowledge transfer' },
-        h(ui.Empty, { icon: I.subtask, title: 'Not applicable', body: 'Handover tasks appear here once a resignation is approved.' }));
-    }
-    var items = (c.tasks || []).filter(function (t) { return /Knowledge|Handover/.test(t.name); });
-    return h(Grid, null,
-      h(Card, { span: 7, title: 'Knowledge transfer', description: 'Tasks assigned to you during your notice period.' },
-        items.length
-          ? h('div', { className: 'checks' }, items.map(function (t) {
-              return h('div', { className: 'checks__row' + (t.done ? ' is-done' : ''), key: t.name },
-                h(V.Checkbox, {
-                  checked: !!t.done, 'aria-label': t.name,
-                  onChange: function (e) { ui.report(act.completeOffboardingTask(c.id, t.name, e.target.checked)); }
-                }),
-                h('div', { className: 'checks__main' },
-                  h('span', { className: 'checks__name' }, t.name),
-                  h('span', { className: 'checks__meta' }, t.done ? 'Completed' : 'Pending')));
-            }))
-          : h(ui.Empty, { icon: I.subtask, title: 'No handover tasks assigned yet' })),
-      h(Card, { span: 5, title: 'Who takes over' },
-        h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6 } },
-          'Your manager assigns a successor and signs off the handover. Until then, keep the list above up to date.'),
-        h(ui.KeyValue, { rows: [
-          ['Manager', emp(me().manager) ? emp(me().manager).name : null],
-          ['Department', deptName(me().department)],
-          ['Last working day', c.lastWorkingDayLabel]
-        ]})));
-  }
-
-  function ExitAssetReturn() {
-    var m = me();
-    var c = myCase();
-    var held = store.collection('assets').filter(function (a) { return a.assignedTo === m.id; });
-    var returned = store.collection('assetHistory').filter(function (x) { return x.employee === m.id; });
-    return h(React.Fragment, null,
-      h(Card, { title: 'Assets to return',
-        description: c ? 'Everything you hold must be returned and verified before your final settlement (PRD 14.8).'
-          : 'What you currently hold. Returns are recorded during offboarding.' },
-        held.length
-          ? h('div', { className: 'list' }, held.map(function (a) {
-              return h('div', { className: 'list__row', key: a.id },
-                h('span', { className: 'empty__mark', style: { width: 34, height: 34 } }, I.package),
-                h('div', { className: 'list__main' },
-                  h('span', { className: 'list__title' }, a.name),
-                  h('span', { className: 'list__meta' }, a.id + ' · ' + a.serial + ' · condition ' + a.condition)),
-                h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, 'To return'));
-            }))
-          : h(ui.Empty, { icon: I.ok, title: 'Nothing left to return', body: 'Every asset assigned to you has been returned.' })),
-      returned.length
-        ? h(Card, { title: 'Returned' },
-            h('div', { className: 'list' }, returned.map(function (x) {
-              var asset = store.find('assets', x.asset) || {};
-              return h('div', { className: 'list__row', key: x.id },
-                h('div', { className: 'list__main' },
-                  h('span', { className: 'list__title' }, asset.name || x.asset),
-                  h('span', { className: 'list__meta' }, 'Returned ' + ui.dateLabel(x.to) + ' · condition ' + x.condition)),
-                h(ui.StatusChip, { status: 'Returned' }));
-            })))
-        : null);
+        h(Card, { span: 12, title: 'What happens next',
+          aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconEnd: I.right,
+            onClick: function () { router.go('me/exit/formalities'); } }, 'Exit formalities') },
+          h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6, margin: 0 } },
+            accepted
+              ? 'Your resignation is accepted. Everything that has to be signed off before your '
+                + 'settlement is released is on Exit formalities, with who holds each step.'
+              : 'Your manager and HR are reviewing this. Once it is accepted, your notice starts '
+                + 'and the clearance steps open on Exit formalities.'))));
   }
 
   function ExitFormalities() {
@@ -1717,17 +1602,42 @@
       return h(Card, { title: 'Exit formalities' },
         h(ui.Empty, { icon: I.checklist, title: 'Not applicable', body: 'Exit formalities appear here once a resignation is approved.' }));
     }
+    var tasks = c.tasks || [];
+    var done = tasks.filter(function (t) { return t.done; }).length;
+    /* The clearance and the approvals live here now rather than on the request. The
+       request is what you asked for; this is everything that has to happen before
+       you leave, which is one list in one place. */
+    var approvals = store.collection('approvals').filter(function (a) { return a.id === c.id; });
+
     return h(Grid, null,
-      h(Card, { span: 7, title: 'Exit formalities' },
-        h('div', { className: 'checks' }, (c.tasks || []).map(function (t) {
+      h(Card, { span: 7, title: 'Clearance',
+        description: 'Everything that has to be signed off before your settlement is released.' },
+        h(V.ProgressBar, { label: 'Clearance', value: c.clearance, showValue: true,
+          tone: c.clearance >= 100 ? 'success' : 'primary' }),
+        h('p', { className: 'muted', style: { fontSize: 12, margin: '8px 0 0' } },
+          done + ' of ' + tasks.length + ' step' + (tasks.length === 1 ? '' : 's') + ' done'),
+        h('div', { className: 'checks', style: { marginTop: 10 } }, tasks.map(function (t) {
           return h('div', { className: 'checks__row' + (t.done ? ' is-done' : ''), key: t.name },
-            h('span', { className: 'steps__tick' }, I.check),
+            h('span', { className: 'steps__tick' + (t.done ? ' is-done' : '') }, I.check),
             h('div', { className: 'checks__main' },
               h('span', { className: 'checks__name' }, t.name),
               h('span', { className: 'checks__meta' },
                 t.done ? 'Completed' : (t.owner && emp(t.owner) ? 'With ' + emp(t.owner).name : 'Pending'))));
         }))),
-      h(Card, { span: 5, title: 'Final settlement' },
+
+      h(Card, { span: 5, title: 'Approvals', description: 'Who has to agree before your notice starts.' },
+        approvals.length
+          ? h('div', { className: 'list' }, approvals.map(function (a) {
+            var who = emp(a.approver);
+            return h('div', { className: 'list__row', key: a.id },
+              h(V.Avatar, { name: who ? who.name : 'HR', size: 'sm' }),
+              h('div', { className: 'list__main' },
+                h('span', { className: 'list__title' }, who ? who.name : 'HR'),
+                h('span', { className: 'list__meta' }, a.kind + ' · raised ' + ui.dateLabel(a.submitted))),
+              h(ui.StatusChip, { status: a.status }));
+          }))
+          : h(ui.Empty, { icon: I.ok, title: 'No approval outstanding' })),
+      h(Card, { span: 12, title: 'Final settlement' },
         h(ui.KeyValue, { rows: [
           ['Status', h(ui.StatusChip, { status: c.settlement })],
           ['Amount', c.settlementAmount ? ui.inr(c.settlementAmount) : null],
@@ -2364,9 +2274,6 @@
     'me/engagement/recognition': MyRecognition,
 
     'me/exit/resignation': Resignation,
-    'me/exit/notice': NoticePeriod,
-    'me/exit/handover': Handover,
-    'me/exit/assets': ExitAssetReturn,
     'me/exit/formalities': ExitFormalities
   });
 })();
