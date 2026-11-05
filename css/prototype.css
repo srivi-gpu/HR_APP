@@ -92,6 +92,18 @@
 .filterbar__search { flex: 1 1 260px; max-width: 360px; }
 .filterbar .vi-field { margin: 0; }
 .filterbar__spacer { flex: 1; }
+/* A table can carry its own heading on the toolbar row, so the search and the filters
+   line up with the title instead of sitting in a band underneath it. The heading takes
+   the slack and the controls keep their own, so the whole row stays on one line until
+   the viewport really cannot hold it. */
+.filterbar__head { flex: 1 1 200px; align-self: flex-end; min-width: 0; margin-right: auto; }
+.filterbar__head .card__title { margin: 0; }
+.filterbar__desc { margin: 2px 0 0; font-size: 13px; }
+.filterbar--titled .filterbar__search { flex: 0 1 250px; }
+.filterbar--titled .filterbar__item { min-width: 128px; }
+@media (max-width: 1100px) {
+  .filterbar--titled .filterbar__head { flex: 1 1 100%; }
+}
 
 /* ---------- Empty state ---------- */
 .empty { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; padding: 44px 24px; }
@@ -462,27 +474,86 @@
   .exitgate__art { width: 180px; }
 }
 
-/* ---------- Leave balance strip (the employee leave screen) ---------- */
-.lbal {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px;
-  overflow: hidden;
+/* ---------- Leave balances: one KPI card per leave type ----------
+   This was a single joined strip with four cells inside it. Four leave types are four
+   separate figures — each with its own entitlement, its own ledger and its own meter —
+   so each gets its own card, and the whole card is the button that opens the ledger. */
+.lkpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(212px, 1fr)); gap: 12px; }
+.lkpi {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 16px 18px 15px; text-align: left;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 18px;
+  box-shadow: var(--tl-elevation-1);
+  transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
 }
-/* Also a button, so it beats .linklike's left alignment and link colouring. */
-.lbal__cell { padding: 18px 20px; text-align: center; border-left: 1px solid var(--border-subtle); }
-.lbal__cell.linklike { text-align: center; color: inherit; border-radius: 0; }
-.lbal__cell.linklike:hover { background: var(--bg-hover); text-decoration: none; }
-.lbal__cell.linklike:hover .lbal__t { color: var(--text-brand); }
-.lbal__cell:first-child { border-left: 0; }
-.lbal__n { font: 300 30px/1.1 var(--font-flex); color: var(--text-brand); font-variant-numeric: tabular-nums; }
-.lbal__n small { font-size: 20px; color: var(--text-muted); }
-.lbal__t { display: block; margin-top: 4px; font-size: 14px; color: var(--text-primary); }
-.lbal__s { display: block; margin-top: 8px; font-size: 12px; color: var(--text-secondary); }
-.lbal__s b { font: 400 17px/1 var(--font-flex); color: var(--text-primary); margin-left: 4px; font-variant-numeric: tabular-nums; }
-@media (max-width: 720px) {
-  .lbal__cell { border-left: 0; border-top: 1px solid var(--border-subtle); }
-  .lbal__cell:first-child { border-top: 0; }
+/* It is a <button>, so it has to beat .linklike's link colouring and left padding. */
+.lkpi.linklike { color: inherit; width: 100%; }
+.lkpi.linklike:hover { text-decoration: none; border-color: var(--lkpi-fg, var(--brand-border)); box-shadow: var(--tl-elevation-2); }
+.lkpi.linklike:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.lkpi__top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.lkpi__dot { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--lkpi-fg, var(--brand-solid)); }
+.lkpi__t {
+  flex: 1 1 auto; min-width: 0; font-size: 13.5px; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.lkpi__code {
+  flex: none; padding: 2px 8px; border-radius: var(--tl-round);
+  background: var(--lkpi-bg, var(--brand-soft)); color: var(--lkpi-fg, var(--text-brand));
+  font-size: 11px; font-weight: 600; letter-spacing: .02em;
+}
+.lkpi__n { font: 300 34px/1 var(--font-flex); color: var(--lkpi-fg, var(--text-brand)); font-variant-numeric: tabular-nums; }
+.lkpi__n small { font-size: 19px; color: var(--text-muted); }
+.lkpi__meter { height: 6px; border-radius: var(--tl-round); background: var(--bg-subtle); overflow: hidden; }
+.lkpi__fill { display: block; height: 100%; border-radius: inherit; background: var(--lkpi-fg, var(--brand-solid)); }
+.lkpi__foot {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  font-size: 12px; color: var(--text-secondary);
+}
+.lkpi__foot b { font: 400 16px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.lkpi--a0 { --lkpi-fg: var(--av-violet-fg); --lkpi-bg: var(--av-violet-bg); }
+.lkpi--a1 { --lkpi-fg: var(--av-blue-fg);   --lkpi-bg: var(--av-blue-bg); }
+.lkpi--a2 { --lkpi-fg: var(--av-green-fg);  --lkpi-bg: var(--av-green-bg); }
+.lkpi--a3 { --lkpi-fg: var(--av-peach-fg);  --lkpi-bg: var(--av-peach-bg); }
+.lkpi--a4 { --lkpi-fg: var(--av-grey-fg);   --lkpi-bg: var(--av-grey-bg); }
+
+/* ---------- Upcoming holidays: a card each, with the festival drawn on it ----------
+   The three counters that used to sit here ("this year", "still to come", "optional")
+   answered a question nobody asks of their own holiday list. What is actually wanted is
+   which days off are near, so the near ones are the cards and the rest stay in the table. */
+.hols { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.hol {
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 18px;
+  box-shadow: var(--tl-elevation-1);
+}
+.hol__art {
+  position: relative; height: 104px; display: grid; place-items: center;
+  background: var(--hol-bg, var(--brand-softer));
+  border-bottom: 1px solid var(--border-subtle);
+}
+.hol__art svg { width: 138px; height: 84px; display: block; }
+.hol__when {
+  position: absolute; top: 10px; left: 12px; display: flex; flex-direction: column; align-items: center;
+  min-width: 42px; padding: 5px 7px 6px; border-radius: 12px;
+  background: var(--bg-surface); box-shadow: var(--tl-elevation-1);
+}
+.hol__d { font: 400 19px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.hol__m { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secondary); }
+.hol__body { display: flex; flex-direction: column; gap: 6px; padding: 13px 15px 15px; }
+.hol__name { margin: 0; font: 500 15.5px/1.3 var(--font-flex); color: var(--text-primary); }
+.hol__sub { margin: 0; font-size: 12.5px; color: var(--text-secondary); }
+.hol__tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+/* Festival palettes. Every slot is an avatar-tone token, so the drawings follow the
+   theme the way the rest of the app does instead of carrying their own hex codes. */
+.hol--diya    { --hol-bg: var(--av-peach-bg);  --hi-1: var(--av-peach-fg);  --hi-2: var(--av-violet-fg); --hi-3: var(--av-blue-fg); }
+.hol--tree    { --hol-bg: var(--av-green-bg);  --hi-1: var(--av-green-fg);  --hi-2: var(--av-peach-fg);  --hi-3: var(--av-blue-fg); }
+.hol--holi    { --hol-bg: var(--av-violet-bg); --hi-1: var(--av-violet-fg); --hi-2: var(--av-peach-fg);  --hi-3: var(--av-green-fg); }
+.hol--burst   { --hol-bg: var(--av-violet-bg); --hi-1: var(--av-violet-fg); --hi-2: var(--av-blue-fg);   --hi-3: var(--av-peach-fg); }
+.hol--flag    { --hol-bg: var(--av-blue-bg);   --hi-1: var(--av-peach-fg);  --hi-2: var(--av-green-fg);  --hi-3: var(--av-blue-fg); }
+.hol--tools   { --hol-bg: var(--av-blue-bg);   --hi-1: var(--av-blue-fg);   --hi-2: var(--av-grey-fg);   --hi-3: var(--av-peach-fg); }
+.hol--garland { --hol-bg: var(--av-peach-bg);  --hi-1: var(--av-peach-fg);  --hi-2: var(--av-green-fg);  --hi-3: var(--av-violet-fg); }
+.hol--bunting { --hol-bg: var(--av-grey-bg);   --hi-1: var(--av-violet-fg); --hi-2: var(--av-blue-fg);   --hi-3: var(--av-peach-fg); }
 
 /* The status column carries its decision underneath, so a row says who approved it. */
 .lstatus { display: flex; flex-direction: column; gap: 2px; }
