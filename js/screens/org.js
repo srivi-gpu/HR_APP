@@ -2129,101 +2129,232 @@
      Everything here is real state from the users collection, not a table of prose. */
   var TWO_APPS = ['Authenticator app', 'Authenticator app or SMS', 'Security key'];
 
-  function Security() {
-    var usersAll = store.collection('users');
-    var polSt = React.useState({
-      codeLogin: true, pwLogin: true, twoStep: true,
-      twoApp: 'Authenticator app', twoWho: 'Admins and HR',
-      timeout: '7 days', tries: '5 wrong passwords', lockFor: '15 minutes', noRepeat: true
+  /* ========================================================= Security
+
+     One page carrying three long lists became three tabs, because they are three
+     questions: what are the rules, who has a second step, and who is locked out. Each
+     opens on the figure that answers it, so you can tell at a glance whether this tab
+     needs you before reading a single row.
+
+     The policy lives in prefs rather than in a component's state. It was in `useState`,
+     which meant switching tab and coming back silently reset every rule you had just
+     changed — a settings screen that forgets is worse than one that cannot be edited. */
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+
+  var SEC_DEFAULTS = {
+    codeLogin: true, pwLogin: true, twoStep: true,
+    twoApp: 'Authenticator app', twoWho: 'Admins and HR',
+    timeout: '7 days', tries: '5 wrong passwords', lockFor: '15 minutes', noRepeat: true
+  };
+  function secPolicy() { return Object.assign({}, SEC_DEFAULTS, store.pref('securityPolicy') || {}); }
+  function setSecPolicy(k, v) {
+    var next = secPolicy(); next[k] = v;
+    store.setPref('securityPolicy', next);
+    store.log('changed the sign-in rule “' + k + '”', 'Security');
+  }
+
+  function secCounts() {
+    var all = store.collection('users');
+    var blocked = all.filter(function (u) { return u.status === 'Suspended' || u.status === 'Deactivated'; });
+    var privileged = all.filter(function (u) {
+      return u.status === 'Active' && (u.role === 'admin' || u.role === 'hr');
     });
-    var pol = polSt[0];
+    return {
+      all: all, blocked: blocked, privileged: privileged,
+      enrolled: privileged.filter(function (u) { return u.mfa; })
+    };
+  }
+
+  /* The band every Security tab opens with: the three figures, each a link to the tab
+     that is about it. Reading one tab should tell you whether the other two need you. */
+  function SecurityHead(p) {
+    var c = p.counts, pol = p.pol;
+    var gap = c.privileged.length - c.enrolled.length;
+    var rows = [
+      { k: 'rules', t: 'Sign-in', n: pol.twoStep ? 'Two steps' : 'One step',
+        s: pol.pwLogin && pol.codeLogin ? 'Password or emailed code' : pol.pwLogin ? 'Password only' : 'Emailed code only',
+        tone: pol.twoStep ? 'ok' : 'bad' },
+      { k: 'twostep', t: 'Second step', n: c.enrolled.length + ' of ' + c.privileged.length,
+        s: gap ? plural(gap, 'privileged account') + ' without one' : 'Every privileged account has one',
+        tone: gap ? 'warn' : 'ok' },
+      { k: 'blocked', t: 'Locked out', n: String(c.blocked.length),
+        s: c.blocked.length ? 'Waiting on an admin' : 'Nobody is locked out',
+        tone: c.blocked.length ? 'warn' : 'ok' }
+    ];
+    return h('div', { className: 'secband' }, rows.map(function (r) {
+      return h('button', {
+        key: r.k, type: 'button',
+        className: 'secband__c is-' + r.tone + (p.on === r.k ? ' is-here' : ''),
+        onClick: function () { router.go('admin/settings/' + r.k); }
+      },
+        h('span', { className: 'secband__t' }, r.t),
+        h('span', { className: 'secband__n' }, r.n),
+        h('span', { className: 'secband__s' }, r.s));
+    }));
+  }
+
+  /* ---- Tab 1: the rules ---- */
+  function SecurityRules() {
+    var tick = React.useState(0);
+    var pol = secPolicy();
+    var c = secCounts();
     function set(k) {
       return function (e) {
         var v = e && e.target ? (e.target.type === 'checkbox' ? e.target.checked : e.target.value) : e;
-        polSt[1](Object.assign({}, pol, pick(k, v)));
-        store.log('changed the sign-in rule “' + k + '”', 'Security');
+        setSecPolicy(k, v);
+        tick[1](tick[0] + 1);
       };
     }
-    function pick(k, v) { var o = {}; o[k] = v; return o; }
+    return h(React.Fragment, null,
+      h(PageHead, { eyebrow: 'Security', title: 'Sign-in rules',
+        description: 'How people get in, and what happens when they get it wrong. Every change is written '
+          + 'to the audit log.' }),
+      h(SecurityHead, { counts: c, pol: pol, on: 'rules' }),
 
-    var blocked = usersAll.filter(function (u) { return u.status === 'Suspended' || u.status === 'Deactivated'; });
-    var signsIn = usersAll.filter(function (u) { return u.status === 'Active'; });
-    var privileged = signsIn.filter(function (u) { return u.role === 'admin' || u.role === 'hr'; });
-    var enrolled = privileged.filter(function (u) { return u.mfa; });
+      h(Grid, null,
+        h(Card, { span: 7, title: 'Ways in',
+          description: 'Turn off a way in and nobody can use it, including the people who already were.' },
+          h('div', { className: 'secset' },
+            [['codeLogin', 'Email sign-in code', 'A 6-digit code sent to the work email.'],
+             ['pwLogin', 'Password sign-in', 'Works when codes are slow to arrive.'],
+             ['twoStep', '2-step sign-in', 'A one-time code from an app, on top of the password.']]
+              .map(function (x) {
+                return h('label', { key: x[0], className: 'secset__r' + (pol[x[0]] ? ' is-on' : '') },
+                  h('span', { className: 'secset__m' },
+                    h('strong', null, x[1]),
+                    h('span', null, x[2])),
+                  h(V.Switch, { checked: !!pol[x[0]], 'aria-label': x[1], onChange: set(x[0]) }));
+              })),
+          pol.twoStep
+            ? h('div', { className: 'secnest' },
+                h(ui.FieldRow, null,
+                  h(V.Select, { label: 'Second step', value: pol.twoApp, options: TWO_APPS, onChange: set('twoApp') }),
+                  h(V.Select, { label: 'Who has to use it', value: pol.twoWho,
+                    options: ['Admins only', 'Admins and HR', 'Everyone'], onChange: set('twoWho') })))
+            : null),
 
-    function unblock(u) {
-      ui.report(act.setUserStatus(u.id, 'Active'));
+        h(Card, { span: 5, title: 'When it goes wrong',
+          description: 'What a wrong password costs, and how long a session lasts.' },
+          h('div', { className: 'stack gap-3' },
+            h(V.Select, { label: 'Sign out after', value: pol.timeout,
+              options: ['12 hours', '1 day', '3 days', '7 days'], onChange: set('timeout'),
+              hint: 'People stay signed in this long without using the product' }),
+            h(V.Select, { label: 'Block the account after', value: pol.tries,
+              options: ['1 wrong password', '3 wrong passwords', '5 wrong passwords', '10 wrong passwords'],
+              onChange: set('tries'), hint: 'In a row, from the same account' }),
+            h(V.Select, { label: 'Stay blocked for', value: pol.lockFor,
+              options: ['15 minutes', '1 hour', 'Until an admin unblocks it'], onChange: set('lockFor') }),
+            h('div', { className: 'checks__row' },
+              h(V.Switch, { checked: !!pol.noRepeat, 'aria-label': 'Block repeated characters',
+                onChange: set('noRepeat') }),
+              h('div', { className: 'checks__main' },
+                h('span', { className: 'checks__name' }, 'Block repeated characters'),
+                h('span', { className: 'checks__meta' }, 'Refuses passwords like 00000000.'))),
+            h('p', { className: 'secsum' },
+              'People are signed out after ' + pol.timeout.toLowerCase() + ', and an account blocks for '
+                + pol.lockFor.toLowerCase() + ' after ' + pol.tries + '.')))));
+  }
+
+  /* ---- Tab 2: the second step ---- */
+  function SecurityTwoStep() {
+    var c = secCounts();
+    var pol = secPolicy();
+    var sentSt = React.useState({});
+    var without = c.privileged.filter(function (u) { return !u.mfa; });
+    var pct = c.privileged.length ? Math.round((c.enrolled.length / c.privileged.length) * 100) : 0;
+
+    function remind(u) {
+      var e = emp(u.employee);
+      var next = Object.assign({}, sentSt[0]); next[u.id] = true; sentSt[1](next);
+      act.notify({
+        kind: 'security', title: 'Set up your second step',
+        body: 'Your account reaches payroll and employee records. Add a one-time code from '
+          + pol.twoApp.toLowerCase() + ' before your next sign-in.',
+        route: 'me/profile', roles: ['me'], to: u.employee
+      });
+      store.log('sent a second-step reminder to ' + (e ? e.name : u.email), 'Security');
+      ui.toast('Reminder sent to ' + (e ? e.name : u.email), 'success');
+    }
+    function remindAll() {
+      without.forEach(remind);
+      ui.toast(plural(without.length, 'reminder') + ' sent', 'success');
     }
 
     return h(React.Fragment, null,
-      h(Card, {
-        title: 'Sign-in rules',
-        description: 'How people get in, and what happens when they get it wrong.'
-      },
-        h(V.Switch, { label: 'Email sign-in code', description: 'A 6-digit code sent to the work email.', checked: pol.codeLogin, onChange: set('codeLogin') }),
-        h(V.Switch, { label: 'Password sign-in', description: 'Works when codes are slow to arrive.', checked: pol.pwLogin, onChange: set('pwLogin') }),
-        h(V.Switch, { label: '2-step sign-in', description: 'A one-time code from an app, on top of the password.', checked: pol.twoStep, onChange: set('twoStep') }),
-        pol.twoStep ? h('div', { className: 'ad-nest' },
-          h(ui.FieldRow, null,
-            h(V.Select, { label: 'Second step', value: pol.twoApp, options: TWO_APPS, onChange: set('twoApp') }),
-            h(V.Select, { label: 'Who has to use it', value: pol.twoWho, options: ['Admins only', 'Admins and HR', 'Everyone'], onChange: set('twoWho') }))) : null,
-        h(ui.FieldRow, null,
-          h(V.Select, { label: 'Sign out after', value: pol.timeout, options: ['12 hours', '1 day', '3 days', '7 days'], onChange: set('timeout'), hint: 'People stay signed in this long without using the product' }),
-          h(V.Select, { label: 'Block the account after', value: pol.tries, options: ['1 wrong password', '3 wrong passwords', '5 wrong passwords', '10 wrong passwords'], onChange: set('tries'), hint: 'In a row, from the same account' })),
-        h(ui.FieldRow, null,
-          h(V.Select, { label: 'Stay blocked for', value: pol.lockFor, options: ['15 minutes', '1 hour', 'Until an admin unblocks it'], onChange: set('lockFor') }),
-          h('div', null)),
-        h(V.Checkbox, { label: 'Block repeated characters like 00000000', checked: pol.noRepeat, onChange: set('noRepeat') }),
-        h('p', { className: 'muted', style: { margin: 0 } },
-          'People are signed out after ' + pol.timeout.toLowerCase() + ', and an account blocks for '
-            + pol.lockFor.toLowerCase() + ' after ' + pol.tries + '.')),
+      h(PageHead, { eyebrow: 'Security', title: 'Second step',
+        description: 'Admin and HR accounts reach payroll, salaries and everyone’s records, so they are the '
+          + 'ones a second step matters for.',
+        actions: without.length
+          ? h(V.Button, { variant: 'primary', iconStart: I.bell, onClick: remindAll },
+              'Remind the ' + without.length + ' without one')
+          : null }),
+      h(SecurityHead, { counts: c, pol: pol, on: 'twostep' }),
 
-      h(Card, {
-        title: 'Blocked and deactivated accounts',
-        aside: h('span', { className: 'muted' }, blocked.length + (blocked.length === 1 ? ' account' : ' accounts'))
-      },
-        h('p', { className: 'muted', style: { margin: 0 } },
-          'An account blocks itself after ' + pol.tries + '. Let it back in here, or close it for good from Users.'),
-        blocked.length
-          ? h('div', { className: 'ad-list' }, blocked.map(function (u) {
+      h(Card, { title: 'Privileged accounts',
+        aside: h('span', { className: 'muted' }, pct + '% enrolled') },
+        h(V.ProgressBar, {
+          value: pct, 'aria-label': 'Privileged accounts with a second step',
+          tone: without.length ? 'warning' : 'success'
+        }),
+        without.length
+          ? h('div', { className: 'seccards' }, without.map(function (u) {
               var e = emp(u.employee);
-              return h('div', { className: 'ad-blk' + (u.status === 'Suspended' ? ' is-bad' : ''), key: u.id },
-                h('span', { className: 'ad-blk__i' }, u.status === 'Suspended' ? I.lock : I.clock),
-                h('div', { className: 'stack gap-1 grow', style: { minWidth: 0 } },
-                  h('strong', null, e ? e.name : u.email, h('span', { className: 'muted' }, ' · ' + u.email)),
-                  h('span', { className: 'muted' },
-                    (u.status === 'Suspended' ? 'Suspended' : 'Deactivated') + ' · last signed in '
-                      + (u.lastSignIn ? ui.relTime(u.lastSignIn) : 'never'))),
-                h(V.Button, { variant: 'outline', className: 'vi-btn--sm', onClick: function () { unblock(u); } },
+              var sent = !!sentSt[0][u.id];
+              return h('div', { className: 'seccard' + (sent ? ' is-sent' : ''), key: u.id },
+                h(V.Avatar, { name: e ? e.name : u.email, size: 'sm' }),
+                h('span', { className: 'seccard__m' },
+                  h('strong', null, e ? e.name : u.email),
+                  h('span', null, (ROLE_LABEL[u.role] || u.role) + ' · no second step')),
+                sent
+                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, 'Reminded')
+                  : h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
+                      onClick: function () { remind(u); } }, 'Remind'));
+            }))
+          : h(ui.Done, { title: 'Every privileged account has a second step',
+              body: 'Nothing with admin or HR rights signs in on a password alone.' }),
+
+        c.enrolled.length
+          ? h('details', { className: 'secmore' },
+              h('summary', null, 'The ' + c.enrolled.length + ' already enrolled'),
+              h('div', { className: 'seccards' }, c.enrolled.map(function (u) {
+                var e = emp(u.employee);
+                return h('div', { className: 'seccard is-ok', key: u.id },
+                  h(V.Avatar, { name: e ? e.name : u.email, size: 'sm' }),
+                  h('span', { className: 'seccard__m' },
+                    h('strong', null, e ? e.name : u.email),
+                    h('span', null, (ROLE_LABEL[u.role] || u.role) + ' · ' + pol.twoApp)),
+                  h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, 'Enrolled'));
+              })))
+          : null));
+  }
+
+  /* ---- Tab 3: who is locked out ---- */
+  function SecurityBlocked() {
+    var c = secCounts();
+    var pol = secPolicy();
+    return h(React.Fragment, null,
+      h(PageHead, { eyebrow: 'Security', title: 'Blocked accounts',
+        description: 'An account blocks itself after ' + pol.tries + '. Let it back in here, or close it '
+          + 'for good from Users.' }),
+      h(SecurityHead, { counts: c, pol: pol, on: 'blocked' }),
+
+      h(Card, { title: 'Locked out',
+        aside: h('span', { className: 'muted' }, plural(c.blocked.length, 'account')) },
+        c.blocked.length
+          ? h('div', { className: 'seccards' }, c.blocked.map(function (u) {
+              var e = emp(u.employee);
+              return h('div', { className: 'seccard is-bad', key: u.id },
+                h('span', { className: 'seccard__i' }, u.status === 'Suspended' ? I.lock : I.clock),
+                h('span', { className: 'seccard__m' },
+                  h('strong', null, e ? e.name : u.email),
+                  h('span', null, (u.status === 'Suspended' ? 'Suspended' : 'Deactivated')
+                    + ' · last signed in ' + (u.lastSignIn ? ui.relTime(u.lastSignIn) : 'never'))),
+                h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
+                  onClick: function () { ui.report(act.setUserStatus(u.id, 'Active')); } },
                   u.status === 'Suspended' ? 'Unblock' : 'Reactivate'));
             }))
-          : h(ui.Empty, { icon: I.lock, title: 'Nobody is blocked', body: 'Blocked and deactivated accounts show up here.' })),
-
-      h(Card, {
-        title: '2-step sign-in',
-        aside: h('span', { className: 'muted' }, enrolled.length + ' of ' + privileged.length + ' enrolled')
-      },
-        h('p', { className: 'muted', style: { margin: 0 } },
-          'Admin and HR accounts reach payroll, salaries and everyone’s records, so they are the ones a second step matters for.'),
-        h(V.ProgressBar, {
-          value: privileged.length ? Math.round((enrolled.length / privileged.length) * 100) : 0,
-          'aria-label': 'Privileged accounts with a second step',
-          tone: enrolled.length === privileged.length ? 'success' : 'warning'
-        }),
-        h('div', { className: 'ad-list' }, privileged.map(function (u) {
-          var e = emp(u.employee);
-          return h('div', { className: 'ad-check', key: u.id },
-            h(V.Avatar, { name: e ? e.name : u.email, size: 'xs' }),
-            h('span', { className: 'grow' }, e ? e.name : u.email,
-              h('span', { className: 'muted' }, ' · ' + (ROLE_LABEL[u.role] || u.role)
-                + ' · ' + (u.mfa ? pol.twoApp : 'No second step yet'))),
-            u.mfa
-              ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, 'Enrolled')
-              : h(V.Button, {
-                  variant: 'outline', className: 'vi-btn--sm',
-                  onClick: function () { ui.toast('Reminder sent to ' + (e ? e.name : u.email), 'success'); }
-                }, 'Send a reminder'));
-        }))));
+          : h(ui.Done, { title: 'Nobody is locked out',
+              body: 'An account that blocks itself after ' + pol.tries + ' would show up here.' })));
   }
 
   /* ====================================================== Access review
@@ -2316,7 +2447,9 @@
     'admin/users/all': usersScreen(null, 'Users', 'Every user account with role, status and last sign-in.'),
 
     'admin/roles/review': AccessReview,
-    'admin/settings': Security,
+    'admin/settings/rules': SecurityRules,
+    'admin/settings/twostep': SecurityTwoStep,
+    'admin/settings/blocked': SecurityBlocked,
 
     'admin/roles/custom': CustomRoles,
     'admin/roles/groups': PermissionGroups,

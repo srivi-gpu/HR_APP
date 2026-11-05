@@ -778,8 +778,17 @@
                setup as outstanding and the console sends you to the wizard. */
             h('p', { className: 'auth-switch' }, 'Setting up a new organisation? ',
               h('button', { type: 'button', className: 'link', onClick: function () {
+                /* Signing up is the admin path by definition — it is the person
+                   standing the organisation up — so it opens the Admin workspace and
+                   goes straight to onboarding.
+
+                   It also has to sign you in. Without that the wizard rendered over a
+                   sign-in page that was still the live screen underneath it: closing
+                   the wizard put you back on the front door, having apparently signed
+                   up for nothing. */
                 store.setPref('role', 'admin');
                 store.setPref('setupComplete', false);   /* in case setup was finished before */
+                store.setPref('signedIn', true);
                 router.go('global/setup');
               } }, 'Sign up')))))
       ,

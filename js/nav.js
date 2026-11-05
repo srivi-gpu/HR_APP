@@ -103,7 +103,17 @@
     /* Security, as one page rather than seven tabs. Sign-in rules, who is blocked and
        who has a second step are one question asked three ways, and splitting them meant
        reading a policy on one tab to understand a lockout on another. */
-    { path: 'settings', label: 'Security', icon: 'lock', section: '2.1' },
+    /* Security was one page carrying three long lists — the rules, everyone who is
+       blocked, and everyone who has or has not set up a second step. They are three
+       questions, so they are three tabs, each opening on the figure that answers it. */
+    { path: 'settings', label: 'Security', icon: 'lock', section: '2.1', tabs: [
+      { path: 'rules', label: 'Sign-in rules', section: '2.1',
+        note: 'How people get in, what the second step is, and what happens when they get it wrong.' },
+      { path: 'twostep', label: 'Second step', section: '2.1',
+        note: 'Which privileged accounts have a second factor, and a nudge for the ones that do not.' },
+      { path: 'blocked', label: 'Blocked accounts', section: '2.1',
+        note: 'Accounts that locked themselves out or were suspended, and the way back in.' }
+    ]},
 
     { path: 'audit', label: 'Audit logs', icon: 'history', section: '2.1', tabs: [
       { path: 'activity', label: 'User activity', section: '2.1', note: 'Who did what, where and when, across every module.' },
