@@ -411,6 +411,62 @@
 .checks__name { font-size: 14px; }
 .checks__note { font-size: 12px; color: var(--text-secondary); }
 
+/* ---------- Employee dashboard ----------
+   Built on the admin dashboard's .adm pieces; these are the few parts it needs
+   that the admin page has no equivalent of. */
+
+/* The wide card leads, so the attendance card gets the room, not the balance. */
+.mdash-mid { grid-template-columns: 1.35fr 1fr; }
+@media (max-width: 1100px) { .mdash-mid { grid-template-columns: minmax(0, 1fr); } }
+
+/* The live clock and the punch buttons on the left, the month's chips on the right. */
+.mdash__split { display: flex; gap: 18px; flex-wrap: wrap; align-items: stretch; margin-top: 12px; }
+.mdash__punch {
+  flex: 0 1 206px; min-width: 190px; display: flex; flex-direction: column; gap: 12px;
+  align-items: flex-start; justify-content: center;
+  padding: 16px 18px; border-radius: 16px;
+  background: var(--brand-softer); border: 1px solid var(--brand-border);
+}
+.mdash__clock { font: 300 38px/1 var(--font-flex); color: var(--text-brand); font-variant-numeric: tabular-nums; }
+.mdash__pmeta { display: flex; flex-direction: column; gap: 4px; width: 100%; font-size: 12.5px; color: var(--text-secondary); }
+.mdash__pmeta span { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.mdash__pmeta b { font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+/* The admin chip row wraps; here it is a fixed grid so the five tallies line up. */
+.mdash__chips { flex: 1 1 300px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 0; align-content: center; }
+.mdash__chips .adm-chip { flex-direction: column; align-items: flex-start; gap: 2px; padding: 11px 13px; }
+@media (max-width: 760px) { .mdash__punch { flex: 1 1 100%; } }
+
+/* Used-of-entitled, between the leave type and its balance. */
+.mdash__used { flex: none; font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* A row list with an avatar or an icon, cut to match .adm-key__r. */
+.mlist { display: flex; flex-direction: column; margin-top: 8px; }
+.mlist__r {
+  display: flex; align-items: center; gap: 10px; min-width: 0;
+  padding: 9px 6px; margin: 0 -6px; border-radius: 10px;
+}
+.mlist__r + .mlist__r { border-top: 1px solid var(--border-subtle); border-radius: 0; }
+.mlist__r--go { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  min-width: 0; padding: 9px 6px; margin: 0 -6px; border-radius: 10px; }
+.mlist__r--go:hover { background: var(--bg-hover); }
+.mlist__r--go:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: -2px; }
+.mlist__r--go > svg { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+/* A soft marker where a row has no avatar. .adm-ico is the inverse-surface pill
+   the admin page uses for one prominent thing; six of them in a list read as six
+   black dots. */
+.mlist__ico {
+  flex: none; width: 32px; height: 32px; border-radius: 11px; display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--brand-solid);
+}
+.mlist__ico svg { width: 17px; height: 17px; }
+.mlist__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.mlist__m strong { display: flex; align-items: center; gap: 7px; min-width: 0; font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.mlist__m strong > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mlist__m > span { font-size: 12px; line-height: 1.45; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Six tiles across where there is room, reusing the admin quick-action button. */
+.mdash__sc { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 12px; }
+
 /* ---------- Approval chain builder (the workflow dialog) ---------- */
 .chain { display: flex; flex-direction: column; gap: 8px; }
 .chain__row {

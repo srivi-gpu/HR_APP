@@ -25,6 +25,9 @@
   var React = window.React, h = React.createElement, V = window.Violet, I = window.Icons;
   var store = HRMS.store, router = HRMS.router, ui = HRMS.ui, seed = HRMS.seed;
 
+  function deptName(id) { var d = store.department(id); return d ? d.name : '\u2014'; }
+  function locName(id) { var l = store.location(id); return l ? l.name : '\u2014'; }
+
   /* ---------- glyphs the Tracklivo set does not carry ---------- */
   function g(d, s) {
     return h('svg', { viewBox: '0 0 24 24', width: s || 20, height: s || 20, fill: 'none', 'aria-hidden': 'true' },
@@ -840,5 +843,284 @@
       : h(AdminDashA, { switcher: switcher });
   }
 
-  HRMS.screens.register({ 'admin/dashboard': AdminDashboard });
+
+  /* ================================================== The employee dashboard
+     Built from the admin dashboard's own pieces — the .adm head, the .adm-card,
+     the chip row, the key list, the .adm-mid and .adm-low grids — so moving
+     between workspaces does not feel like moving between products.
+
+     What it carries, and why: this month's attendance and leave balance, because
+     those are the two numbers somebody checks about themselves; who is having a
+     birthday, an anniversary or a first week, because that is the one thing a
+     dashboard tells you that you could not have looked up; the holidays coming;
+     the announcements if there are any; and a row of shortcuts to the pages
+     people actually open.
+
+     No KPI strip: the four tiles it had restated the cards below them. No "My
+     tasks", which was a hard-coded list nothing could complete, and no board. */
+
+  var SHORTCUTS = [
+    { t: 'Payslips', icon: I.card, to: 'me/payroll/payslips' },
+    { t: 'Apply leave', icon: I.calendar, to: 'me/leave/overview' },
+    { t: 'Attendance', icon: I.clock, to: 'me/attendance/history' },
+    { t: 'My documents', icon: I.folder, to: 'me/profile/documents' },
+    { t: 'My assets', icon: I.package, to: 'me/assets/assigned' },
+    { t: 'Tax declaration', icon: I.reports, to: 'me/payroll/tax' }
+  ];
+
+  var MONTH_TALLY = [
+    { k: 'Present', l: 'Present' },
+    { k: 'Work From Home', l: 'Work from home' },
+    { k: 'Late', l: 'Late' },
+    { k: 'On Leave', l: 'On leave' },
+    { k: 'Absent', l: 'Absent' }
+  ];
+
+  var LEAVE_DOT = ['var(--av-violet-fg)', 'var(--av-blue-fg)', 'var(--av-green-fg)',
+    'var(--av-peach-fg)', 'var(--av-grey-fg)'];
+
+  /* A month of the same derivation the attendance screens use, so the tallies here
+     and the history there can never disagree. */
+  function monthCounts(who) {
+    var counts = {};
+    var monthStart = seed.todayIso.slice(0, 8) + '01';
+    var days = Math.round((new Date(seed.todayIso + 'T00:00') - new Date(monthStart + 'T00:00')) / 864e5) + 1;
+    var rows = (HRMS.attendanceHistory ? HRMS.attendanceHistory(who, days) : [])
+      .filter(function (r) { return r.date >= monthStart; });
+    rows.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+    counts._worked = (counts.Present || 0) + (counts['Work From Home'] || 0) + (counts.Late || 0);
+    /* Working days, so the ratio underneath means something: a weekend or a holiday
+       is not a day somebody failed to turn up for. */
+    counts._working = rows.filter(function (r) {
+      return r.status !== 'Weekly Off' && r.status !== 'Holiday';
+    }).length;
+    return counts;
+  }
+
+  /* Birthdays, work anniversaries and first weeks in one list, nearest first.
+     Three separate cards would each have held one or two rows.
+
+     The window is a month rather than the fortnight seed.birthdays and
+     seed.anniversaries are cut to. Over a fortnight the sample data happens to hold
+     no work anniversary at all, so a third of the card could never appear; a month
+     carries sixteen. Both kinds are derived here against the same window, so the
+     card's own label is the truth about what is in it. */
+  var CELEBRATION_DAYS = 30;
+  var MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  function celebrations() {
+    var birthdays = [], years = [], joiners = [];
+    var today = seed.today;
+    function whenLabel(mmdd) { return Number(mmdd.slice(3)) + ' ' + MONTH_ABBR[Number(mmdd.slice(0, 2)) - 1]; }
+    function inLabel(n) { return n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : 'In ' + n + ' days'; }
+    /* Days until the next time this month and day comes round. */
+    function daysTo(mmdd) {
+      var d = new Date(today.getFullYear(), Number(mmdd.slice(0, 2)) - 1, Number(mmdd.slice(3)));
+      if (d < today) d = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
+      return Math.round((d - today) / 864e5);
+    }
+
+    store.collection('employees').forEach(function (e) {
+      if (e.status === 'Exited') return;
+      if (e.dob) {
+        var bd = daysTo(e.dob.slice(5));
+        if (bd <= CELEBRATION_DAYS) {
+          birthdays.push({ id: 'b' + e.id, employee: e, kind: 'Birthday', cls: 'manual',
+            sort: bd, note: whenLabel(e.dob.slice(5)) + ' · ' + inLabel(bd) });
+        }
+      }
+      var served = today.getFullYear() - Number(e.joined.slice(0, 4));
+      var ad = daysTo(e.joined.slice(5));
+      if (served > 0 && ad <= CELEBRATION_DAYS) {
+        years.push({ id: 'a' + e.id, employee: e,
+          kind: served + (served === 1 ? ' year' : ' years'), cls: 'ok',
+          sort: ad, note: whenLabel(e.joined.slice(5)) + ' · ' + inLabel(ad) });
+      }
+    });
+    store.collection('employees')
+      .filter(function (e) {
+        return e.status !== 'Exited' && e.joined <= seed.todayIso
+          && e.joined >= seed.util.iso(seed.util.addDays(seed.today, -21));
+      })
+      .sort(function (x, y) { return x.joined < y.joined ? 1 : -1; })
+      .forEach(function (e) {
+        joiners.push({ id: 'n' + e.id, employee: e, kind: 'New joiner', cls: 'warn',
+          sort: -1, note: 'Joined ' + seed.util.pretty(new Date(e.joined + 'T00:00')) });
+      });
+    birthdays.sort(function (x, y) { return x.sort - y.sort; });
+    years.sort(function (x, y) { return x.sort - y.sort; });
+    /* Capped per kind before they are merged. The seed has a dozen people in their
+       first fortnight, and without a cap they fill the card and the birthdays and
+       anniversaries never appear at all. */
+    return joiners.slice(0, 2)
+      .concat(birthdays.slice(0, 3), years.slice(0, 3))
+      .sort(function (x, y) { return x.sort - y.sort; })
+      .slice(0, 6);
+  }
+
+  function greeting() {
+    var hr = new Date().getHours();
+    return hr < 12 ? 'Good morning' : hr < 17 ? 'Good afternoon' : 'Good evening';
+  }
+
+  function MeCard(p) {
+    return h('section', { className: 'adm-card' + (p.className ? ' ' + p.className : '') },
+      h('div', { className: 'adm-card__head' },
+        h('div', null,
+          h('h2', null, p.title),
+          p.sub ? h('p', null, p.sub) : null),
+        p.right || null),
+      p.children);
+  }
+
+  function MeDashboard() {
+    var who = store.persona('me');
+    var clockSt = React.useState(new Date());
+    React.useEffect(function () {
+      var t = setInterval(function () { clockSt[1](new Date()); }, 1000);
+      return function () { clearInterval(t); };
+    }, []);
+    if (!who) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
+
+    var shift = store.shift(who.shift) || seed.shifts[0];
+    var balances = store.balancesFor(who.id);
+    var punch = store.pref('punch') || {};
+    var today = seed.todayIso;
+    var inAt = punch.date === today ? punch.in : null;
+    var outAt = punch.date === today ? punch.out : null;
+    function hhmm(d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
+    function setPunch(next) {
+      store.setPref('punch', Object.assign({ date: today }, punch.date === today ? punch : {}, next));
+    }
+
+    var counts = monthCounts(who);
+    var posts = store.collection('announcements').slice()
+      .sort(function (a, b) { return (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0) || (a.on < b.on ? 1 : -1); })
+      .slice(0, 3);
+    var holidays = store.collection('holidays')
+      .filter(function (x) { return x.date >= today; })
+      .sort(function (a, b) { return a.date < b.date ? -1 : 1; })
+      .slice(0, 4);
+    var party = celebrations();
+    var monthLabel = new Date(today + 'T00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+
+    function link(label, to) {
+      return h('button', { type: 'button', className: 'dash__link',
+        onClick: function () { router.go(to); } }, label, I.right);
+    }
+
+    return h('div', { className: 'adm' },
+      h('div', { className: 'adm__head' },
+        h('div', null,
+          h('span', { className: 'adm__eyebrow' }, seed.todayLabel),
+          h('h1', null, greeting() + ', ', h('em', null, who.name.split(' ')[0])),
+          h('div', { className: 'adm__status' },
+            h('span', null, who.designation),
+            h('i', null),
+            h('span', null, deptName(who.department)),
+            h('i', null),
+            h('span', null, locName(who.location)),
+            h('i', null),
+            h('span', null, who.id))),
+        h('div', { className: 'adm__tools' },
+          h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+            onClick: function () { router.go('me/leave/overview'); } }, 'Apply leave'))),
+
+      h('div', { className: 'adm-mid mdash-mid' },
+        h(MeCard, { title: 'Attendance', sub: monthLabel, right: link('Full history', 'me/attendance/history') },
+          h('div', { className: 'mdash__split' },
+            h('div', { className: 'mdash__punch' },
+              h('span', { className: 'mdash__clock' }, hhmm(clockSt[0])),
+              h('div', { className: 'mdash__pmeta' },
+                h('span', null, 'In', h('b', null, inAt || '—')),
+                h('span', null, 'Out', h('b', null, outAt || '—')),
+                h('span', null, 'Shift', h('b', null, shift.start + ' – ' + shift.end))),
+              !inAt
+                ? h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.play,
+                    onClick: function () { setPunch({ in: hhmm(new Date()) }); } }, 'Check in')
+                : !outAt
+                  ? h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.stop,
+                      onClick: function () { setPunch({ out: hhmm(new Date()) }); } }, 'Check out')
+                  : h(V.Chip, { shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Day complete')),
+            h('div', { className: 'adm-chips mdash__chips' }, MONTH_TALLY.map(function (t) {
+              return h('div', { className: 'adm-chip', key: t.k },
+                h('b', null, counts[t.k] || 0),
+                h('span', null, t.l));
+            }))),
+          h('p', { className: 'adm-card__foot' },
+            counts._working
+              ? 'Worked ' + counts._worked + ' of ' + counts._working + ' working day'
+                + (counts._working === 1 ? '' : 's') + ' so far this month. '
+                + 'Weekends and holidays are not counted.'
+              : 'The month has not reached a working day yet.')),
+
+        h(MeCard, { title: 'Leave balance', sub: 'Days left against what you are entitled to',
+          right: link('My leave', 'me/leave/overview') },
+          balances.length
+            ? h('div', { className: 'adm-key', style: { marginTop: 8 } }, balances.map(function (b, i) {
+                var t = store.leaveType(b.type) || {};
+                return h('button', { type: 'button', className: 'adm-key__r', key: b.type,
+                  title: 'Open ' + (t.name || b.type),
+                  onClick: function () { router.go('me/leave/overview'); } },
+                  h('i', { style: { background: LEAVE_DOT[i % LEAVE_DOT.length] } }),
+                  h('span', { style: { flex: 1, minWidth: 0 } }, t.name || b.type),
+                  h('span', { className: 'mdash__used' }, b.used + ' of ' + b.entitled + ' used'),
+                  h('b', null, b.available));
+              }))
+            : h(ui.Empty, { icon: I.calendar, title: 'No leave policy assigned',
+              body: 'Ask HR to assign a leave policy to your record.' }))),
+
+      h('div', { className: 'adm-low' },
+        h(MeCard, { title: 'Celebrations', sub: 'Next 30 days' },
+          party.length
+            ? h('div', { className: 'mlist' }, party.map(function (c) {
+                return h('div', { className: 'mlist__r', key: c.id },
+                  h(V.Avatar, { name: c.employee.name, size: 'sm' }),
+                  h('span', { className: 'mlist__m' },
+                    h('strong', null, c.employee.name),
+                    h('span', null, c.note)),
+                  h('span', { className: 'adm-p adm-p--' + c.cls }, c.kind));
+              }))
+            : h(ui.Empty, { icon: I.star, title: 'Nothing coming up',
+              body: 'Birthdays, work anniversaries and new joiners appear here.' })),
+
+        h(MeCard, { title: 'Announcements', right: link('See all', 'me/announcements') },
+          posts.length
+            ? h('div', { className: 'mlist' }, posts.map(function (a) {
+                var by = a.by ? store.employee(a.by) : null;
+                return h('button', { type: 'button', className: 'mlist__r mlist__r--go', key: a.id,
+                  onClick: function () { router.go('me/announcements'); } },
+                  h(V.Avatar, { name: by ? by.name : (a.byName || 'HR'), size: 'sm' }),
+                  h('span', { className: 'mlist__m' },
+                    h('strong', null,
+                      a.pinned ? h('span', { className: 'adm-p adm-p--manual' }, 'Pinned') : null,
+                      /* A titleless announcement leads with its text. */
+                      h('span', null, a.title || a.body)),
+                    h('span', null, a.title ? a.body : ui.dateLabel(String(a.on).slice(0, 10)))),
+                  I.right);
+              }))
+            : h(ui.Empty, { icon: I.flag, title: 'No announcements',
+              body: 'Anything HR posts shows up here.' })),
+
+        h(MeCard, { title: 'Upcoming holidays', right: link('Calendar', 'me/leave/holidays') },
+          holidays.length
+            ? h('div', { className: 'mlist' }, holidays.map(function (hd) {
+                return h('div', { className: 'mlist__r', key: hd.id || hd.date },
+                  h('span', { className: 'mlist__ico' }, I.calendar),
+                  h('span', { className: 'mlist__m' },
+                    h('strong', null, hd.name),
+                    h('span', null, new Date(hd.date + 'T00:00').toLocaleDateString('en-GB', { weekday: 'long' })
+                      + ', ' + ui.dateLabel(hd.date))),
+                  h('span', { className: 'adm-p adm-p--' + (hd.type === 'Optional' ? 'sched' : 'manual') }, hd.type));
+              }))
+            : h(ui.Empty, { icon: I.calendar, title: 'No holidays left this year' }))),
+
+      h(MeCard, { title: 'Shortcuts', sub: 'The pages you open most' },
+        h('div', { className: 'mdash__sc' }, SHORTCUTS.map(function (q) {
+          return h('button', { key: q.t, type: 'button', className: 'dash__qbtn',
+            onClick: function () { router.go(q.to); } }, q.icon, h('span', null, q.t));
+        }))));
+  }
+
+  HRMS.screens.register({ 'admin/dashboard': AdminDashboard, 'me/dashboard': MeDashboard });
 })();
