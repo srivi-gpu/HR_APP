@@ -67,41 +67,76 @@
   /* PRD 4.5: an employee may propose changes, but sensitive fields need HR approval
      before the record updates. Contact details go straight through; bank details and
      anything identity-related raise a request. */
+  /* Personal details now carries what Contact and Emergency contacts used to hold:
+     three tabs of four fields each, which made a person's own details a small hunt.
+     Employment is editable too, but through a request — a department or a designation
+     is HR's to grant, so it queues for approval the way bank details do. */
   function profileScreen(kind) {
     var TITLES = {
-      personal: 'Personal information', employment: 'Employment details', contact: 'Contact information',
-      emergency: 'Emergency contacts', education: 'Education & experience', bank: 'Bank details'
+      personal: 'Personal details', employment: 'Employment', bank: 'Bank details'
     };
+    /* Saved straight away, or raised as a request for HR to approve. */
+    var NEEDS_APPROVAL = { employment: 'Employment details', bank: 'Bank account details' };
+
     return function () {
       var m = me();
       var editSt = React.useState(false);
       var form = ui.useForm(m);
 
-      function save(sensitive) {
+      function currentValues() {
+        var cur = me();
+        return Object.assign({}, cur, {
+          emergencyName: cur.emergency && cur.emergency.name,
+          emergencyRelation: cur.emergency && cur.emergency.relation,
+          emergencyPhone: cur.emergency && cur.emergency.phone,
+          bankName: cur.bank && cur.bank.name,
+          bankAccount: cur.bank && cur.bank.account,
+          bankIfsc: cur.bank && cur.bank.ifsc
+        });
+      }
+
+      function save() {
         var res = form.submit(function (v) {
-          var fields = {};
-          if (kind === 'personal') { fields.personalEmail = v.personalEmail; fields.phone = v.phone; fields.dob = v.dob; }
-          if (kind === 'contact') { fields.address = v.address; fields.permanentAddress = v.permanentAddress; }
-          if (kind === 'emergency') {
-            fields.emergency = { name: v.emergencyName, relation: v.emergencyRelation, phone: v.emergencyPhone };
+          if (kind === 'personal') {
+            return ui.report(act.editEmployee(m.id, {
+              personalEmail: v.personalEmail, phone: v.phone, dob: v.dob,
+              address: v.address, permanentAddress: v.permanentAddress,
+              emergency: { name: v.emergencyName, relation: v.emergencyRelation, phone: v.emergencyPhone }
+            }));
           }
-          if (kind === 'bank') {
+          if (kind === 'employment') {
             return ui.report(act.requestProfileChange(m.id, {
-              bank: { name: v.bankName, account: v.bankAccount, ifsc: v.bankIfsc }
-            }, 'Bank account details'));
+              department: v.department, designationId: v.designationId,
+              location: v.location, shift: v.shift
+            }, NEEDS_APPROVAL.employment));
           }
-          return ui.report(act.editEmployee(m.id, fields));
+          return ui.report(act.requestProfileChange(m.id, {
+            bank: { name: v.bankName, account: v.bankAccount, ifsc: v.bankIfsc }
+          }, NEEDS_APPROVAL.bank));
         });
         if (res && res.ok) editSt[1](false);
       }
 
       function view() {
         if (kind === 'personal') {
-          return h(ui.KeyValue, { rows: [
-            ['Full name', m.name], ['Employee ID', h('span', { className: 'mono' }, m.id)],
-            ['Date of birth', ui.dateLabel(m.dob)], ['Gender', m.gender],
-            ['Personal email', m.personalEmail], ['Phone', m.phone]
-          ]});
+          return h(React.Fragment, null,
+            h(ui.KeyValue, { rows: [
+              ['Full name', m.name], ['Employee ID', h('span', { className: 'mono' }, m.id)],
+              ['Date of birth', ui.dateLabel(m.dob)], ['Gender', m.gender],
+              ['Personal email', m.personalEmail], ['Work email', m.workEmail],
+              ['Phone', m.phone]
+            ]}),
+            h(ui.FormSection, { title: 'Addresses' },
+              h(ui.KeyValue, { rows: [
+                ['Current address', m.address],
+                ['Permanent address', m.permanentAddress]
+              ]})),
+            h(ui.FormSection, { title: 'In an emergency', description: 'Who we call, and how.' },
+              h(ui.KeyValue, { rows: [
+                ['Contact name', m.emergency && m.emergency.name],
+                ['Relationship', m.emergency && m.emergency.relation],
+                ['Phone', m.emergency && m.emergency.phone]
+              ]})));
         }
         if (kind === 'employment') {
           return h(React.Fragment, null,
@@ -116,49 +151,8 @@
               ['Status', h(ui.StatusChip, { status: m.status })]
             ]}),
             h('p', { className: 'muted', style: { fontSize: 12 } },
-              'Employment details are maintained by HR. Raise a request with your HR partner if something is wrong.'));
-        }
-        if (kind === 'contact') {
-          return h(ui.KeyValue, { rows: [
-            ['Current address', m.address], ['Permanent address', m.permanentAddress],
-            ['Work email', m.workEmail], ['Phone', m.phone]
-          ]});
-        }
-        if (kind === 'emergency') {
-          return h(ui.KeyValue, { rows: [
-            ['Contact name', m.emergency && m.emergency.name],
-            ['Relationship', m.emergency && m.emergency.relation],
-            ['Phone', m.emergency && m.emergency.phone]
-          ]});
-        }
-        if (kind === 'education') {
-          var QUALS = [
-            { id: 1, level: 'Bachelor of Design', inst: 'National Institute of Design', year: 2016 },
-            { id: 2, level: 'Higher Secondary', inst: 'Kendriya Vidyalaya', year: 2012 }
-          ];
-          var EXP = [
-            { id: 1, role: 'Visual Designer', company: 'Brightlane Studio', from: 2016, to: 2019 },
-            { id: 2, role: 'Product Designer', company: 'Finwise', from: 2019, to: 2023 }
-          ];
-          return h(React.Fragment, null,
-            h('div', { className: 'stack gap-2' },
-              h('span', { className: 'eyebrow' }, 'Qualifications'),
-              h('div', { className: 'list' }, QUALS.map(function (q) {
-                return h('div', { className: 'list__row', key: q.id },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' }, q.level),
-                    h('span', { className: 'list__meta' }, q.inst)),
-                  h(V.Chip, { size: 'sm', shape: 'tag' }, String(q.year)));
-              }))),
-            h('div', { className: 'stack gap-2' },
-              h('span', { className: 'eyebrow' }, 'Previous experience'),
-              h('div', { className: 'list' }, EXP.map(function (x) {
-                return h('div', { className: 'list__row', key: x.id },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' }, x.role),
-                    h('span', { className: 'list__meta' }, x.company)),
-                  h(V.Chip, { size: 'sm', shape: 'tag' }, x.from + ' – ' + x.to));
-              }))));
+              'A change here is a request: your department, designation, location and shift are '
+              + 'HR’s to grant, so they review it before the record moves.'));
         }
         return h(React.Fragment, null,
           h(ui.KeyValue, { rows: [
@@ -177,18 +171,35 @@
             h(ui.FieldRow, null,
               h(V.TextField, Object.assign({ label: 'Personal email', type: 'email' }, form.field('personalEmail'))),
               h(V.TextField, Object.assign({ label: 'Phone' }, form.field('phone')))),
-            h(V.DateField, Object.assign({ label: 'Date of birth' }, form.field('dob'))));
+            h(V.DateField, Object.assign({ label: 'Date of birth' }, form.field('dob'))),
+            h(ui.FormSection, { title: 'Addresses' },
+              h(V.TextArea, Object.assign({ label: 'Current address', rows: 3 }, form.field('address'))),
+              h(V.TextArea, Object.assign({ label: 'Permanent address', rows: 3 }, form.field('permanentAddress')))),
+            h(ui.FormSection, { title: 'In an emergency' },
+              h(ui.FieldRow, { cols: 3 },
+                h(V.TextField, Object.assign({ label: 'Contact name' }, form.field('emergencyName'))),
+                h(V.Select, Object.assign({ label: 'Relationship',
+                  options: ['Spouse', 'Parent', 'Sibling', 'Friend', 'Other'] }, form.select('emergencyRelation'))),
+                h(V.TextField, Object.assign({ label: 'Phone' }, form.field('emergencyPhone'))))));
         }
-        if (kind === 'contact') {
+        if (kind === 'employment') {
           return h(React.Fragment, null,
-            h(V.TextArea, Object.assign({ label: 'Current address', rows: 3 }, form.field('address'))),
-            h(V.TextArea, Object.assign({ label: 'Permanent address', rows: 3 }, form.field('permanentAddress'))));
-        }
-        if (kind === 'emergency') {
-          return h(ui.FieldRow, { cols: 3 },
-            h(V.TextField, Object.assign({ label: 'Contact name' }, form.field('emergencyName'))),
-            h(V.Select, Object.assign({ label: 'Relationship', options: ['Spouse', 'Parent', 'Sibling', 'Friend', 'Other'] }, form.select('emergencyRelation'))),
-            h(V.TextField, Object.assign({ label: 'Phone' }, form.field('emergencyPhone'))));
+            h(ui.FieldRow, null,
+              h(V.Select, Object.assign({ label: 'Department',
+                options: store.collection('departments').map(function (d) { return { value: d.id, label: d.name }; })
+              }, form.select('department'))),
+              h(V.Select, Object.assign({ label: 'Designation',
+                options: store.collection('designations').map(function (d) { return { value: d.id, label: d.name }; })
+              }, form.select('designationId')))),
+            h(ui.FieldRow, null,
+              h(V.Select, Object.assign({ label: 'Work location',
+                options: store.collection('locations').map(function (l) { return { value: l.id, label: l.name }; })
+              }, form.select('location'))),
+              h(V.Select, Object.assign({ label: 'Assigned shift',
+                options: store.collection('shifts').map(function (sh) { return { value: sh.id, label: sh.name }; })
+              }, form.select('shift')))),
+            h('p', { className: 'muted', style: { fontSize: 12 } },
+              'Your name, employee id and joining date are fixed. Everything else here goes to HR as a request.'));
         }
         return h(ui.FieldRow, { cols: 3 },
           h(V.TextField, Object.assign({ label: 'Bank name' }, form.field('bankName'))),
@@ -196,47 +207,26 @@
           h(V.TextField, Object.assign({ label: 'IFSC' }, form.field('bankIfsc'))));
       }
 
-      var editable = kind !== 'employment' && kind !== 'education';
+      /* The "My record" card beside this one is gone: the avatar, name, designation,
+         status, department and location it repeated are all in the header above the
+         tabs now, on every tab, so it was saying the same thing twice on three of
+         them. The detail card takes the full width it left behind. */
       return h(Grid, null,
-        h(Card, { span: 8, title: TITLES[kind],
-          aside: editable
-            ? h(V.Button, { variant: editSt[0] ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.pencil,
-                onClick: function () {
-                  var cur = me();
-                  form.reset(Object.assign({}, cur, {
-                    emergencyName: cur.emergency && cur.emergency.name,
-                    emergencyRelation: cur.emergency && cur.emergency.relation,
-                    emergencyPhone: cur.emergency && cur.emergency.phone,
-                    bankName: cur.bank && cur.bank.name,
-                    bankAccount: cur.bank && cur.bank.account,
-                    bankIfsc: cur.bank && cur.bank.ifsc
-                  }));
-                  editSt[1](!editSt[0]);
-                } }, editSt[0] ? 'Cancel' : 'Edit')
-            : null },
+        h(Card, { span: 12, title: TITLES[kind],
+          aside: h(V.Button, {
+            variant: editSt[0] ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.pencil,
+            onClick: function () { form.reset(currentValues()); editSt[1](!editSt[0]); }
+          }, editSt[0] ? 'Cancel' : 'Edit') },
           editSt[0]
             ? h('div', { className: 'stack gap-4' }, fields(),
                 h('div', { className: 'row gap-2' },
-                  h(V.Button, { variant: 'primary', onClick: save }, kind === 'bank' ? 'Request change' : 'Save changes'),
+                  h(V.Button, { variant: 'primary', onClick: save },
+                    NEEDS_APPROVAL[kind] ? 'Request change' : 'Save changes'),
                   h(V.Button, { variant: 'outline', onClick: function () { editSt[1](false); } }, 'Cancel')))
-            : view()),
-        h(Card, { span: 4, title: 'My record' },
-          h('div', { className: 'row gap-3' },
-            h(V.Avatar, { name: m.name, size: 'xl' }),
-            h('div', { className: 'stack gap-1' },
-              h('strong', { style: { fontWeight: 500 } }, m.name),
-              h('span', { className: 'muted', style: { fontSize: 12 } }, m.designation),
-              h(ui.StatusChip, { status: m.status }))),
-          h(ui.KeyValue, { rows: [
-            ['Department', deptName(m.department)],
-            ['Location', locName(m.location)],
-            ['Joined', m.joinedLabel],
-            ['Manager', m.manager ? emp(m.manager).name : null]
-          ]})));
+            : view()));
     };
   }
 
-  /* ========================================================== Attendance (4.17) */
   function AttendanceToday() {
     var m = me();
     var shift = store.shift(m.shift) || seed.shifts[0];
@@ -1774,6 +1764,384 @@
           onClick: function () { ui.toast('Exit documents download started', 'success'); } }, 'Download exit documents')));
   }
 
+  /* ================================================ Profile header and overview
+     The header is drawn by the frame above the tab row, because it is the person
+     rather than any one tab: whichever tab you are on, it is still your record. */
+  function ProfileHeader() {
+    var m = me();
+    if (!m) return null;
+    var dept = store.department(m.department);
+    return h('div', { className: 'phead' },
+      h('div', { className: 'phead__cover' },
+        /* The arcs of the design, drawn rather than fetched. */
+        h('svg', { viewBox: '0 0 900 112', preserveAspectRatio: 'none', 'aria-hidden': 'true' },
+          h('path', { d: 'M300 150 A 150 150 0 0 1 600 150', fill: 'none',
+            stroke: 'var(--brand-solid)', strokeWidth: 10, opacity: 0.5 }),
+          h('path', { d: 'M345 160 A 105 105 0 0 1 555 160', fill: 'none',
+            stroke: 'var(--brand-solid)', strokeWidth: 8, opacity: 0.25 }))),
+
+      h('div', { className: 'phead__body' },
+        h('span', { className: 'phead__face' }, h(V.Avatar, { name: m.name, size: 'xl' })),
+        h('div', { className: 'phead__who' },
+          h('h1', { className: 'phead__name' }, m.name),
+          h('span', { className: 'phead__sub' },
+            h('span', { className: 'mono' }, '#' + m.id), ' · ', m.designation)),
+        h('div', { className: 'phead__aside' },
+          h(ui.StatusChip, { status: m.status, size: 'md' }))),
+
+      h('div', { className: 'phead__chips' },
+        h('div', { className: 'pchip' },
+          h('span', { className: 'pchip__k' }, 'Department'),
+          h('span', { className: 'pchip__v' },
+            h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'primary', dot: true },
+              dept ? dept.name : '—'))),
+        h('div', { className: 'pchip' },
+          h('span', { className: 'pchip__k' }, 'Employment type'),
+          h('span', { className: 'pchip__v' },
+            h(V.Chip, { size: 'sm', shape: 'tag' }, m.type))),
+        h('div', { className: 'pchip' },
+          h('span', { className: 'pchip__k' }, 'Email'),
+          h('span', { className: 'pchip__v' }, I.mail, h('span', { title: m.workEmail }, m.workEmail))),
+        h('div', { className: 'pchip' },
+          h('span', { className: 'pchip__k' }, 'Phone number'),
+          h('span', { className: 'pchip__v' }, I.chat, h('span', null, m.phone)))));
+  }
+
+  /* Present, remote, late and leave over the last 30 days, counted from the same
+     day-by-day record the attendance history lists. */
+  function attendanceSummary(m, days) {
+    var rows = historyFor(m, days);
+    var n = { present: 0, remote: 0, late: 0, leave: 0 };
+    rows.forEach(function (r) {
+      if (r.status === 'Present') n.present++;
+      else if (r.status === 'Work From Home') n.remote++;
+      else if (r.status === 'Late') { n.late++; n.present++; }
+      else if (r.status === 'On Leave') n.leave++;
+    });
+    return n;
+  }
+
+  function ProfileOverview() {
+    var m = me();
+    if (!m) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
+
+    var manager = m.manager ? emp(m.manager) : null;
+    var goals = store.collection('goals')
+      .filter(function (g) { return g.employee === m.id; })
+      .sort(function (a, b) { return b.progress - a.progress; });
+    var open = goals.filter(function (g) { return g.status !== 'Achieved'; });
+    var shown = (open.length ? open : goals).slice(0, 3);
+    var att = attendanceSummary(m, 30);
+    var achieved = goals.filter(function (g) { return g.status === 'Achieved'; }).length;
+    var avg = goals.length
+      ? Math.round(goals.reduce(function (t, g) { return t + g.progress; }, 0) / goals.length) : 0;
+    var assessment = store.collection('assessments').filter(function (a) { return a.employee === m.id; })[0];
+    var shift = store.shift(m.shift);
+    var loc = store.location(m.location);
+
+    return h('div', { className: 'pcols' },
+      h('div', null,
+      h(Card, { title: 'About' },
+        h('p', { style: { fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', margin: 0 } },
+          m.name + ' is a ' + m.designation + ' in '
+          + (store.department(m.department) || {}).name + ', based at '
+          + (loc ? loc.name : 'the office') + ' since ' + m.joinedLabel + '.'
+          + (manager ? ' They report to ' + manager.name + '.' : ''))),
+
+      h(Card, { title: 'Employee information' },
+        h('div', { className: 'psnap' },
+          [['Employee ID', h('span', { className: 'mono' }, m.id)],
+            ['Work email', m.workEmail],
+            ['Phone', m.phone],
+            ['Join date', m.joinedLabel],
+            ['Reporting to', manager ? manager.name : 'Not assigned'],
+            ['Work type', shift ? shift.name : 'Not set'],
+            ['Office location', loc ? loc.name : '\u2014'],
+            ['Employment type', m.type]].map(function (row) {
+            return h('div', { key: row[0] },
+              h('span', { className: 'psnap__k' }, row[0]),
+              h('span', { className: 'psnap__v' }, row[1]));
+          }))),
+
+      h(Card, { title: 'Performance snapshot',
+        description: assessment ? 'The open cycle, as it stands.' : 'No cycle open for you yet.',
+        aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
+          onClick: function () { router.go('me/performance/standing'); } }, 'My standing') },
+        h('div', { className: 'pmeter' },
+          h('div', { className: 'pmeter__head' },
+            h('span', { className: 'pmeter__t' }, 'Goal completion'),
+            h('span', { className: 'pmeter__n' }, avg + '%')),
+          h(V.ProgressBar, { value: avg, size: 'sm', 'aria-label': 'Goal completion',
+            tone: avg >= 75 ? 'success' : avg >= 40 ? 'primary' : 'warning' }),
+          h('span', { className: 'pmeter__s' }, achieved + ' of ' + goals.length + ' goals achieved')),
+        assessment
+          ? h('div', { className: 'pmeter' },
+            h('div', { className: 'pmeter__head' },
+              h('span', { className: 'pmeter__t' }, 'Self-assessment'),
+              h('span', { className: 'pmeter__n' }, assessment.self === 'Submitted' ? 'Submitted' : 'Not started')),
+            h(V.ProgressBar, { value: assessment.self === 'Submitted' ? 100 : 0, size: 'sm',
+              'aria-label': 'Self-assessment', tone: assessment.self === 'Submitted' ? 'success' : 'warning' }),
+            h('span', { className: 'pmeter__s' },
+              'Manager review ' + (assessment.manager === 'Submitted' ? 'submitted' : 'not started')))
+          : null)),
+
+      h('div', null,
+      h(Card, { title: 'Goals in progress',
+        description: goals.length ? achieved + ' of ' + goals.length + ' achieved this cycle' : null,
+        aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
+          onClick: function () { router.go('me/performance/goals'); } }, 'All goals') },
+        shown.length
+          ? shown.map(function (g) {
+            return h('div', { className: 'pmeter pmeter--lined', key: g.id },
+              h('div', { className: 'pmeter__head' },
+                h('span', { className: 'pmeter__t' }, g.title),
+                h('span', { className: 'pmeter__n' }, g.progress + '%')),
+              h(V.ProgressBar, {
+                value: g.progress, size: 'sm', 'aria-label': g.title,
+                tone: g.progress >= 100 ? 'success' : g.progress >= 50 ? 'primary' : 'warning'
+              }),
+              h('span', { className: 'pmeter__s' }, g.status + ' · due ' + ui.dateLabel(g.due)));
+          })
+          : h(ui.Empty, { icon: I.target, title: 'No goals set for this cycle' })),
+
+      h(Card, { title: 'Attendance summary', description: 'Your last 30 days.' },
+        h('div', null,
+          [['Present days', att.present, 'var(--brand-solid)', null],
+            ['Remote days', att.remote, 'var(--success-fg)', null],
+            ['Late check-ins', att.late, 'var(--danger-fg)', null],
+            ['Leave taken', att.leave, 'var(--warning-fg)', 'days']].map(function (row) {
+            return h('div', { className: 'pstat', key: row[0] },
+              h('span', { className: 'pstat__dot', style: { background: row[2] } }),
+              h('span', { className: 'pstat__l' }, row[0]),
+              h('span', { className: 'pstat__v' }, row[1],
+                row[3] ? h('small', null, row[3]) : null));
+          })))));
+  }
+
+  /* ============================================ Education, and the three summaries
+     Qualifications and prior roles are records now, so they can be added to and
+     corrected. Leave, attendance and performance join the profile as summaries of the
+     person, each pointing at the module that holds the whole of it. */
+  function EducationEntryModal(p) {
+    var isQual = p.kind === 'qualifications';
+    var form = ui.useForm(p.entry || (isQual
+      ? { level: '', specialisation: '', institution: '', year: '', grade: '' }
+      : { role: '', company: '', from: '', to: '' }));
+
+    function save() {
+      var res = form.submit(function (v) {
+        var entry = p.entry ? Object.assign({}, p.entry, v) : v;
+        return ui.report(act.saveEducationEntry(p.kind, p.employee, entry));
+      });
+      if (res && res.ok) p.onClose();
+    }
+
+    return h(ui.Modal, {
+      title: (p.entry ? 'Edit ' : 'Add ') + (isQual ? 'a qualification' : 'an earlier role'),
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, p.entry ? 'Save' : 'Add'))
+    },
+      isQual
+        ? h(React.Fragment, null,
+          h(V.TextField, Object.assign({ label: 'Qualification', required: true,
+            placeholder: 'e.g. Bachelor of Technology' }, form.field('level'))),
+          h(V.TextField, Object.assign({ label: 'Specialisation',
+            placeholder: 'e.g. Computer Science' }, form.field('specialisation'))),
+          h(V.TextField, Object.assign({ label: 'Institution', required: true }, form.field('institution'))),
+          h(ui.FieldRow, { cols: 2 },
+            h(V.NumberField, Object.assign({ label: 'Year of passing', min: 1950, max: 2100 }, form.field('year', { number: true }))),
+            h(V.TextField, Object.assign({ label: 'Grade', placeholder: 'e.g. 72%' }, form.field('grade')))))
+        : h(React.Fragment, null,
+          h(V.TextField, Object.assign({ label: 'Role', required: true,
+            placeholder: 'e.g. Product Designer' }, form.field('role'))),
+          h(V.TextField, Object.assign({ label: 'Company', required: true }, form.field('company'))),
+          h(ui.FieldRow, { cols: 2 },
+            h(V.NumberField, Object.assign({ label: 'From', min: 1950, max: 2100 }, form.field('from', { number: true }))),
+            h(V.NumberField, Object.assign({ label: 'To', min: 1950, max: 2100 }, form.field('to', { number: true })))))); 
+  }
+
+  function EducationScreen() {
+    var m = me();
+    var editSt = React.useState(null);     // { kind, entry }
+    var dropSt = React.useState(null);     // { kind, id, what }
+    if (!m) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
+
+    var quals = store.collection('qualifications')
+      .filter(function (q) { return q.employee === m.id; })
+      .sort(function (a, b) { return (b.year || 0) - (a.year || 0); });
+    var exp = store.collection('experience')
+      .filter(function (x) { return x.employee === m.id; })
+      .sort(function (a, b) { return (b.from || 0) - (a.from || 0); });
+
+    function rows(list, kind, render) {
+      return h('div', { className: 'checks' }, list.map(function (it) {
+        var shown = render(it);
+        return h('div', { className: 'checks__row', key: it.id },
+          h('span', { className: 'empty__mark', style: { width: 28, height: 28 } },
+            kind === 'qualifications' ? I.reports : I.building),
+          h('div', { className: 'checks__main' },
+            h('span', { className: 'checks__name' }, shown[0]),
+            h('span', { className: 'checks__meta' }, shown[1])),
+          shown[2] ? h(V.Chip, { size: 'sm', shape: 'tag' }, shown[2]) : null,
+          h(V.IconButton, { icon: I.pencil, 'aria-label': 'Edit ' + shown[0],
+            onClick: function () { editSt[1]({ kind: kind, entry: it }); } }),
+          h(V.IconButton, { icon: I.trash, 'aria-label': 'Remove ' + shown[0],
+            onClick: function () { dropSt[1]({ kind: kind, id: it.id, what: shown[0] }); } }));
+      }));
+    }
+
+    return h(React.Fragment, null,
+      h(Grid, null,
+        h(Card, { span: 12, title: 'Qualifications',
+          description: 'Your education, newest first. Yours to keep up to date.',
+          aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus,
+            onClick: function () { editSt[1]({ kind: 'qualifications', entry: null }); } }, 'Add qualification') },
+          quals.length
+            ? rows(quals, 'qualifications', function (q) {
+              return [q.level + (q.specialisation ? ' · ' + q.specialisation : ''),
+                q.institution + (q.grade ? ' · ' + q.grade : ''),
+                q.year ? String(q.year) : null];
+            })
+            : h(ui.Empty, { icon: I.reports, title: 'No qualifications recorded',
+              body: 'Add your degrees and certificates so HR has them on file.' })),
+
+        h(Card, { span: 12, title: 'Previous experience',
+          description: 'Where you worked before joining.',
+          aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus,
+            onClick: function () { editSt[1]({ kind: 'experience', entry: null }); } }, 'Add a role') },
+          exp.length
+            ? rows(exp, 'experience', function (x) {
+              return [x.role, x.company, (x.from || '?') + ' – ' + (x.to || 'present')];
+            })
+            : h(ui.Empty, { icon: I.building, title: 'Nothing recorded',
+              body: 'If you worked elsewhere before joining, add it here.' }))),
+
+      editSt[0] ? h(EducationEntryModal, {
+        kind: editSt[0].kind, entry: editSt[0].entry, employee: m.id,
+        onClose: function () { editSt[1](null); }
+      }) : null,
+      dropSt[0] ? h(ui.Confirm, {
+        title: 'Remove this entry?',
+        body: '"' + dropSt[0].what + '" is removed from your record. This cannot be undone.',
+        confirmLabel: 'Remove', tone: 'danger',
+        onConfirm: function () { ui.report(act.deleteEducationEntry(dropSt[0].kind, dropSt[0].id)); },
+        onClose: function () { dropSt[1](null); }
+      }) : null);
+  }
+
+  /* The three summaries. Each answers its question here and hands off to the module
+     that owns the detail, rather than reproducing it. */
+  function ProfileLeave() {
+    var m = me();
+    if (!m) return null;
+    var balances = store.balancesFor(m.id);
+    var mine = store.collection('leaveRequests')
+      .filter(function (l) { return l.employee === m.id; })
+      .sort(function (a, b) { return a.from < b.from ? 1 : -1; }).slice(0, 5);
+
+    return h(Grid, null,
+      h(Card, { span: 12, title: 'Leave balances',
+        aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconEnd: I.right,
+          onClick: function () { router.go('me/leave/overview'); } }, 'Apply or manage') },
+        balances.length
+          ? h('div', { className: 'lbal' }, balances.map(function (b) {
+            return h('div', { className: 'lbal__cell', key: b.type },
+              h('span', { className: 'lbal__n' }, b.available,
+                h('small', null, '/' + (b.entitled + (b.carried || 0)))),
+              h('span', { className: 'lbal__t' }, (store.leaveType(b.type) || {}).name),
+              h('span', { className: 'lbal__s' }, 'Taken', h('b', null, b.used)));
+          }))
+          : h(ui.Empty, { icon: I.calendar, title: 'No leave types on your policy' })),
+
+      h(Card, { span: 12, title: 'Recent requests' },
+        mine.length
+          ? h('div', { className: 'list' }, mine.map(function (l) {
+            return h('div', { className: 'list__row', key: l.id },
+              h('div', { className: 'list__main' },
+                h('span', { className: 'list__title' }, (store.leaveType(l.type) || {}).name),
+                h('span', { className: 'list__meta' },
+                  ui.dateLabel(l.from) + ' – ' + ui.dateLabel(l.to) + ' · ' + l.days
+                  + ' day' + (l.days === 1 ? '' : 's'))),
+              h(ui.StatusChip, { status: l.status }));
+          }))
+          : h(ui.Empty, { icon: I.calendar, title: 'No requests yet' })));
+  }
+
+  function ProfileAttendance() {
+    var m = me();
+    if (!m) return null;
+    var att = attendanceSummary(m, 30);
+    var recent = historyFor(m, 10);
+
+    return h(Grid, null,
+      h(Card, { span: 5, title: 'Last 30 days',
+        aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconEnd: I.right,
+          onClick: function () { router.go('me/attendance/history'); } }, 'Full history') },
+        h('div', null,
+          [['Present days', att.present, 'var(--brand-solid)'],
+            ['Remote days', att.remote, 'var(--success-fg)'],
+            ['Late check-ins', att.late, 'var(--danger-fg)'],
+            ['Leave taken', att.leave, 'var(--warning-fg)']].map(function (row) {
+            return h('div', { className: 'pstat', key: row[0] },
+              h('span', { className: 'pstat__dot', style: { background: row[2] } }),
+              h('span', { className: 'pstat__l' }, row[0]),
+              h('span', { className: 'pstat__v' }, row[1]));
+          }))),
+
+      h(Card, { span: 7, title: 'Recent days' },
+        h('div', { className: 'list' }, recent.map(function (d) {
+          return h('div', { className: 'list__row', key: d.date },
+            h('div', { className: 'list__main' },
+              h('span', { className: 'list__title' }, d.dateLabel),
+              h('span', { className: 'list__meta' },
+                d.checkIn ? d.checkIn + ' – ' + (d.checkOut || 'open') : 'No punch')),
+            h(ui.StatusChip, { status: d.status }));
+        }))));
+  }
+
+  function ProfilePerformance() {
+    var m = me();
+    if (!m) return null;
+    var goals = store.collection('goals').filter(function (g) { return g.employee === m.id; });
+    var assessment = store.collection('assessments').filter(function (a) { return a.employee === m.id; })[0];
+    var achieved = goals.filter(function (g) { return g.status === 'Achieved'; }).length;
+    var avg = goals.length
+      ? Math.round(goals.reduce(function (t, g) { return t + g.progress; }, 0) / goals.length) : 0;
+
+    return h(Grid, null,
+      h(Card, { span: 7, title: 'Goals',
+        description: goals.length ? achieved + ' of ' + goals.length + ' achieved this cycle' : null,
+        aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconEnd: I.right,
+          onClick: function () { router.go('me/performance/goals'); } }, 'Manage goals') },
+        goals.length
+          ? goals.map(function (g) {
+            return h('div', { className: 'pmeter', key: g.id },
+              h('div', { className: 'pmeter__head' },
+                h('span', { className: 'pmeter__t' }, g.title),
+                h('span', { className: 'pmeter__n' }, g.progress + '%')),
+              h(V.ProgressBar, { value: g.progress, size: 'sm', 'aria-label': g.title,
+                tone: g.progress >= 100 ? 'success' : g.progress >= 50 ? 'primary' : 'warning' }),
+              h('span', { className: 'pmeter__s' }, g.status + ' · due ' + ui.dateLabel(g.due)));
+          })
+          : h(ui.Empty, { icon: I.target, title: 'No goals set for this cycle' })),
+
+      h(Card, { span: 5, title: 'The open cycle',
+        aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconEnd: I.right,
+          onClick: function () { router.go('me/performance/standing'); } }, 'My standing') },
+        h(ui.KeyValue, { rows: [
+          ['Goal completion', avg + '%'],
+          ['Goals achieved', achieved + ' of ' + goals.length],
+          ['Self-assessment', assessment
+            ? h(ui.StatusChip, { status: assessment.self === 'Submitted' ? 'Submitted' : 'Not Started' })
+            : null],
+          ['Manager review', assessment
+            ? h(ui.StatusChip, { status: assessment.manager === 'Submitted' ? 'Submitted' : 'Not Started' })
+            : null]
+        ]})));
+  }
+
   /* ================================================== My documents (PRD 4.24)
      An employee's own papers, on their own record. Sharing one sends it to HR as
      Pending Verification — the same path a document uploaded by HR takes — so the two
@@ -1973,52 +2341,19 @@
       }, form.field('title'))));
   }
 
-  /* ------------------------------------------------- Preferences (PRD 11.1)
-     These two tabs used to be a standalone "My settings" page. They are personal
-     to the signed-in user, so they belong with the rest of the profile rather
-     than in a second place to look. */
-  function Preferences() {
-    var theme = store.pref('theme');
-    return h(Grid, null,
-      h(Card, { span: 6, title: 'Appearance' },
-        h(V.SegmentedControl, {
-          value: theme, fullWidth: true,
-          items: [{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }, { value: 'system', label: 'System' }],
-          onChange: function (v) { store.setPref('theme', v); store.applyTheme(); }
-        }),
-        h('p', { className: 'muted', style: { fontSize: 13 } }, 'System follows your operating system setting.')),
-      h(Card, { span: 6, title: 'Prototype data', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 16.5') },
-        h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6 } },
-          'Approvals, check-in times, read notifications and theme are kept in this browser only. ' +
-          'Resetting restores the seeded sample data.'),
-        h(V.Button, { variant: 'outline', iconStart: I.history, onClick: function () { store.reset(); } }, 'Reset demo data')));
-  }
+  HRMS.screens.registerBanner({ 'me/profile': ProfileHeader });
 
-  function NotificationChannels() {
-    return h(Grid, null,
-      h(Card, { span: 12, title: 'Notification channels', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 7.2') },
-        ['Leave requests and approvals', 'Attendance exceptions', 'Payroll and payslips',
-          'Policy acknowledgements', 'Performance and surveys', 'Onboarding and offboarding'].map(function (label) {
-          return h('div', { className: 'list__row', key: label },
-            h('div', { className: 'list__main' }, h('span', { className: 'list__title' }, label)),
-            h('span', { className: 'row gap-4' },
-              h(V.Checkbox, { label: 'In-app', defaultChecked: true }),
-              h(V.Checkbox, { label: 'Email', defaultChecked: /^(Payroll|Leave)/.test(label) })));
-        })));
-  }
-
-  /* ---------------------------------------------------------------- Register */
   HRMS.screens.register({
 
+    'me/profile/overview': ProfileOverview,
     'me/profile/personal': profileScreen('personal'),
     'me/profile/employment': profileScreen('employment'),
-    'me/profile/contact': profileScreen('contact'),
-    'me/profile/emergency': profileScreen('emergency'),
-    'me/profile/education': profileScreen('education'),
+    'me/profile/education': EducationScreen,
     'me/profile/bank': profileScreen('bank'),
     'me/profile/documents': MyDocuments,
-    'me/profile/preferences': Preferences,
-    'me/profile/notifications': NotificationChannels,
+    'me/profile/leave': ProfileLeave,
+    'me/profile/attendance': ProfileAttendance,
+    'me/profile/performance': ProfilePerformance,
 
     'me/attendance/today': AttendanceToday,
     'me/attendance/history': AttendanceHistory,

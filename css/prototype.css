@@ -376,6 +376,76 @@
 .checks__row.is-done .checks__name { color: var(--text-secondary); text-decoration: line-through; text-decoration-color: var(--border-strong); }
 .checks__meta { font-size: 12px; color: var(--text-secondary); }
 
+/* ---------- Profile header (above the module tabs) ---------- */
+.phead {
+  background: var(--bg-surface); border: 1px solid var(--border-subtle);
+  border-radius: 16px; overflow: hidden; margin-bottom: 16px;
+}
+.phead__cover {
+  position: relative; height: 112px; overflow: hidden;
+  background: linear-gradient(118deg, var(--brand-softer) 0%, var(--bg-muted) 62%, var(--bg-surface) 100%);
+}
+.phead__cover svg { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .55; }
+/* Only the avatar climbs onto the cover; the name stays below it, where it is legible
+   against the surface rather than against the artwork. */
+.phead__body { display: flex; align-items: flex-end; gap: 18px; padding: 10px 24px 18px; }
+.phead__face {
+  flex: none; border-radius: 50%; padding: 4px; background: var(--bg-surface); line-height: 0;
+  margin-top: -56px;
+}
+.phead__who { flex: 1; min-width: 0; padding-bottom: 4px; }
+.phead__name { margin: 0; font: 500 22px/1.25 var(--font-flex); color: var(--text-primary); }
+.phead__sub { display: block; margin-top: 3px; font-size: 13px; color: var(--text-secondary); }
+.phead__sub .mono { color: var(--text-primary); }
+.phead__aside { display: flex; align-items: center; gap: 10px; padding-bottom: 6px; }
+
+.phead__chips {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px; padding: 0 24px 22px;
+}
+.pchip {
+  border: 1px solid var(--border-subtle); border-radius: 12px; padding: 11px 14px;
+  display: flex; flex-direction: column; gap: 5px; min-width: 0;
+}
+.pchip__k { font-size: 11px; color: var(--text-secondary); }
+.pchip__v { display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--text-primary); min-width: 0; }
+.pchip__v svg { width: 15px; height: 15px; flex: none; color: var(--text-secondary); }
+.pchip__v span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 640px) {
+  .phead__body { flex-wrap: wrap; gap: 12px; }
+  .phead__aside { width: 100%; padding-bottom: 0; }
+}
+
+/* ---------- Profile overview ---------- */
+/* Two columns that flow independently. The page grid aligns its items into rows, so a
+   short card beside a tall one left a gap the design does not have. */
+.pcols { display: grid; grid-template-columns: 7fr 5fr; gap: 16px; align-items: start; }
+.pcols > div { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+@media (max-width: 1040px) { .pcols { grid-template-columns: 1fr; } }
+/* Two values to a row, as a record reads, rather than one long column. */
+.psnap { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 20px; }
+.psnap__k { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 3px; }
+.psnap__v { font-size: 14px; color: var(--text-primary); word-break: break-word; }
+@media (max-width: 520px) { .psnap { grid-template-columns: 1fr; } }
+
+/* A labelled bar: the goal or measure on top, its progress under it. */
+.pmeter { display: flex; flex-direction: column; gap: 6px; padding: 12px 0; border-top: 1px solid var(--border-subtle); }
+.pmeter:first-child { border-top: 0; padding-top: 0; }
+.pmeter__head { display: flex; align-items: baseline; gap: 10px; }
+.pmeter__t { flex: 1; min-width: 0; font-size: 14px; color: var(--text-primary); }
+.pmeter__n { font-size: 13px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+.pmeter__s { font-size: 12px; color: var(--text-secondary); }
+/* The accent stripe of the design, carried by a left border. */
+.pmeter--lined { padding-left: 12px; border-left: 3px solid var(--brand-solid); border-top: 0; margin-bottom: 4px; }
+
+/* Dot · label · value, for the attendance summary. */
+.pstat { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border-subtle); font-size: 14px; }
+.pstat:first-child { border-top: 0; }
+.pstat__dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.pstat__l { flex: 1; min-width: 0; color: var(--text-primary); }
+.pstat__v { font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.pstat__v small { color: var(--text-secondary); margin-left: 3px; }
+
 /* ---------- Exit request landing ---------- */
 .exitgate {
   display: flex; align-items: center; justify-content: center; gap: 56px; flex-wrap: wrap-reverse;
@@ -508,7 +578,8 @@
 /* ---------- A posted announcement ---------- */
 .post { background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px; }
 .post__head { display: flex; gap: 12px; align-items: center; padding: 14px 18px; }
-.post__who { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+/* Grows, so the pin chip and the three-dot menu sit at the right edge of the head. */
+.post__who { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .post__title { font-size: 14px; color: var(--text-primary); }
 .post__when { font-size: 12px; color: var(--text-secondary); }
 .post__body {
@@ -550,24 +621,26 @@
   .libbar__search { width: 100%; flex: 1 1 180px; }
 }
 
-/* ---------- Dropdown menu (the Upload split button) ---------- */
-.menu { position: relative; display: inline-flex; }
-.menu__list {
+/* ---------- Dropdown menu (Upload, and a post's three-dot actions) ----------
+   Named pmenu, not menu: the design system already owns .menu as a card, and the
+   two were landing on the same element. */
+.pmenu { position: relative; display: inline-flex; }
+.pmenu__list {
   position: absolute; right: 0; top: calc(100% + 6px); z-index: 40; list-style: none; margin: 0;
   padding: 6px; min-width: 240px; display: flex; flex-direction: column; gap: 2px;
   background: var(--bg-surface); border: 1px solid var(--border-subtle);
   border-radius: 12px; box-shadow: var(--tl-elevation-3);
 }
-.menu__item {
+.pmenu__item {
   display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 8px 9px;
   border: 0; background: none; border-radius: var(--tl-radius-control); color: var(--text-primary);
   font: inherit; cursor: pointer;
 }
-.menu__item:hover { background: var(--bg-hover); }
-.menu__item:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: -2px; }
-.menu__text { display: flex; flex-direction: column; min-width: 0; }
-.menu__label { font-size: 14px; line-height: 1.3; }
-.menu__hint { font-size: 11px; color: var(--text-secondary); }
+.pmenu__item:hover { background: var(--bg-hover); }
+.pmenu__item:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: -2px; }
+.pmenu__text { display: flex; flex-direction: column; min-width: 0; }
+.pmenu__label { font-size: 14px; line-height: 1.3; }
+.pmenu__hint { font-size: 11px; color: var(--text-secondary); }
 
 /* ---------- Drag-and-drop upload target ---------- */
 .dropzone {

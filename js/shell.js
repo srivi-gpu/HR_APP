@@ -167,7 +167,8 @@
             h('span', { className: 'menu__mail muted' }, me ? me.workEmail : '—'))),
         h('hr', { className: 'menu__rule' }),
         item(I.person, 'My profile', function () { router.go('me/profile'); }),
-        item(I.gear, 'My settings', function () { router.go('me/profile/preferences'); }),
+        /* "My settings" pointed at the preferences tab, which has gone: appearance is
+           the switch below this line, and the rest of that tab was not a setting. */
         item(p.dark ? I.sun : I.moon, p.dark ? 'Light mode' : 'Dark mode', function () {
           store.setPref('theme', p.dark ? 'light' : 'dark'); store.applyTheme();
         }),
