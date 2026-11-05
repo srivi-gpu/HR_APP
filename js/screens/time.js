@@ -578,6 +578,53 @@
 
   /* ============================================================ Leave dashboard
      PRD 4.10: request volume, pending approvals, who is out today and what is next. */
+  /* A pie of where the requests stand. Bars were answering "how many of each",
+     which is a share question, and a share reads better as a whole cut up than as
+     four lengths to compare against nothing. */
+  var STATUS_COLOR = {
+    'Approved': 'var(--success-fg)',
+    'Pending Approval': 'var(--warning-fg)',
+    'Rejected': 'var(--danger-fg)',
+    'Cancelled': 'var(--text-muted)'
+  };
+  var STATUS_ORDER = ['Approved', 'Pending Approval', 'Rejected', 'Cancelled'];
+
+  function Pie(p) {
+    var total = p.slices.reduce(function (n, x) { return n + x.n; }, 0);
+    if (!total) return h(ui.Empty, { icon: I.reports, title: 'Nothing to chart yet' });
+    var R = 62, C = 70;
+    var at = -Math.PI / 2;
+    var wedges = p.slices.map(function (x) {
+      var sweep = (x.n / total) * Math.PI * 2;
+      var from = at, to = at + sweep;
+      at = to;
+      /* A single slice covering everything cannot be drawn as an arc — the start
+         and the end land on the same point — so it is the whole circle. */
+      if (x.n === total) {
+        return h('circle', { key: x.k, cx: C, cy: C, r: R, fill: x.color });
+      }
+      var x1 = C + R * Math.cos(from), y1 = C + R * Math.sin(from);
+      var x2 = C + R * Math.cos(to), y2 = C + R * Math.sin(to);
+      return h('path', {
+        key: x.k, fill: x.color,
+        d: 'M' + C + ' ' + C + ' L' + x1.toFixed(2) + ' ' + y1.toFixed(2)
+          + ' A' + R + ' ' + R + ' 0 ' + (sweep > Math.PI ? 1 : 0) + ' 1 '
+          + x2.toFixed(2) + ' ' + y2.toFixed(2) + ' Z'
+      });
+    });
+
+    return h('div', { className: 'lpie' },
+      h('svg', { className: 'lpie__svg', viewBox: '0 0 140 140', role: 'img',
+        'aria-label': p.slices.map(function (x) { return x.n + ' ' + x.k; }).join(', ') }, wedges),
+      h('div', { className: 'lpie__key' }, p.slices.map(function (x) {
+        return h('div', { className: 'lpie__r', key: x.k },
+          h('i', { style: { background: x.color } }),
+          h('span', { className: 'lpie__l' }, x.k),
+          h('span', { className: 'lpie__pc' }, Math.round((x.n / total) * 100) + '%'),
+          h('b', null, x.n));
+      })));
+  }
+
   function LeaveDashboard() {
     var s = store.stats();
     var all = store.collection('leaveRequests');
@@ -589,17 +636,8 @@
       .sort(function (a, b) { return a.from < b.from ? -1 : 1; });
     var thisMonth = all.filter(function (l) { return l.appliedOn >= monthStart; });
 
-    var byType = {}, byDept = {}, byStatus = {};
-    all.forEach(function (l) {
-      byStatus[l.status] = (byStatus[l.status] || 0) + 1;
-      byType[typeName(l.type)] = (byType[typeName(l.type)] || 0) + l.days;
-      var e = emp(l.employee);
-      if (e) byDept[deptName(e.department)] = (byDept[deptName(e.department)] || 0) + l.days;
-    });
-    function rowsOf(obj, tone) {
-      return Object.keys(obj).map(function (k) { return [k, Math.round(obj[k]), tone]; })
-        .sort(function (a, b) { return b[1] - a[1]; });
-    }
+    var byStatus = {};
+    all.forEach(function (l) { byStatus[l.status] = (byStatus[l.status] || 0) + 1; });
     var holidaysAhead = store.collection('holidays').filter(function (hd) { return hd.date >= today; })
       .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 
@@ -608,7 +646,6 @@
         eyebrow: seed.todayLabel, title: 'Leave overview',
         description: s.pendingLeave + ' requests are awaiting a decision and ' + s.onLeaveToday + ' employees are out today.',
         actions: [
-          h(V.Button, { key: 'a', variant: 'outline', iconStart: I.calendar, onClick: function () { router.go('hr/leave/calendar'); } }, 'Leave calendar'),
           h(V.Button, { key: 'b', variant: 'primary', iconStart: I.checklist, onClick: function () { router.go('hr/leave/requests'); } }, 'Open requests')
         ]
       }),
@@ -618,25 +655,19 @@
           tone: s.pendingLeave ? 'warn' : 'good', onClick: function () { router.go('hr/leave/requests'); } }),
         h(Stat, { label: 'Out today', value: s.onLeaveToday, sub: 'Approved leave covering today' }),
         h(Stat, { label: 'Requests this month', value: thisMonth.length, sub: 'Applied since ' + ui.dateLabel(monthStart) }),
-        h(Stat, { label: 'Approved all time', value: byStatus.Approved || 0, sub: (byStatus.Rejected || 0) + ' rejected', tone: 'good' })),
+        h(Stat, { label: 'Upcoming leave', value: upcoming.length,
+          sub: upcoming.length ? 'Next starts ' + ui.dateLabel(upcoming[0].from) : 'Nothing booked ahead' })),
 
       h(Grid, null,
-        h(Card, { span: 5, title: 'Days by leave type', description: 'Total days requested, all statuses.' },
-          h(ui.Bars, { rows: rowsOf(byType, 'info') })),
-        h(Card, { span: 7, title: 'Days by department' },
-          h(ui.Bars, { rows: rowsOf(byDept, 'success') })),
-
-        h(Card, { span: 4, title: 'Request status' },
-          h(ui.Bars, {
-            rows: Object.keys(byStatus).map(function (k) {
-              return [k, byStatus[k], k === 'Approved' ? 'success' : k === 'Rejected' ? 'error' : 'warning'];
-            }).sort(function (a, b) { return b[1] - a[1]; })
+        h(Card, { span: 4, title: 'Request status',
+          description: 'Every request on record, by where it ended up.' },
+          h(Pie, {
+            slices: STATUS_ORDER.concat(Object.keys(byStatus).filter(function (k) { return STATUS_ORDER.indexOf(k) < 0; }))
+              .filter(function (k) { return byStatus[k]; })
+              .map(function (k) { return { k: k, n: byStatus[k], color: STATUS_COLOR[k] || 'var(--brand-solid)' }; })
           })),
 
-        h(Card, {
-          span: 4, title: 'Who is out today',
-          aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { router.go('hr/leave/calendar'); } }, 'Calendar')
-        },
+        h(Card, { span: 4, title: 'Who is out today' },
           outToday.length
             ? h('div', { className: 'list scroll-320' }, outToday.slice(0, 10).map(function (l) {
                 var e = emp(l.employee);
@@ -785,97 +816,6 @@
   /* ============================================================ Leave calendar
      PRD 4.14: who is out, grouped by date, across the next thirty days, with the
      holiday calendar drawn against it. */
-  function LeaveCalendar() {
-    var deptSt = React.useState('');
-    var WINDOW = 30;
-    var hol = holidayMap();
-    var from = seed.todayIso, to = iso(addDays(seed.today, WINDOW - 1));
-
-    var inWindow = store.collection('leaveRequests').filter(function (l) {
-      return (l.status === 'Approved' || l.status === 'Pending Approval') && l.from <= to && l.to >= from;
-    });
-    if (deptSt[0]) inWindow = inWindow.filter(function (l) { var e = emp(l.employee); return e && e.department === deptSt[0]; });
-
-    var days = [];
-    for (var i = 0; i < WINDOW; i++) {
-      var d = addDays(seed.today, i);
-      var key = iso(d);
-      var out = inWindow.filter(function (l) { return l.from <= key && l.to >= key; });
-      days.push({
-        id: key, date: key, day: d, holiday: hol[key] || null,
-        weekend: rules.isWeekend(d),
-        approved: out.filter(function (l) { return l.status === 'Approved'; }),
-        pending: out.filter(function (l) { return l.status === 'Pending Approval'; })
-      });
-    }
-    var busy = days.filter(function (x) { return x.approved.length || x.pending.length || x.holiday; });
-    var peak = days.slice().sort(function (a, b) { return b.approved.length - a.approved.length; })[0];
-
-    return h(React.Fragment, null,
-      h(Stats, { cols: 3 },
-        h(Stat, { label: 'Out today', value: days[0].approved.length, sub: days[0].pending.length + ' more awaiting approval' }),
-        h(Stat, { label: 'Absences in the window', value: inWindow.length, sub: 'Next ' + WINDOW + ' days from ' + seed.todayLabel }),
-        h(Stat, {
-          label: 'Busiest day', value: peak && peak.approved.length ? peak.approved.length : 0,
-          sub: peak && peak.approved.length ? ui.dateLabel(peak.date) : 'Nothing booked yet',
-          tone: peak && peak.approved.length > 6 ? 'warn' : null
-        })),
-
-      h(Grid, null,
-        h(Card, {
-          span: 7, title: 'Who is out', description: 'Grouped by date for the next ' + WINDOW + ' days. Weekly offs and holidays are marked.',
-          aside: h(ui.Filter, { label: 'Department', value: deptSt[0], onChange: deptSt[1], options: deptOptions() })
-        },
-          busy.length
-            ? h('div', { className: 'list' }, busy.map(function (x) {
-                var people = x.approved.concat(x.pending);
-                return h('div', { className: 'list__row', key: x.id },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' },
-                      ui.dateLabel(x.date) + ' · ' + DAY_NAMES[x.day.getDay()]),
-                    h('span', { className: 'list__meta' },
-                      people.length
-                        ? people.slice(0, 4).map(function (l) { return empName(l.employee); }).join(', ')
-                          + (people.length > 4 ? ' and ' + (people.length - 4) + ' more' : '')
-                        : 'Nobody on leave')),
-                  people.length
-                    ? h(V.AvatarGroup, {
-                        size: 'xs', max: 5,
-                        avatars: people.map(function (l) { return { id: l.id, name: empName(l.employee) }; })
-                      })
-                    : null,
-                  x.holiday
-                    ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info', dot: true }, x.holiday.name)
-                    : null,
-                  x.weekend ? h(V.Chip, { size: 'sm', shape: 'tag' }, 'Weekly off') : null,
-                  x.pending.length
-                    ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning' }, x.pending.length + ' pending')
-                    : null);
-              }))
-            : h(ui.Empty, {
-                icon: I.calendar, title: 'Nobody is out in the next ' + WINDOW + ' days',
-                body: 'Approved and pending leave both appear here as soon as it is applied for.'
-              })),
-
-        h(Card, { span: 5, title: 'Absences in the window', description: 'The same data as a list you can export.' },
-          h(ui.DataTable, {
-            exportName: 'leave-calendar', label: 'Upcoming absences', rows: inWindow, pageSize: 10,
-            search: function (l) { return empName(l.employee) + ' ' + typeName(l.type) + ' ' + l.status; },
-            searchPlaceholder: 'Search by employee or type',
-            columns: [
-              { key: 'employee', header: 'Employee', sortable: true,
-                sortValue: function (l) { return empName(l.employee); }, csv: function (l) { return empName(l.employee); },
-                cell: function (l) { var e = emp(l.employee); return e ? h(ui.Person, { employee: e, sub: typeName(l.type) }) : '—'; } },
-              { key: 'from', header: 'From', sortable: true, cell: function (l) { return ui.shortDate(l.from); } },
-              { key: 'to', header: 'To', cell: function (l) { return ui.shortDate(l.to); } },
-              { key: 'days', header: 'Days', numeric: true, align: 'right' },
-              { key: 'status', header: 'Status', cell: function (l) { return h(ui.StatusChip, { status: l.status }); } }
-            ],
-            emptyIcon: I.calendar, emptyTitle: 'No absences booked',
-            emptyBody: 'Nothing falls inside the next ' + WINDOW + ' days for this department.'
-          }))));
-  }
-
   /* ============================================================ Leave balances
      PRD 4.14: entitlement, used and available per employee per leave type. */
   /* The ledger behind one balance: every line that moved it, oldest first, with a running
@@ -915,116 +855,17 @@
       rows.length ? null : h(ui.Empty, { icon: I.calendar, title: 'No ledger for this balance' }));
   }
 
-  function LeaveBalances() {
-    var deptSt = React.useState(''), typeSt = React.useState(''), locSt = React.useState('');
-    var openSt = React.useState(null);
-
-    var people = workforce();
-    if (deptSt[0]) people = people.filter(function (e) { return e.department === deptSt[0]; });
-    if (locSt[0]) people = people.filter(function (e) { return e.location === locSt[0]; });
-
-    var rows = [];
-    people.forEach(function (e) {
-      store.balancesFor(e.id).forEach(function (b) {
-        if (typeSt[0] && b.type !== typeSt[0]) return;
-        rows.push({
-          id: e.id + '-' + b.type, employee: e.id, type: b.type,
-          entitled: b.entitled, used: b.used, available: b.available,
-          carried: b.carried || 0, encashed: b.encashed || 0
-        });
-      });
-    });
-
-    /* Utilisation by leave type across everyone currently in view. */
-    var totals = {};
-    rows.forEach(function (x) {
-      var k = typeName(x.type);
-      totals[k] = totals[k] || { entitled: 0, used: 0 };
-      totals[k].entitled += x.entitled;
-      totals[k].used += x.used;
-    });
-
-    return h(React.Fragment, null,
-      h(Grid, null,
-        h(Card, { span: 12, title: 'Leave balances', description: 'One row per employee per leave type, from the policy they are on (PRD 4.11).' },
-          h(ui.DataTable, {
-            exportName: 'leave-balances', label: 'Leave balances', rows: rows, pageSize: 10,
-            search: function (x) { return empName(x.employee) + ' ' + x.employee + ' ' + typeName(x.type); },
-            searchPlaceholder: 'Search by name, ID or leave type',
-            filters: h(React.Fragment, null,
-              h(ui.Filter, { label: 'Department', value: deptSt[0], onChange: deptSt[1], options: deptOptions() }),
-              h(ui.Filter, { label: 'Location', value: locSt[0], onChange: locSt[1], options: locOptions() }),
-              h(ui.Filter, { label: 'Leave type', value: typeSt[0], onChange: typeSt[1], options: leaveTypeOptions() })),
-            columns: [
-              { key: 'employee', header: 'Employee', sortable: true,
-                sortValue: function (x) { return empName(x.employee); }, csv: function (x) { return empName(x.employee); },
-                cell: function (x) {
-                  var e = emp(x.employee);
-                  return e ? h(ui.Person, { employee: e, sub: e.id }) : h('span', { className: 'muted' }, '—');
-                } },
-              { key: 'department', header: 'Department', csv: function (x) { return deptName((emp(x.employee) || {}).department); },
-                cell: function (x) { return deptName((emp(x.employee) || {}).department); } },
-              { key: 'type', header: 'Leave type', sortable: true, csv: function (x) { return typeName(x.type); },
-                cell: function (x) { return h(V.Chip, { size: 'sm', shape: 'tag' }, typeName(x.type)); } },
-              { key: 'entitled', header: 'Entitled', numeric: true, align: 'right', sortable: true },
-              { key: 'carried', header: 'Carried in', numeric: true, align: 'right', sortable: true,
-                cell: function (x) { return x.carried ? x.carried : h('span', { className: 'muted' }, '—'); } },
-              { key: 'used', header: 'Used', numeric: true, align: 'right', sortable: true },
-              { key: 'encashed', header: 'Encashed', numeric: true, align: 'right',
-                cell: function (x) { return x.encashed ? x.encashed : h('span', { className: 'muted' }, '—'); } },
-              { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true,
-                cell: function (x) { return h('strong', { style: { fontWeight: 500 } }, x.available); } },
-              { key: 'ledger', header: '', align: 'right',
-                cell: function (x) {
-                  return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
-                    onClick: function () { openSt[1]({ employee: x.employee, type: x.type }); } }, 'Ledger');
-                } },
-              { key: 'bar', header: 'Utilisation', csv: function (x) { return ui.pct(x.used, x.entitled) + '%'; },
-                cell: function (x) {
-                  return h(V.ProgressBar, {
-                    value: ui.pct(x.used, x.entitled), size: 'sm',
-                    tone: x.available <= 1 ? 'warning' : 'primary',
-                    'aria-label': typeName(x.type) + ' utilisation'
-                  });
-                } }
-            ],
-            emptyIcon: I.calendar, emptyTitle: 'No balances to show',
-            emptyBody: 'Balances come from the leave policy assigned to each employee. Adjust the filters to widen the view.'
-          }),
-          h('p', { className: 'muted', style: { fontSize: 12, marginTop: 10 } },
-            'Available counts leave carried in and leaves out what has been encashed, so it is what the ledger adds up to. Open a row to follow it.')),
-
-        h(Card, { span: 4, title: 'Utilisation by type', description: 'Days used against days entitled, for everyone in view.' },
-          Object.keys(totals).length
-            ? h(React.Fragment, null,
-                Object.keys(totals).map(function (k) {
-                  return h(V.ProgressBar, {
-                    key: k, label: k, showValue: true,
-                    value: ui.pct(totals[k].used, totals[k].entitled),
-                    tone: ui.pct(totals[k].used, totals[k].entitled) > 80 ? 'warning' : 'info'
-                  });
-                }),
-                h('p', { className: 'muted', style: { fontSize: 12 } },
-                  'PRD 14.2: an application is refused when the requested days exceed the available balance.'))
-            : h(ui.Empty, { icon: I.reports, title: 'Nothing to summarise' }))),
-
-      openSt[0] ? h(BalanceLedger, {
-        employee: openSt[0].employee, type: openSt[0].type,
-        onClose: function () { openSt[1](null); }
-      }) : null);
-  }
-
   /* ================================================================ Leave types
      PRD 4.11: every rule a leave type carries, created through actions.createLeaveType. */
   function LeaveTypes() {
     var openSt = React.useState(false);
-    var form = ui.useForm({ paid: true, carry: false, halfDay: true, docRequired: false, annual: 12, notice: 1 });
+    var form = ui.useForm({ paid: true, carry: false, carryPct: 100, docRequired: false, annual: 12, notice: 1 });
 
     function save() {
       var res = form.submit(function (v) { return ui.report(act.createLeaveType(v)); });
       if (res && res.ok) {
         openSt[1](false);
-        form.reset({ paid: true, carry: false, halfDay: true, docRequired: false, annual: 12, notice: 1 });
+        form.reset({ paid: true, carry: false, carryPct: 100, docRequired: false, annual: 12, notice: 1 });
       }
     }
 
@@ -1050,8 +891,14 @@
               cell: function (t) { return h(ui.StatusChip, { status: t.paid ? 'Paid' : 'Unpaid' }); } },
             { key: 'annual', header: 'Annual days', numeric: true, align: 'right', sortable: true,
               cell: function (t) { return t.annual ? t.annual : h('span', { className: 'muted' }, 'Accrued'); } },
-            { key: 'carry', header: 'Carry forward', align: 'center', csv: function (t) { return t.carry ? 'Yes' : 'No'; },
-              cell: function (t) { return yesNo(t.carry); } },
+            { key: 'carry', header: 'Carry forward', align: 'center',
+              csv: function (t) { return t.carry ? (t.carryPct || 100) + '%' : 'No'; },
+              cell: function (t) {
+                return t.carry
+                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' },
+                    (t.carryPct || 100) + '%')
+                  : h('span', { className: 'muted' }, 'No');
+              } },
             { key: 'maxAccrual', header: 'Max accrual', numeric: true, align: 'right',
               csv: function (t) { return t.maxAccrual || ''; },
               cell: function (t) { return t.maxAccrual ? t.maxAccrual : h('span', { className: 'muted' }, '—'); } },
@@ -1062,8 +909,6 @@
               cell: function (t) { return t.notice ? t.notice : h('span', { className: 'muted' }, 'None'); } },
             { key: 'docRequired', header: 'Document', align: 'center', csv: function (t) { return t.docRequired ? 'Required' : 'Not required'; },
               cell: function (t) { return yesNo(t.docRequired); } },
-            { key: 'halfDay', header: 'Half day', align: 'center', csv: function (t) { return t.halfDay ? 'Allowed' : 'Not allowed'; },
-              cell: function (t) { return yesNo(t.halfDay); } },
             { key: 'status', header: 'Status', cell: function (t) { return h(ui.StatusChip, { status: t.status || 'Active' }); } }
           ],
           emptyIcon: I.calendar, emptyTitle: 'No leave types defined',
@@ -1091,14 +936,20 @@
               hint: '0 means no cap' }, form.field('maxConsecutive', { number: true })))),
           h(ui.FieldRow, null,
             h(V.Switch, Object.assign({ label: 'Paid leave', description: 'Unpaid leave creates a loss-of-pay payroll input (PRD 5.1).' }, form.check('paid'))),
-            h(V.Switch, Object.assign({ label: 'Carry forward allowed', description: 'Unused days move into the next leave year.' }, form.check('carry'))))),
+            h(V.Switch, Object.assign({ label: 'Carry forward allowed', description: 'Unused days move into the next leave year.' }, form.check('carry')))),
+          /* The percentage only exists while something carries, so it appears with
+             the switch rather than sitting disabled beside it. */
+          form.values.carry
+            ? h(ui.FieldRow, { cols: 2 },
+              h(V.NumberField, Object.assign({ label: 'Carry forward (%)', min: 1, max: 100, step: 5,
+                hint: form.errors.carryPct || 'Share of the unused balance that moves into the next year'
+              }, form.field('carryPct', { number: true }))))
+            : null),
         h(ui.FormSection, { title: 'Application rules' },
           h(ui.FieldRow, null,
             h(V.NumberField, Object.assign({ label: 'Notice days required', min: 0, step: 1,
               hint: 'Checked when the employee applies' }, form.field('notice', { number: true }))),
-            h('div', { className: 'stack gap-2' },
-              h(V.Switch, Object.assign({ label: 'Supporting document required', description: 'Enforced beyond two days.' }, form.check('docRequired'))),
-              h(V.Switch, Object.assign({ label: 'Half day allowed' }, form.check('halfDay')))))),
+            h(V.Switch, Object.assign({ label: 'Supporting document required', description: 'Enforced beyond two days.' }, form.check('docRequired'))))),
         form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null) : null);
   }
 
@@ -2052,8 +1903,6 @@
 
     'hr/leave/dashboard': LeaveDashboard,
     'hr/leave/requests': LeaveRequests,
-    'hr/leave/calendar': LeaveCalendar,
-    'hr/leave/balances': LeaveBalances,
     'hr/leave/types': LeaveTypes,
     'hr/leave/policies': LeavePolicies,
 

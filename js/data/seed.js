@@ -342,19 +342,22 @@
   var LEAVE_TYPES = [
     { id: 'lt-cl', code: 'CL', name: 'Casual Leave', paid: true, annual: 12, carry: false, maxConsecutive: 3, notice: 1, docRequired: false, halfDay: true },
     { id: 'lt-sl', code: 'SL', name: 'Sick Leave', paid: true, annual: 12, carry: false, maxConsecutive: 7, notice: 0, docRequired: true, halfDay: true },
-    { id: 'lt-el', code: 'EL', name: 'Earned Leave', paid: true, annual: 18, carry: true, maxAccrual: 45, notice: 7, docRequired: false, halfDay: true },
+    { id: 'lt-el', code: 'EL', name: 'Earned Leave', paid: true, annual: 18, carry: true, carryPct: 100, maxAccrual: 45, notice: 7, docRequired: false, halfDay: true },
     { id: 'lt-ml', code: 'ML', name: 'Maternity Leave', paid: true, annual: 182, carry: false, notice: 30, docRequired: true, halfDay: false },
     /* Loss of pay, where paternity used to sit. The id stays so every reference holds,
        and the annual figure is the cap on unpaid days a year rather than an entitlement
        — the balance machinery counts it the same way. Keeping the slot also keeps the
        seeded random stream where it was, which the figures PRD 15 fixes depend on. */
     { id: 'lt-pl', code: 'LOP', name: 'Loss of Pay (LOP)', paid: false, annual: 15, carry: false, notice: 7, docRequired: false, halfDay: false },
-    { id: 'lt-co', code: 'CO', name: 'Compensatory Off', paid: true, annual: 0, carry: true, notice: 1, docRequired: false, halfDay: true }
+    { id: 'lt-co', code: 'CO', name: 'Compensatory Off', paid: true, annual: 0, carry: true, carryPct: 100, notice: 1, docRequired: false, halfDay: true }
   ];
+  /* Compensatory off is no longer granted by any policy. The type itself stays
+     defined — it carries no annual entitlement, so it never produced a balance
+     and dropping it from the policies changes no figure. */
   var LEAVE_POLICIES = [
-    { id: 'lp-standard', name: 'Standard — Full-Time', appliesTo: 'Full-Time employees past probation', types: ['lt-cl', 'lt-sl', 'lt-el', 'lt-ml', 'lt-pl', 'lt-co'], status: 'Active' },
-    { id: 'lp-intern', name: 'Interns', appliesTo: 'Interns and trainees', types: ['lt-cl', 'lt-sl', 'lt-co'], status: 'Active' },
-    { id: 'lp-contract', name: 'Contract & Consultant', appliesTo: 'Contract, consultant and part-time', types: ['lt-cl', 'lt-sl', 'lt-co'], status: 'Active' }
+    { id: 'lp-standard', name: 'Standard — Full-Time', appliesTo: 'Full-Time employees past probation', types: ['lt-cl', 'lt-sl', 'lt-el', 'lt-ml', 'lt-pl'], status: 'Active' },
+    { id: 'lp-intern', name: 'Interns', appliesTo: 'Interns and trainees', types: ['lt-cl', 'lt-sl'], status: 'Active' },
+    { id: 'lp-contract', name: 'Contract & Consultant', appliesTo: 'Contract, consultant and part-time', types: ['lt-cl', 'lt-sl'], status: 'Active' }
   ];
 
   var SHIFTS = [
@@ -489,7 +492,7 @@
   addLeave(id('Sneha Kulkarni'), 'lt-sl', addDays(TODAY, 1), 2, 'Pending Approval', { reason: 'Fever, rest advised' });
   var pendingPool = shuffle(eligible.filter(function (e) { return !onLeaveIds[e.id] && e.name !== 'Sneha Kulkarni'; })).slice(0, PENDING_LEAVE - 1);
   pendingPool.forEach(function (e) {
-    addLeave(e.id, pick(['lt-cl', 'lt-sl', 'lt-el', 'lt-co']), addDays(TODAY, 2 + Math.floor(r() * 24)), 1 + Math.floor(r() * 4), 'Pending Approval');
+    addLeave(e.id, pick(['lt-cl', 'lt-sl', 'lt-el']), addDays(TODAY, 2 + Math.floor(r() * 24)), 1 + Math.floor(r() * 4), 'Pending Approval');
   });
 
   /* 3. History: settled requests in the past, so reports have something to show. */
@@ -884,6 +887,43 @@
   /* ------------------------------------------------------------- Offboarding */
   var OFB_TASKS = ['Resignation acknowledged', 'Knowledge transfer plan', 'Handover to successor',
     'Access revocation', 'Asset return', 'Exit interview', 'Final settlement', 'Exit documents'];
+  /* --------------------------------------------- Exit clearance checklists
+     What an exit has to clear, who owns each step and who signs it off. This was
+     a list of eight strings with the owner worked out from the step's name by a
+     regular expression, which meant the checklist could not be changed without
+     editing the source. It is a collection now, and submitting a resignation
+     builds the case's tasks from the checklist that matches the leaver's
+     employee type — so the configuration screen configures something.
+
+     `after` is days relative to the last working day: negative is before it.
+     `gate` marks a step that blocks the final settlement (PRD 14.8). */
+  var EXIT_OWNERS = ['HR Administrator', 'IT Administrator', 'Reporting Manager',
+    'Department Head', 'Finance Controller', 'Facilities', 'Organization Admin'];
+
+  var EXIT_CHECKLISTS = [
+    { id: 'xc-standard', name: 'Standard exit clearance', appliesTo: 'All', status: 'Active',
+      description: 'Every leaver on notice, unless a narrower checklist matches first.',
+      steps: [
+        { name: 'Resignation acknowledged', owner: 'HR Administrator', approver: 'Reporting Manager', after: -60, mandatory: true, gate: false },
+        { name: 'Knowledge transfer plan', owner: 'Reporting Manager', approver: 'Department Head', after: -30, mandatory: true, gate: false },
+        { name: 'Handover to successor', owner: 'Reporting Manager', approver: 'Department Head', after: -7, mandatory: true, gate: false },
+        { name: 'Access revocation', owner: 'IT Administrator', approver: 'Organization Admin', after: 0, mandatory: true, gate: true },
+        { name: 'Asset return', owner: 'IT Administrator', approver: 'IT Administrator', after: 0, mandatory: true, gate: true },
+        { name: 'Exit interview', owner: 'HR Administrator', approver: 'HR Administrator', after: -3, mandatory: true, gate: false },
+        { name: 'Final settlement', owner: 'Finance Controller', approver: 'Finance Controller', after: 30, mandatory: true, gate: true },
+        { name: 'Exit documents', owner: 'HR Administrator', approver: 'HR Administrator', after: 30, mandatory: true, gate: false }
+      ] },
+    { id: 'xc-short', name: 'Intern and contract exit', appliesTo: 'Intern', status: 'Active',
+      description: 'A shorter close for a placement or a fixed term: no settlement run, no successor.',
+      steps: [
+        { name: 'End of term acknowledged', owner: 'HR Administrator', approver: 'Reporting Manager', after: -14, mandatory: true, gate: false },
+        { name: 'Work handed back', owner: 'Reporting Manager', approver: 'Reporting Manager', after: -2, mandatory: true, gate: false },
+        { name: 'Access revocation', owner: 'IT Administrator', approver: 'Organization Admin', after: 0, mandatory: true, gate: true },
+        { name: 'Asset return', owner: 'IT Administrator', approver: 'IT Administrator', after: 0, mandatory: true, gate: true },
+        { name: 'Completion letter', owner: 'HR Administrator', approver: 'HR Administrator', after: 7, mandatory: false, gate: false }
+      ] }
+  ];
+
   var offboarding = [];
   var ofbSeq = 140;
   employees.filter(function (e) { return e.status === 'Notice Period' || e.status === 'Exited'; }).forEach(function (e) {
@@ -2278,6 +2318,7 @@
     assets: assets, assetRequests: assetRequests, assetCategories: ASSET_CATS.map(function (c) { return c.name; }),
     onboarding: onboarding, onboardingTemplates: ONB_TEMPLATES, onboardingTaskNames: ONB_TASKS,
     offboarding: offboarding, offboardingTaskNames: OFB_TASKS, exitReasons: EXIT_REASONS,
+    exitChecklists: EXIT_CHECKLISTS, exitOwners: EXIT_OWNERS,
     policies: POLICIES, docFolders: DOC_FOLDERS, acknowledgements: acknowledgements, documentCategories: DOC_CATEGORIES,
     employeeDocuments: employeeDocuments,
     qualifications: qualifications, experience: experience,

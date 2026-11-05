@@ -594,12 +594,19 @@
     var dup = rules.uniqueIn('leaveTypes', 'code', form.code, null, 'Leave code ' + form.code);
     if (dup && !errors.code) errors.code = dup;
     if (form.annual != null && Number(form.annual) < 0) errors.annual = 'Entitlement cannot be negative';
+    var pct = form.carry ? Number(form.carryPct) : 0;
+    if (form.carry && (isNaN(pct) || pct <= 0 || pct > 100)) {
+      errors.carryPct = 'Carry forward is a percentage between 1 and 100';
+    }
     if (rules.hasErrors(errors)) return fail(errors);
     store.add('leaveTypes', {
       id: 'lt-' + form.code.toLowerCase(), code: form.code.toUpperCase(), name: form.name,
       paid: form.paid !== false, annual: Number(form.annual) || 0, carry: !!form.carry,
+      /* How much of an unused balance moves into the next year, as a percentage.
+         Nil when nothing carries, so the two fields cannot disagree. */
+      carryPct: form.carry ? pct : 0,
       maxAccrual: Number(form.maxAccrual) || 0, maxConsecutive: Number(form.maxConsecutive) || 0,
-      notice: Number(form.notice) || 0, docRequired: !!form.docRequired, halfDay: form.halfDay !== false,
+      notice: Number(form.notice) || 0, docRequired: !!form.docRequired,
       status: 'Active'
     });
     store.log('created the ' + form.name + ' leave type', 'Configuration');
@@ -1738,6 +1745,114 @@
   }
 
   /* ===================================================== Offboarding (4.49–4.50) */
+  /* ------------------------------------ Exit clearance checklists (PRD 4.48)
+     The steps an exit has to clear, their owners and their approvers. A step with
+     no name is dropped rather than refused, so a half-filled row left behind in
+     the builder does not block a save; a checklist with no steps at all is
+     refused, because it would clear an exit the moment it opened. */
+  function cleanSteps(steps) {
+    return (steps || [])
+      .filter(function (st) { return st && String(st.name || '').trim(); })
+      .map(function (st) {
+        return {
+          name: String(st.name).trim(),
+          owner: st.owner || 'HR Administrator',
+          approver: st.approver || 'HR Administrator',
+          after: Number(st.after) || 0,
+          mandatory: st.mandatory !== false,
+          gate: !!st.gate
+        };
+      });
+  }
+
+  function validChecklist(form, steps, exceptId) {
+    var errors = rules.required([{ key: 'name', label: 'Checklist name' }], form);
+    var dup = rules.uniqueIn('exitChecklists', 'name', form.name, exceptId || null, form.name);
+    if (dup && !errors.name) errors.name = dup;
+    if (!steps.length) errors.steps = 'Add at least one step';
+    var seen = {};
+    for (var i = 0; i < steps.length; i++) {
+      var key = steps[i].name.toLowerCase();
+      if (seen[key]) { errors.steps = 'Two steps are both called "' + steps[i].name + '"'; break; }
+      seen[key] = true;
+    }
+    return errors;
+  }
+
+  function checklistFields(form, steps) {
+    return {
+      name: String(form.name).trim(),
+      appliesTo: form.appliesTo || 'All',
+      description: form.description || '',
+      status: form.status || 'Active',
+      steps: steps
+    };
+  }
+
+  function createExitChecklist(form) {
+    var steps = cleanSteps(form.steps);
+    var errors = validChecklist(form, steps);
+    if (rules.hasErrors(errors)) return fail(errors);
+    var record = Object.assign({ id: store.nextId('exitChecklists', 'xc-') }, checklistFields(form, steps));
+    store.add('exitChecklists', record);
+    store.log('created the exit checklist "' + record.name + '"', 'Configuration');
+    return done(record.name + ' created', { id: record.id });
+  }
+
+  function updateExitChecklist(id, form) {
+    var row = store.find('exitChecklists', id);
+    if (!row) return fail({ _: 'That checklist no longer exists' });
+    var steps = cleanSteps(form.steps);
+    var errors = validChecklist(form, steps, id);
+    if (rules.hasErrors(errors)) return fail(errors);
+    store.setOverride('exitChecklists', id, checklistFields(form, steps));
+    store.log('updated the exit checklist "' + String(form.name).trim() + '"', 'Configuration');
+    return done(String(form.name).trim() + ' updated');
+  }
+
+  function deleteExitChecklist(id) {
+    var row = store.find('exitChecklists', id);
+    if (!row) return fail({ _: 'That checklist no longer exists' });
+    var live = store.collection('exitChecklists').filter(function (x) {
+      return x.id !== id && x.status !== 'Inactive';
+    });
+    if (!live.length) {
+      return fail({ _: 'This is the last active checklist. An exit would have nothing to clear.' });
+    }
+    store.remove('exitChecklists', id);
+    store.log('deleted the exit checklist "' + row.name + '"', 'Configuration');
+    return done(row.name + ' deleted');
+  }
+
+  /* The checklist a leaver gets: the narrowest active one that names their
+     employee type, else the one that applies to everyone. */
+  function checklistFor(employee) {
+    var all = store.collection('exitChecklists').filter(function (c) { return c.status !== 'Inactive'; });
+    return all.filter(function (c) { return c.appliesTo === (employee || {}).type; })[0]
+      || all.filter(function (c) { return c.appliesTo === 'All'; })[0]
+      || all[0] || null;
+  }
+
+  /* Who a step's owner resolves to. A role resolves to the person holding it; the
+     reporting manager resolves to the leaver's own. HR carries anything that does
+     not resolve, so no step is left with nobody against it. */
+  function ownerFor(label, employee) {
+    var hr = (store.persona('hr') || {}).id;
+    if (label === 'Reporting Manager') return (employee && employee.manager) || hr;
+    if (label === 'Department Head') {
+      var dept = employee && store.department(employee.department);
+      return (dept && dept.head) || hr;
+    }
+    if (label === 'IT Administrator' || label === 'Facilities') {
+      return (store.employeeByName('Sandeep Rao') || {}).id || hr;
+    }
+    if (label === 'Organization Admin') return (store.persona('admin') || {}).id || hr;
+    if (label === 'Finance Controller') {
+      return (store.employeeByName('Deepak Joshi') || {}).id || hr;
+    }
+    return hr;
+  }
+
   function submitResignation(employeeId, form) {
     var errors = rules.validResignation(form);
     if (rules.hasErrors(errors)) return fail(errors);
@@ -1747,9 +1862,10 @@
     if (existing) return fail({ _: 'A resignation is already in progress' });
     var employee = store.employee(employeeId);
     var id = store.nextId('offboarding', 'OFB');
-    var names = seed.offboardingTaskNames;
-    var hr = (store.persona('hr') || {}).id;
-    var it = (store.employeeByName('Sandeep Rao') || {}).id;
+    /* From the configured checklist, not a list in the source: whatever HR has set
+       up under offboarding configuration is what this exit has to clear. */
+    var checklist = checklistFor(employee);
+    var steps = (checklist && checklist.steps) || [];
     store.add('offboarding', {
       id: id, employee: employeeId, resignedOn: today(), resignedOnLabel: pretty(seed.today),
       lastWorkingDay: form.lastWorkingDay,
@@ -1759,17 +1875,23 @@
       /* The prototype keeps the name of what was attached, not the file. */
       attachment: form.attachment || null,
       stage: 'Submitted', status: 'Pending Approval',
-      tasksTotal: names.length, tasksDone: 0, clearance: 0,
+      checklist: checklist ? checklist.id : null,
+      checklistName: checklist ? checklist.name : null,
+      tasksTotal: steps.length, tasksDone: 0, clearance: 0,
       assetsOutstanding: store.collection('assets').filter(function (a) { return a.assignedTo === employeeId; }).length,
       settlement: 'Pending',
-      tasks: names.map(function (t) {
-        return { name: t, done: false, owner: /Asset|Access/.test(t) ? it : hr };
+      tasks: steps.map(function (st) {
+        return {
+          name: st.name, done: false, owner: ownerFor(st.owner, employee),
+          ownerRole: st.owner, approver: st.approver,
+          after: st.after, mandatory: st.mandatory, gate: st.gate
+        };
       })
     });
     raiseApproval({
       id: id, kind: 'Resignation', module: 'offboarding', employee: employeeId,
       detail: 'Last working day ' + pretty(new Date(form.lastWorkingDay + 'T00:00')),
-      approver: hr, route: 'hr/offboarding/resignations'
+      approver: (store.persona('hr') || {}).id, route: 'hr/offboarding/resignations'
     });
     store.log('submitted a resignation (' + id + ')', 'User activity');
     var shortfall = rules.noticeShortfall(form.lastWorkingDay, 60);
@@ -1889,6 +2011,8 @@
     createDepartment: createDepartment, createDesignation: createDesignation,
     createEmployeeType: createEmployeeType, updateEmployeeType: updateEmployeeType,
     deleteEmployeeType: deleteEmployeeType,
+    createExitChecklist: createExitChecklist, updateExitChecklist: updateExitChecklist,
+    deleteExitChecklist: deleteExitChecklist, exitChecklistFor: checklistFor,
     createApprovalWorkflow: createApprovalWorkflow, updateApprovalWorkflow: updateApprovalWorkflow,
     deleteApprovalWorkflow: deleteApprovalWorkflow,
     createEmployeeStatus: createEmployeeStatus, updateEmployeeStatus: updateEmployeeStatus,

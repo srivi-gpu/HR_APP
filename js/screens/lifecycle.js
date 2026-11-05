@@ -2805,28 +2805,242 @@
       newSt[0] ? h(NewOnboardingModal, { onClose: function () { newSt[1](false); } }) : null);
   }
 
-  function OffboardingConfig() {
-    var names = seed.offboardingTaskNames;
-    var cases = offboardingCases();
-    return h(Grid, null,
-      h(Card, { span: 7, title: 'Clearance checklist',
-        description: 'PRD 4.48: the tasks every exit must clear, and who owns each one.' },
-        h('div', { className: 'checks' }, names.map(function (name) {
-          return h('div', { className: 'checks__row', key: name },
-            h('span', { className: 'empty__mark', style: { width: 28, height: 28 } },
-              /Asset|Access/.test(name) ? I.lock : I.checklist),
-            h('div', { className: 'checks__main' },
-              h('span', { className: 'checks__name' }, name),
-              h('span', { className: 'checks__meta' },
-                (/Asset|Access/.test(name) ? 'IT Administrator' : 'HR Administrator')
-                + (name === 'Asset return' ? ' · refused while any asset is still assigned (PRD 14.8)' : '')
-                + (name === 'Final settlement' ? ' · refused while clearance is outstanding (PRD 14.8)' : ''))),
-            name === 'Asset return' || name === 'Final settlement'
-              ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning' }, 'Gated')
-              : null);
-        }))),
+  /* ====================================== Offboarding configuration (PRD 4.48)
+     The clearance checklist used to be eight strings with the owner worked out
+     from the step's name by a regular expression. It is built here now: a
+     checklist per kind of leaver, each an ordered list of steps with an owner, an
+     approver, when it falls relative to the last working day, and whether it
+     blocks the settlement. Submitting a resignation builds the case's tasks from
+     whichever checklist matches, so what is set here is what an exit clears. */
+  var CHECKLIST_SCOPE = ['All'];
+  var CHECKLIST_STATUS = ['Active', 'Inactive'];
 
-      h(Card, { span: 5, title: 'Notice rules' },
+  function ownerOptions() { return seed.exitOwners; }
+  function scopeOptions() {
+    return CHECKLIST_SCOPE.concat(store.collection('employeeTypes').map(function (t) { return t.name; }))
+      .map(function (v) { return { value: v, label: v === 'All' ? 'Every leaver' : v + ' only' }; });
+  }
+  /* "3 days before the last working day", and so on. */
+  function whenLabel(after) {
+    var n = Number(after) || 0;
+    return n === 0 ? 'On the last working day'
+      : n < 0 ? Math.abs(n) + ' day' + (Math.abs(n) === 1 ? '' : 's') + ' before'
+        : n + ' day' + (n === 1 ? '' : 's') + ' after';
+  }
+
+  function ChecklistModal(p) {
+    var c = p.checklist;
+    var form = ui.useForm(c
+      ? { name: c.name, appliesTo: c.appliesTo, description: c.description || '', status: c.status || 'Active' }
+      : { name: '', appliesTo: 'All', description: '', status: 'Active' });
+    var stepsSt = React.useState(c
+      ? c.steps.map(function (s) { return Object.assign({}, s); })
+      : [{ name: '', owner: 'HR Administrator', approver: 'Reporting Manager', after: 0, mandatory: true, gate: false }]);
+    var steps = stepsSt[0];
+
+    function setStep(i, patch) {
+      stepsSt[1](steps.map(function (s, n) { return n === i ? Object.assign({}, s, patch) : s; }));
+    }
+    function addStep() {
+      stepsSt[1](steps.concat([{ name: '', owner: 'HR Administrator', approver: 'HR Administrator',
+        after: 0, mandatory: true, gate: false }]));
+    }
+    function removeStep(i) { stepsSt[1](steps.filter(function (_, n) { return n !== i; })); }
+    function move(i, by) {
+      var to = i + by;
+      if (to < 0 || to >= steps.length) return;
+      var next = steps.slice();
+      var tmp = next[i]; next[i] = next[to]; next[to] = tmp;
+      stepsSt[1](next);
+    }
+    function save() {
+      var res = form.submit(function (v) {
+        var payload = Object.assign({}, v, { steps: steps });
+        return ui.report(c ? act.updateExitChecklist(c.id, payload) : act.createExitChecklist(payload));
+      });
+      if (res && res.ok) p.onClose();
+    }
+
+    return h(ui.Modal, {
+      title: c ? 'Edit ' + c.name : 'New exit checklist',
+      description: 'The steps an exit has to clear, in the order they happen.',
+      wide: true,
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, c ? 'Save changes' : 'Create checklist'))
+    },
+      h(ui.FormSection, { title: 'What it covers' },
+        h(ui.FieldRow, null,
+          h(V.TextField, Object.assign({ label: 'Checklist name', required: true,
+            placeholder: 'e.g. Senior leaver clearance' }, form.field('name'))),
+          h(V.Select, Object.assign({ label: 'Applies to', options: scopeOptions(),
+            hint: 'A checklist naming an employee type wins over the one for everyone' },
+            form.select('appliesTo')))),
+        h(V.TextField, Object.assign({ label: 'Description',
+          placeholder: 'When this checklist is the one that runs' }, form.field('description'))),
+        h(V.Select, Object.assign({ label: 'Status', options: CHECKLIST_STATUS }, form.select('status')))),
+
+      h(ui.FormSection, { title: 'Steps',
+        description: 'Each step has somebody who does it and somebody who signs it off. '
+          + 'Timing is relative to the last working day.' },
+        steps.length
+          ? h('div', { className: 'xsteps' }, steps.map(function (st, i) {
+              return h('div', { className: 'xstep', key: i },
+                h('span', { className: 'xstep__n' }, i + 1),
+                h('div', { className: 'xstep__grid' },
+                  h('div', { className: 'xstep__f xstep__f--wide' },
+                    h(V.TextField, { label: 'Step', value: st.name, placeholder: 'e.g. Asset return',
+                      onChange: function (e) { setStep(i, { name: e.target.value }); } })),
+                  h('div', { className: 'xstep__f' },
+                    h(V.Select, { label: 'Owner', options: ownerOptions(), value: st.owner,
+                      onChange: function (e) { setStep(i, { owner: e.target.value }); } })),
+                  h('div', { className: 'xstep__f' },
+                    h(V.Select, { label: 'Approver', options: ownerOptions(), value: st.approver,
+                      onChange: function (e) { setStep(i, { approver: e.target.value }); } })),
+                  h('div', { className: 'xstep__f xstep__f--num' },
+                    h(V.NumberField, { label: 'Day', value: st.after, min: -180, max: 180,
+                      hint: whenLabel(st.after),
+                      onChange: function (e) { setStep(i, { after: Number(e.target.value) }); } }))),
+                h('div', { className: 'xstep__side' },
+                  h('label', { className: 'xstep__t' },
+                    h(V.Checkbox, { checked: st.mandatory !== false,
+                      'aria-label': 'Step ' + (i + 1) + ' is mandatory',
+                      onChange: function (e) { setStep(i, { mandatory: e.target.checked }); } }),
+                    h('span', null, 'Mandatory')),
+                  h('label', { className: 'xstep__t' },
+                    h(V.Checkbox, { checked: !!st.gate,
+                      'aria-label': 'Step ' + (i + 1) + ' blocks the settlement',
+                      onChange: function (e) { setStep(i, { gate: e.target.checked }); } }),
+                    h('span', null, 'Blocks settlement')),
+                  h('span', { className: 'row gap-1' },
+                    h(V.IconButton, { icon: I.up, title: 'Move up', 'aria-label': 'Move step ' + (i + 1) + ' up',
+                      disabled: i === 0, onClick: function () { move(i, -1); } }),
+                    h(V.IconButton, { icon: I.down, title: 'Move down', 'aria-label': 'Move step ' + (i + 1) + ' down',
+                      disabled: i === steps.length - 1, onClick: function () { move(i, 1); } }),
+                    h(V.IconButton, { icon: I.trash, title: 'Remove', 'aria-label': 'Remove step ' + (i + 1),
+                      onClick: function () { removeStep(i); } }))));
+            }))
+          : h('div', { className: 'chain__empty' }, 'No steps yet. An exit with nothing to clear closes itself.'),
+        h('div', { className: 'row gap-2' },
+          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus, onClick: addStep },
+            'Add step')),
+        form.errors.steps
+          ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, form.errors.steps)
+          : null),
+
+      (function () {
+        var bound = ['name', 'appliesTo', 'description', 'status', 'steps'];
+        var loose = Object.keys(form.errors || {}).filter(function (k) { return bound.indexOf(k) < 0; })
+          .map(function (k) { return form.errors[k]; });
+        return loose.length
+          ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, loose.join(' · '))
+          : null;
+      }()));
+  }
+
+  /* The steps of one checklist, read-only, opened from its row. */
+  function ChecklistDrawer(p) {
+    var c = p.checklist;
+    return h(ui.Drawer, {
+      eyebrow: c.appliesTo === 'All' ? 'Every leaver' : c.appliesTo + ' only',
+      title: c.name, description: c.description || 'The steps an exit on this checklist has to clear.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close'),
+        h(V.Button, { variant: 'primary', iconStart: I.pencil,
+          onClick: function () { p.onClose(); p.onEdit(c); } }, 'Edit checklist'))
+    },
+      h(ui.KeyValue, { rows: [
+        ['Checklist ID', h('span', { className: 'mono' }, c.id)],
+        ['Applies to', c.appliesTo === 'All' ? 'Every leaver' : c.appliesTo + ' only'],
+        ['Steps', c.steps.length + ' · ' + c.steps.filter(function (s) { return s.mandatory !== false; }).length + ' mandatory'],
+        ['Blocks settlement', c.steps.filter(function (s) { return s.gate; }).map(function (s) { return s.name; }).join(', ') || 'Nothing'],
+        ['Status', h(ui.StatusChip, { status: c.status || 'Active' })]
+      ]}),
+      h('div', { className: 'stack gap-2' },
+        h('span', { className: 'eyebrow' }, 'Order of play'),
+        h('div', { className: 'steps' }, c.steps.map(function (st, i) {
+          return h('div', { className: 'steps__row', key: i },
+            h('span', { className: 'steps__tick' }, I.check),
+            h('span', null, (i + 1) + '. ' + st.name + ' — ' + st.owner
+              + ', signed off by ' + st.approver + ' · ' + whenLabel(st.after).toLowerCase()
+              + (st.gate ? ' · blocks settlement' : '')
+              + (st.mandatory === false ? ' · optional' : '')));
+        }))));
+  }
+
+  function OffboardingConfig() {
+    var editSt = React.useState(null);     // null | false (new) | checklist
+    var openSt = React.useState(null);
+    var killSt = React.useState(null);
+    var cases = offboardingCases();
+    var lists = store.collection('exitChecklists');
+    var open = openSt[0] && store.find('exitChecklists', openSt[0]);
+    var kill = killSt[0] && store.find('exitChecklists', killSt[0]);
+
+    return h(Grid, null,
+      h(Card, { span: 12, title: 'Exit clearance checklists',
+        description: 'What an exit has to clear, who does each step and who signs it off. '
+          + 'A resignation picks up the checklist that matches the leaver (PRD 4.48).',
+        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+          onClick: function () { editSt[1](false); } }, 'New checklist') },
+        h(ui.DataTable, {
+          exportName: 'exit-checklists', label: 'Exit clearance checklists', rows: lists, pageSize: 10,
+          search: function (c) { return c.name + ' ' + c.appliesTo + ' ' + (c.description || ''); },
+          searchPlaceholder: 'Search checklists',
+          columns: [
+            { key: 'name', header: 'Checklist', sortable: true,
+              cell: function (c) {
+                return h('div', { className: 'stack gap-1' },
+                  h('button', { type: 'button', className: 'link',
+                    onClick: function () { openSt[1](c.id); } }, c.name),
+                  c.description ? h('span', { className: 'list__meta' }, c.description) : null);
+              } },
+            { key: 'appliesTo', header: 'Applies to',
+              cell: function (c) {
+                return h(V.Chip, { size: 'sm', shape: 'tag' },
+                  c.appliesTo === 'All' ? 'Every leaver' : c.appliesTo);
+              } },
+            { key: 'steps', header: 'Steps', numeric: true, align: 'right', sortable: true,
+              sortValue: function (c) { return c.steps.length; },
+              csv: function (c) { return c.steps.map(function (s) { return s.name; }).join(' → '); },
+              cell: function (c) { return c.steps.length; } },
+            { key: 'owners', header: 'Owners',
+              csv: function (c) { return c.steps.map(function (s) { return s.owner; }).join('; '); },
+              cell: function (c) {
+                var seen = [];
+                c.steps.forEach(function (s) { if (seen.indexOf(s.owner) < 0) seen.push(s.owner); });
+                return h('span', { className: 'row gap-2 wrap' }, seen.map(function (o) {
+                  return h(V.Chip, { key: o, size: 'sm', shape: 'tag', variant: 'soft', tone: 'neutral' }, o);
+                }));
+              } },
+            { key: 'gates', header: 'Blocks settlement', numeric: true, align: 'right',
+              csv: function (c) { return c.steps.filter(function (s) { return s.gate; }).length; },
+              cell: function (c) {
+                var n = c.steps.filter(function (s) { return s.gate; }).length;
+                return n ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning' }, n + ' gated')
+                  : h('span', { className: 'muted' }, 'None');
+              } },
+            { key: 'status', header: 'Status',
+              csv: function (c) { return c.status || 'Active'; },
+              cell: function (c) { return h(ui.StatusChip, { status: c.status || 'Active' }); } },
+            { key: 'actions', header: 'Action', align: 'right', csv: false,
+              cell: function (c) {
+                return h('span', { className: 'row gap-1', style: { justifyContent: 'flex-end' } },
+                  h(V.IconButton, { icon: I.pencil, title: 'Edit', 'aria-label': 'Edit ' + c.name,
+                    onClick: function () { editSt[1](c); } }),
+                  h(V.IconButton, { icon: I.trash, title: 'Delete', 'aria-label': 'Delete ' + c.name,
+                    onClick: function () { killSt[1](c.id); } }));
+              } }
+          ],
+          emptyIcon: I.checklist, emptyTitle: 'No exit checklists yet',
+          emptyBody: 'Without one, a resignation would open with nothing to clear.',
+          emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
+            onClick: function () { editSt[1](false); } }, 'New checklist')
+        })),
+
+      h(Card, { span: 7, title: 'Notice rules' },
         h(ui.KeyValue, { rows: [
           ['Default notice period', '60 days'],
           ['Probation notice', '30 days'],
@@ -2845,6 +3059,18 @@
               h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
           }))),
 
+      h(Card, { span: 5, title: 'Who owns a step',
+        description: 'What each owner resolves to when a resignation opens.' },
+        h(ui.KeyValue, { rows: [
+          ['HR Administrator', 'The HR account on the organisation'],
+          ['Reporting Manager', 'The leaver’s own manager'],
+          ['Department Head', 'The head of the leaver’s department'],
+          ['IT Administrator', 'The IT account, for access and assets'],
+          ['Finance Controller', 'Finance, for the settlement'],
+          ['Facilities', 'Whoever holds the building and the cards'],
+          ['Organization Admin', 'The admin account']
+        ]})),
+
       h(Card, { span: 12, title: 'Exit reasons',
         description: 'The reasons offered when a resignation is recorded, with how often each has been used.' },
         h(ui.DataTable, {
@@ -2860,7 +3086,22 @@
               cell: function (r) { return h(V.ProgressBar, { value: ui.pct(r.used, cases.length), size: 'sm', 'aria-label': r.reason }); } },
             { key: 'status', header: 'Status', cell: function (r) { return h(ui.StatusChip, { status: r.status }); } }
           ]
-        })));
+        })),
+
+      editSt[0] !== null ? h(ChecklistModal, {
+        checklist: editSt[0] || null, onClose: function () { editSt[1](null); }
+      }) : null,
+      open ? h(ChecklistDrawer, {
+        checklist: open, onClose: function () { openSt[1](null); },
+        onEdit: function (c) { editSt[1](c); }
+      }) : null,
+      kill ? h(ui.Confirm, {
+        title: 'Delete ' + kill.name + '?',
+        body: 'Exits already open keep the steps they were given. Nothing new picks up this checklist.',
+        confirmLabel: 'Delete', tone: 'danger',
+        onConfirm: function () { ui.report(act.deleteExitChecklist(kill.id)); },
+        onClose: function () { killSt[1](null); }
+      }) : null);
   }
 
   /* ---------------------------------------------------------------- Register */

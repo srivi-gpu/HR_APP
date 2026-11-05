@@ -188,8 +188,6 @@
       { path: 'attendance-policies', route: 'hr/attendance/policies', group: 'Attendance', label: 'Policies', section: '4.16', note: 'Working hours, grace period, overtime and work-from-home rules.' },
       { path: 'leave', route: 'hr/leave/dashboard', group: 'Leave', label: 'Dashboard', section: '4.10', note: 'Request volume, pending approvals, who is out today and upcoming leave.' },
       { path: 'requests', route: 'hr/leave/requests', group: 'Leave', label: 'Requests', section: '4.14', note: 'Every leave request with its approval trail.' },
-      { path: 'calendar', route: 'hr/leave/calendar', group: 'Leave', label: 'Calendar', section: '4.14', note: 'Team calendar showing approved and pending leave against holidays.' },
-      { path: 'balances', route: 'hr/leave/balances', group: 'Leave', label: 'Balances', section: '4.14', note: 'Entitlement, accrued, used and available per employee per leave type.' },
       { path: 'types', route: 'hr/leave/types', group: 'Leave', label: 'Types', section: '4.11', note: 'Casual, sick, earned and custom types with their full rule set.' },
       { path: 'leave-policies', route: 'hr/leave/policies', group: 'Leave', label: 'Policies', section: '4.11', note: 'Policies scoped by employee type, department, location and tenure.' }
     ]},
@@ -345,7 +343,6 @@
       { path: 'leave', route: 'me/leave/overview', group: 'Leave', label: 'My leave', section: '4.12', note: 'Your balances and every request you have made, with what each one is waiting on.' },
       { path: 'holidays', route: 'me/leave/holidays', group: 'Leave', label: 'Holidays', section: '4.11', note: 'The holidays this organization observes, including the optional ones.' },
       { path: 'apply', route: 'me/leave/apply', group: 'Leave', hidden: true, label: 'Apply', section: '4.12', note: 'Apply for leave, with days, balance and exclusions calculated before you submit.' },
-      { path: 'calendar', route: 'me/leave/calendar', group: 'Leave', hidden: true, label: 'Who is away', section: '4.14', note: 'A month of the team\u2019s approved leave against the holiday calendar.' },
       { path: 'balance', route: 'me/leave/balance', group: 'Leave', hidden: true, label: 'Balance', section: '4.12', note: 'Entitlement, used and available for each leave type.' },
       { path: 'leave-history', route: 'me/leave/history', group: 'Leave', hidden: true, label: 'History', section: '4.14', note: 'Your past requests and where each one stands.' }
     ]},

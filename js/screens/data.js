@@ -196,16 +196,17 @@
           h('p', { className: 'muted', style: { fontSize: 12.5, lineHeight: 1.45, margin: 0 } },
             'Every export is written to the audit log with who asked for it and what it contained.'))),
 
-      h(Card, {
-        span: 12, title: 'Export and import history',
-        description: 'Download windows close after seven days. An expired file is not recoverable — '
-          + 'request it again and a fresh one is prepared.'
-      }, h(JobsTable, null)));
+      /* The table carries its own heading. A card around it would be a box inside a
+         box, and the search would sit in a band lined up with nothing. */
+      h('div', { className: 'tablewrap span-12' }, h(JobsTable, null)));
   }
 
   function JobsTable() {
     var rows = jobs();
     return h(ui.DataTable, {
+      title: 'Export and import history',
+      description: 'Download windows close after seven days. An expired file is not recoverable — '
+        + 'request it again and a fresh one is prepared.',
       exportName: 'data-jobs', label: 'Data jobs', rows: rows, pageSize: 8,
       search: function (j) { return j.id + ' ' + j.direction + ' ' + j.what + ' ' + j.target; },
       searchPlaceholder: 'Search by record kind or provider',
@@ -549,12 +550,7 @@
                 h('span', null, r.locked ? 'Fixed by policy' : 'Legal hold')));
           }))),
 
-        h(Card, {
-          span: 12, title: 'Erasure requests',
-          description: 'A person outside the organisation sets this clock, so it is a record with a due '
-            + 'date rather than a setting. Payroll and audit rows survive an erasure: the statutory '
-            + 'period outranks the request, and the screen says so rather than quietly keeping them.'
-        }, h(ErasureTable, null))));
+        h('div', { className: 'tablewrap span-12' }, h(ErasureTable, null))));
   }
 
   function ErasureTable() {
@@ -563,6 +559,10 @@
 
     return h(React.Fragment, null,
       h(ui.DataTable, {
+        title: 'Erasure requests',
+        description: 'A person outside the organisation sets this clock, so it is a record with a due '
+          + 'date rather than a setting. Payroll and audit rows survive an erasure: the statutory '
+          + 'period outranks the request, and the screen says so rather than quietly keeping them.',
         exportName: 'erasure-requests', label: 'Erasure requests', rows: rows, pageSize: 6,
         search: function (e) { return e.id + ' ' + e.employee + ' ' + e.scope; },
         searchPlaceholder: 'Search by person or scope',
