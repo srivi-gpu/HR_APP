@@ -771,8 +771,10 @@
   background: var(--lkpi-bg, var(--brand-soft)); color: var(--lkpi-fg, var(--text-brand));
   font-size: 11px; font-weight: 600; letter-spacing: .02em;
 }
-.lkpi__n { font: 300 34px/1 var(--font-flex); color: var(--lkpi-fg, var(--text-brand)); font-variant-numeric: tabular-nums; }
-.lkpi__n small { font-size: 19px; color: var(--text-muted); }
+/* Medium rather than light: at 34px the thin weight washed out against the tinted
+   accent colour, which is the one number on the card somebody is reading. */
+.lkpi__n { font: 500 34px/1 var(--font-flex); color: var(--lkpi-fg, var(--text-brand)); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.lkpi__n small { font-size: 19px; font-weight: 400; color: var(--text-muted); }
 .lkpi__foot {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-subtle);

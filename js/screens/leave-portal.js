@@ -28,20 +28,6 @@
     return store.collection('leaveRequests').filter(function (l) { return l.employee === id; });
   }
 
-  /* Who else is away, and when. Colleagues are the people sharing a department: the ones
-     whose absence actually lands on the same work. */
-  function teamAway(m, fromIso, toIso) {
-    var mates = {};
-    store.collection('employees').forEach(function (e) {
-      if (e.department === m.department && e.status !== 'Exited') mates[e.id] = e;
-    });
-    return store.collection('leaveRequests')
-      .filter(function (l) {
-        return mates[l.employee] && l.status === 'Approved' && l.to >= fromIso && l.from <= toIso;
-      })
-      .sort(function (a, b) { return a.from < b.from ? -1 : 1; });
-  }
-
   function holidaysAhead(n) {
     var today = seed.todayIso;
     return store.collection('holidays')
@@ -248,8 +234,6 @@
         title: 'Leave',
         description: 'What you have left, and every request you have made.',
         actions: [
-          h(V.Button, { key: 'w', variant: 'outline', iconStart: I.calendar,
-            onClick: function () { router.go('me/leave/calendar'); } }, 'Who is away'),
           h(V.Button, { key: 'a', variant: 'primary', iconStart: I.plus,
             onClick: function () { applySt[1](true); } }, 'Apply leave')
         ]
@@ -355,73 +339,6 @@
   /* ------------------------------------------------------ Employee calendar
      A month of the team's approved leave against the holiday calendar, so cover can be
      seen before a day is asked for. */
-  function MyLeaveCalendar() {
-    var m = me();
-    var offsetSt = React.useState(0);
-    if (!m) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
-
-    var base = new Date(seed.todayIso + 'T00:00:00');
-    base.setDate(1);
-    base.setMonth(base.getMonth() + offsetSt[0]);
-    var year = base.getFullYear(), month = base.getMonth();
-    var first = new Date(year, month, 1), last = new Date(year, month + 1, 0);
-    function iso(d) {
-      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-    }
-    var fromIso = iso(first), toIso = iso(last);
-
-    var away = teamAway(m, fromIso, toIso);
-    var hols = {};
-    store.collection('holidays').forEach(function (hd) { if (hd.date >= fromIso && hd.date <= toIso) hols[hd.date] = hd; });
-
-    /* One cell per day, with who is away on it. */
-    var days = [];
-    for (var d = 1; d <= last.getDate(); d++) {
-      var cellIso = iso(new Date(year, month, d));
-      var dow = new Date(year, month, d).getDay();
-      days.push({
-        iso: cellIso, d: d, weekend: dow === 0 || dow === 6, holiday: hols[cellIso],
-        people: away.filter(function (l) { return l.from <= cellIso && l.to >= cellIso; })
-      });
-    }
-    var label = first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-
-    return h(React.Fragment, null,
-      h(ui.PageHead, {
-        eyebrow: 'My leave', title: 'Who is away',
-        description: 'Approved leave across ' + (store.department(m.department) || {}).name
-          + ', against the holiday calendar. Reasons are not shown.',
-        actions: [
-          h(V.Button, { key: 'p', variant: 'outline', iconStart: I.back, onClick: function () { offsetSt[1](offsetSt[0] - 1); } }, 'Previous'),
-          h(V.Button, { key: 'n', variant: 'outline', iconEnd: I.right, onClick: function () { offsetSt[1](offsetSt[0] + 1); } }, 'Next')
-        ]
-      }),
-      h(Card, { title: label, aside: h(V.Chip, { size: 'sm', shape: 'tag' }, away.length + ' booked') },
-        h('div', { className: 'lcal' },
-          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(function (w) {
-            return h('span', { className: 'lcal__h', key: w }, w);
-          }),
-          /* Pad to the Monday the month starts after. */
-          Array.apply(null, Array((first.getDay() + 6) % 7)).map(function (_, i) {
-            return h('span', { className: 'lcal__pad', key: 'p' + i });
-          }),
-          days.map(function (c) {
-            var cls = 'lcal__d' + (c.weekend ? ' is-off' : '') + (c.holiday ? ' is-hol' : '')
-              + (c.iso === seed.todayIso ? ' is-today' : '');
-            return h('span', { className: cls, key: c.iso, title: c.holiday ? c.holiday.name : undefined },
-              h('span', { className: 'lcal__n' }, c.d),
-              c.holiday ? h('span', { className: 'lcal__tag' }, c.holiday.name) : null,
-              c.people.length
-                ? h('span', { className: 'lcal__who' }, c.people.slice(0, 3).map(function (l) {
-                    var e = emp(l.employee);
-                    return h(V.Avatar, { key: l.id, name: e ? e.name : l.employee, size: 'xs' });
-                  }), c.people.length > 3 ? h('span', { className: 'lcal__more' }, '+' + (c.people.length - 3)) : null)
-                : null);
-          }))),
-      h('p', { className: 'muted', style: { fontSize: 12 } },
-        'Weekends and holidays are shaded. A day with people on it shows who, not why.'));
-  }
-
   /* ----------------------------------------------------- Employee holidays
      What someone wants from their own holiday list is which days off are near, not a
      count of how many the year holds. So the ones ahead are cards — the festival drawn
@@ -633,7 +550,6 @@
 
   HRMS.screens.register({
     'me/leave/overview': MyLeaveOverview,
-    'me/leave/calendar': MyLeaveCalendar,
     'me/leave/holidays': MyHolidays
   });
 
