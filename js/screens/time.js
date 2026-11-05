@@ -946,7 +946,7 @@
 
     return h(React.Fragment, null,
       h(Grid, null,
-        h(Card, { span: 8, title: 'Leave balances', description: 'One row per employee per leave type, from the policy they are on (PRD 4.11).' },
+        h(Card, { span: 12, title: 'Leave balances', description: 'One row per employee per leave type, from the policy they are on (PRD 4.11).' },
           h(ui.DataTable, {
             exportName: 'leave-balances', label: 'Leave balances', rows: rows, pageSize: 10,
             search: function (x) { return empName(x.employee) + ' ' + x.employee + ' ' + typeName(x.type); },

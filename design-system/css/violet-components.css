@@ -530,8 +530,14 @@
    `data-label` comes from the column header (design-system/js/violet.js); a cell whose
    header is not a plain string — an actions column, say — simply has no label, which
    is what you want. */
-@container (max-width: 560px) {
+@container (max-width: 460px) {
   .vi-table { --vi-stack: 1; }
+}
+/* A table of three or four columns is still readable in a side card, so it holds out
+   to 380 rather than 460: stacking one there made a short table into a long one for no
+   gain. The default block above excludes it; this is where it finally gives way. */
+@container (max-width: 380px) {
+  .vi-table--slim { --vi-stack: 1; }
 }
 @container (max-width: 700px) {
   .vi-table--mid { --vi-stack: 1; }
@@ -583,26 +589,47 @@
   .vi-table--mid.vi-table--hover tbody tr:hover { background: var(--elevation-2); }
   .vi-table--mid tbody tr.is-selected { background: var(--primary-tint-5); }
 }
-@container (max-width: 560px) {
-  .vi-table thead { display: none; }
-  .vi-table, .vi-table tbody { display: block; width: 100%; }
-  .vi-table tbody tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 2px 20px; padding: 11px 13px; border-bottom: 1px solid var(--border-secondary); }
-  .vi-table tbody tr:last-child { border-bottom: 0; }
-  .vi-table .vi-td { display: grid; grid-template-columns: minmax(92px, 36%) 1fr; align-items: baseline;
+@container (max-width: 460px) {
+  .vi-table:not(.vi-table--slim) thead { display: none; }
+  .vi-table:not(.vi-table--slim), .vi-table:not(.vi-table--slim) tbody { display: block; width: 100%; }
+  .vi-table:not(.vi-table--slim) tbody tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 2px 20px; padding: 11px 13px; border-bottom: 1px solid var(--border-secondary); }
+  .vi-table:not(.vi-table--slim) tbody tr:last-child { border-bottom: 0; }
+  .vi-table:not(.vi-table--slim) .vi-td { display: grid; grid-template-columns: minmax(92px, 36%) 1fr; align-items: baseline;
     gap: 10px; padding: 5px 0; border-bottom: 0; background: none; }
-  .vi-table .vi-td::before { content: attr(data-label); color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
-  .vi-table .vi-td:not([data-label]) { grid-template-columns: 1fr; }
-  .vi-table .vi-td:not([data-label]) { grid-column: 1 / -1; }
-  .vi-table .vi-td:not([data-label])::before { display: none; }
-  .vi-table .vi-td.is-right, .vi-table .vi-td.is-center { text-align: left; }
-  .vi-table .vi-td.is-right .vi-cell, .vi-table .vi-td.is-center .vi-cell,
-  .vi-table .vi-td.is-actions .vi-cell { justify-content: flex-start; }
-  .vi-table .vi-cell__actions { margin-left: 0; }
+  .vi-table:not(.vi-table--slim) .vi-td::before { content: attr(data-label); color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
+  .vi-table:not(.vi-table--slim) .vi-td:not([data-label]) { grid-template-columns: 1fr; }
+  .vi-table:not(.vi-table--slim) .vi-td:not([data-label]) { grid-column: 1 / -1; }
+  .vi-table:not(.vi-table--slim) .vi-td:not([data-label])::before { display: none; }
+  .vi-table:not(.vi-table--slim) .vi-td.is-right, .vi-table .vi-td.is-center { text-align: left; }
+  .vi-table:not(.vi-table--slim) .vi-td.is-right .vi-cell, .vi-table .vi-td.is-center .vi-cell,
+  .vi-table:not(.vi-table--slim) .vi-td.is-actions .vi-cell { justify-content: flex-start; }
+  .vi-table:not(.vi-table--slim) .vi-cell__actions { margin-left: 0; }
   /* The row background moves to the row once the cells stop being cells, or the hover
      tint lands on half a record. */
-  .vi-table .vi-td { background: none; }
-  .vi-table.vi-table--hover tbody tr:hover { background: var(--elevation-2); }
-  .vi-table tbody tr.is-selected { background: var(--primary-tint-5); }
+  .vi-table:not(.vi-table--slim) .vi-td { background: none; }
+  .vi-table:not(.vi-table--slim).vi-table--hover tbody tr:hover { background: var(--elevation-2); }
+  .vi-table:not(.vi-table--slim) tbody tr.is-selected { background: var(--primary-tint-5); }
+}
+@container (max-width: 380px) {
+  .vi-table--slim thead { display: none; }
+  .vi-table--slim, .vi-table--slim tbody { display: block; width: 100%; }
+  .vi-table--slim tbody tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 2px 20px; padding: 11px 13px; border-bottom: 1px solid var(--border-secondary); }
+  .vi-table--slim tbody tr:last-child { border-bottom: 0; }
+  .vi-table--slim .vi-td { display: grid; grid-template-columns: minmax(92px, 36%) 1fr; align-items: baseline;
+    gap: 10px; padding: 5px 0; border-bottom: 0; background: none; }
+  .vi-table--slim .vi-td::before { content: attr(data-label); color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
+  .vi-table--slim .vi-td:not([data-label]) { grid-template-columns: 1fr; }
+  .vi-table--slim .vi-td:not([data-label]) { grid-column: 1 / -1; }
+  .vi-table--slim .vi-td:not([data-label])::before { display: none; }
+  .vi-table--slim .vi-td.is-right, .vi-table .vi-td.is-center { text-align: left; }
+  .vi-table--slim .vi-td.is-right .vi-cell, .vi-table .vi-td.is-center .vi-cell,
+  .vi-table--slim .vi-td.is-actions .vi-cell { justify-content: flex-start; }
+  .vi-table--slim .vi-cell__actions { margin-left: 0; }
+  /* The row background moves to the row once the cells stop being cells, or the hover
+     tint lands on half a record. */
+  .vi-table--slim .vi-td { background: none; }
+  .vi-table--slim.vi-table--hover tbody tr:hover { background: var(--elevation-2); }
+  .vi-table--slim tbody tr.is-selected { background: var(--primary-tint-5); }
 }
 
 /* In a table that fits, a person's name and a status label wrap rather than being

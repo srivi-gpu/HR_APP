@@ -89,7 +89,10 @@
 
 /* ---------- Filter bar above tables ---------- */
 .filterbar { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
-.filterbar__search { flex: 1 1 260px; max-width: 360px; }
+/* Wide enough for the placeholders the tables actually use: at 240px, "Search by
+   asset, serial or holder" was cut off mid-word, which is a field telling you it
+   cannot hold what it is asking for. */
+.filterbar__search { flex: 1 1 300px; max-width: 420px; }
 .filterbar .vi-field { margin: 0; }
 .filterbar__spacer { flex: 1; }
 /* A table can carry its own heading on the toolbar row, so the search and the filters
@@ -105,14 +108,17 @@
 .filterbar--titled { align-items: flex-end; }
 /* Capped, so a long description wraps under the title instead of pushing the
    controls onto a line of their own. */
-.filterbar--titled .filterbar__head { flex: 0 1 auto; max-width: 340px; }
+.filterbar--titled .filterbar__head { flex: 0 1 auto; max-width: 380px; }
 /* The controls are one block, so they move under the heading together rather than
    shedding a button at a time as the row narrows. */
 .filterbar__tools {
   display: flex; align-items: flex-end; justify-content: flex-end; gap: 10px;
   flex: 1 1 auto; flex-wrap: wrap; margin-left: auto; min-width: 0;
 }
-.filterbar--titled .filterbar__search { flex: 0 1 240px; min-width: 170px; }
+/* The search keeps enough room for its own placeholder; if that costs the row its
+   single line, the row wraps, which is better than a field that cannot say what it
+   searches. */
+.filterbar--titled .filterbar__search { flex: 1 1 300px; min-width: 272px; max-width: 390px; }
 .filterbar--titled .filterbar__item { min-width: 124px; }
 @media (max-width: 980px) {
   .filterbar--titled .filterbar__head { flex: 1 1 100%; }

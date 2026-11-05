@@ -2540,7 +2540,7 @@
           sub: 'Purchase value of the units below' })),
 
       h(Grid, null,
-        h(Card, { span: 7, title: 'Out of circulation',
+        h(Card, { span: 12, title: 'Out of circulation',
           description: 'PRD 4.33: assets that cannot be allocated. A unit returns to the pool through the return flow, with its condition recorded.' },
           h(ui.DataTable, {
             exportName: 'asset-maintenance', label: 'Out of circulation', rows: rows, pageSize: 10,
@@ -2569,10 +2569,10 @@
             emptyBody: 'No asset is under maintenance, damaged, lost or retired.'
           })),
 
-        h(Card, { span: 5, title: 'Out of circulation by category' },
+        h(Card, { span: 6, title: 'Out of circulation by category' },
           h(ui.Bars, { rows: distribution(out, function (a) { return a.category; }), emptyTitle: 'Nothing out of circulation' })),
 
-        h(Card, { span: 5, title: 'Service rules' },
+        h(Card, { span: 6, title: 'Service rules' },
           h(ui.KeyValue, { rows: [
             ['Condition on return', 'Excellent, Good, Fair, Needs service, Damaged'],
             ['"Needs service"', 'Moves the asset to Under Maintenance'],
