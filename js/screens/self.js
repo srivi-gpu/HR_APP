@@ -815,20 +815,22 @@
 
     return h(Card, {
       title: 'My asset requests',
-      description: 'Raised and decided in Tracklivo. Once one is cleared there, IT issues the unit from here.',
-      aside: h('span', { className: 'atl__src' }, 'From Tracklivo')
+      description: 'Ask for a new asset, or report a fault on one you hold. Requests are decided in Tracklivo; ' +
+        'once one is cleared there, IT issues the unit from here.',
+      aside: h(HRMS.assetRequest.Button, { role: 'me', employee: m.id, label: 'Raise a request' })
     },
       h(ui.DataTable, {
         exportName: 'my-asset-requests', label: 'My asset requests', rows: rows, pageSize: 10, onExport: false,
         columns: [
           { key: 'id', header: 'Request', cell: function (a) { return h('span', { className: 'mono' }, a.id); } },
+          { key: 'kind', header: 'Kind', cell: function (a) { return a.kind || 'New asset'; } },
           { key: 'category', header: 'Category' },
           { key: 'reason', header: 'Reason' },
           { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (a) { return ui.dateLabel(a.requestedOn); } },
           { key: 'status', header: 'Status', cell: function (a) { return chip ? chip(a.status) : a.status; } }
         ],
         emptyIcon: I.package, emptyTitle: 'No requests raised',
-        emptyBody: 'Asset requests are raised in Tracklivo. Once one exists, it shows up here.'
+        emptyBody: 'Ask for a new asset, or report a fault on one you hold, and it shows up here.'
       }));
   }
 

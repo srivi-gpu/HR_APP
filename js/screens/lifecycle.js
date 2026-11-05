@@ -2234,8 +2234,10 @@
 
       h(Card, {
         title: 'Asset requests',
-        description: 'Raised and decided in Tracklivo. This list is what the register has to issue against.',
-        aside: h('span', { className: 'atl__src' }, 'From Tracklivo')
+        description: 'From Tracklivo and from the portal. Decided in Tracklivo either way; this list is what the ' +
+          'register has to issue against.',
+        aside: h(HRMS.assetRequest.Button, { role: 'admin', employee: (store.persona('admin') || {}).id,
+          variant: 'outline', label: 'Raise a request' })
       },
         h(ui.DataTable, {
           exportName: 'asset-requests', label: 'Asset requests', rows: rows, pageSize: 10,
@@ -2249,8 +2251,16 @@
               sortValue: function (r) { return empName(r.employee); },
               csv: function (r) { return empName(r.employee); },
               cell: function (r) { return person(r.employee); } },
+            { key: 'kind', header: 'Kind', sortable: true,
+              sortValue: function (r) { return r.kind || 'New asset'; },
+              csv: function (r) { return r.kind || 'New asset'; },
+              cell: function (r) { return r.kind || 'New asset'; } },
             { key: 'category', header: 'Category', sortable: true },
             { key: 'reason', header: 'Reason' },
+            { key: 'source', header: 'Raised in', sortable: true,
+              sortValue: function (r) { return r.source || 'Tracklivo'; },
+              csv: function (r) { return r.source || 'Tracklivo'; },
+              cell: function (r) { return h('span', { className: 'atl__src' }, r.source || 'Tracklivo'); } },
             { key: 'requestedOn', header: 'Requested', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
             { key: 'status', header: 'Status', csv: function (r) { return REQ_WORD[r.status] || r.status; },
               cell: function (r) { return reqChip(r.status); } },
@@ -2263,7 +2273,7 @@
               } }
           ],
           emptyIcon: I.checklist, emptyTitle: 'No asset requests',
-          emptyBody: 'Requests raised in Tracklivo arrive here once they exist.'
+          emptyBody: 'Requests raised in Tracklivo, or in the portal, arrive here once they exist.'
         })));
   }
 
@@ -2893,7 +2903,61 @@
   }
 
   /* ---------------------------------------------------------------- Register */
+  /* ====================================================== HR's asset requests
+     HR does not hold the register, so this is not a second copy of it: it is the
+     asking. What HR raises — most of it a joiner's kit before day one — and where
+     Tracklivo has got to with each one. Issuing stays with admin. */
+  function HrAssetRequests() {
+    var mePersona = store.persona('hr') || {};
+    var chip = HRMS.assetRequestChip;
+    var all = store.collection('assetRequests');
+    /* Raised by HR, or for somebody whose onboarding is still open: both are HR's to
+       follow, however they got here. */
+    var joining = {};
+    store.collection('onboarding').forEach(function (o) { if (o.stage !== 'Completed') joining[o.employee] = o; });
+    var rows = all.filter(function (r) { return r.raisedBy === mePersona.id || joining[r.employee]; });
+    var ready = rows.filter(function (r) { return r.status === 'Approved'; }).length;
+    var waiting = rows.filter(function (r) { return r.status === 'Pending Approval'; }).length;
+
+    return h(React.Fragment, null,
+      h(Stats, null,
+        h(Stat, { key: 1, label: 'Waiting on Tracklivo', value: waiting, sub: 'Raised, not yet decided' }),
+        h(Stat, { key: 2, label: 'Ready to issue', value: ready, sub: 'Cleared · admin issues the unit', tone: ready ? 'warn' : 'good' }),
+        h(Stat, { key: 3, label: 'Joiners onboarding', value: Object.keys(joining).length, sub: 'Each needs a kit for day one' }),
+        h(Stat, { key: 4, label: 'Raised by you', value: rows.filter(function (r) { return r.raisedBy === mePersona.id; }).length,
+          sub: 'Across joiners and replacements' })),
+
+      h(Card, {
+        title: 'Asset requests',
+        description: 'Ask for a joiner’s kit before their first day, or for anyone who needs something. ' +
+          'Decided in Tracklivo; issued by admin from the register.',
+        aside: h(HRMS.assetRequest.Button, { role: 'hr', employee: mePersona.id, kind: 'Onboarding',
+          label: 'Raise a request' })
+      },
+        h(ui.DataTable, {
+          exportName: 'hr-asset-requests', label: 'Asset requests', rows: rows, pageSize: 10,
+          search: function (r) { return empName(r.employee) + ' ' + r.id + ' ' + r.category + ' ' + r.reason; },
+          searchPlaceholder: 'Search by employee, category or reason',
+          columns: [
+            { key: 'id', header: 'Request', cell: function (r) { return h('span', { className: 'mono' }, r.id); } },
+            { key: 'employee', header: 'For', sortable: true,
+              sortValue: function (r) { return empName(r.employee); },
+              csv: function (r) { return empName(r.employee); },
+              cell: function (r) { return person(r.employee); } },
+            { key: 'kind', header: 'Kind', cell: function (r) { return r.kind || 'New asset'; } },
+            { key: 'category', header: 'Category', sortable: true },
+            { key: 'reason', header: 'Reason' },
+            { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
+            { key: 'status', header: 'Status', csv: function (r) { return r.status; },
+              cell: function (r) { return chip ? chip(r.status) : r.status; } }
+          ],
+          emptyIcon: I.package, emptyTitle: 'Nothing raised yet',
+          emptyBody: 'Raise a joiner’s kit before their first day and it shows up here, with whatever Tracklivo decides.'
+        })));
+  }
+
   HRMS.screens.register({
+    'hr/assets': HrAssetRequests,
     'hr/onboarding/dashboard': OnboardingDashboard,
     'hr/onboarding/cases': OnboardingCases,
     'hr/onboarding/verification': DocumentVerification,

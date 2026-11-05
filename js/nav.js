@@ -168,6 +168,11 @@
     { path: 'holidays', label: 'Holiday calendar', icon: 'star', section: '4.11',
       note: 'Holiday calendars per location, including optional and restricted holidays.' },
 
+    /* HR does not run the asset register — that is admin's — but HR is who knows a
+       joiner needs a laptop before their first day, so the asking belongs here. */
+    { path: 'assets', label: 'Assets', icon: 'package', section: '4.31',
+      note: 'Asset requests raised for joiners and for people who need something, and where each has got to.' },
+
     { path: 'payroll', label: 'Payroll', icon: 'card', section: '4.36', tabs: [
       { path: 'dashboard', label: 'Dashboard', section: '4.36', note: 'Total cost, gross, deductions, net payable and processing status.' },
       { path: 'cycles', label: 'Cycles', section: '4.35', note: 'Payroll runs with cut-off, pay date and current stage.' },
@@ -410,8 +415,9 @@
     ]},
     { label: 'Compensation & resources', slots: [
       { label: 'Payroll', icon: 'card', path: 'payroll' },
-      /* An employee's own assets. Admin's register is under Administration. */
-      { label: 'Assets', icon: 'package', as: { me: 'assets' } }
+      /* An employee's own assets, and HR's requests for joiners. Admin's register is
+         under Administration. */
+      { label: 'Assets', icon: 'package', as: { me: 'assets', hr: 'assets' } }
     ]},
     { label: 'Organization', slots: [
       { label: 'Organization', icon: 'building', path: 'org' },
