@@ -869,6 +869,43 @@
   /* ------------------------------------------------------------- Offboarding */
   var OFB_TASKS = ['Resignation acknowledged', 'Knowledge transfer plan', 'Handover to successor',
     'Access revocation', 'Asset return', 'Exit interview', 'Final settlement', 'Exit documents'];
+  /* --------------------------------------------- Exit clearance checklists
+     What an exit has to clear, who owns each step and who signs it off. This was
+     a list of eight strings with the owner worked out from the step's name by a
+     regular expression, which meant the checklist could not be changed without
+     editing the source. It is a collection now, and submitting a resignation
+     builds the case's tasks from the checklist that matches the leaver's
+     employee type — so the configuration screen configures something.
+
+     `after` is days relative to the last working day: negative is before it.
+     `gate` marks a step that blocks the final settlement (PRD 14.8). */
+  var EXIT_OWNERS = ['HR Administrator', 'IT Administrator', 'Reporting Manager',
+    'Department Head', 'Finance Controller', 'Facilities', 'Organization Admin'];
+
+  var EXIT_CHECKLISTS = [
+    { id: 'xc-standard', name: 'Standard exit clearance', appliesTo: 'All', status: 'Active',
+      description: 'Every leaver on notice, unless a narrower checklist matches first.',
+      steps: [
+        { name: 'Resignation acknowledged', owner: 'HR Administrator', approver: 'Reporting Manager', after: -60, mandatory: true, gate: false },
+        { name: 'Knowledge transfer plan', owner: 'Reporting Manager', approver: 'Department Head', after: -30, mandatory: true, gate: false },
+        { name: 'Handover to successor', owner: 'Reporting Manager', approver: 'Department Head', after: -7, mandatory: true, gate: false },
+        { name: 'Access revocation', owner: 'IT Administrator', approver: 'Organization Admin', after: 0, mandatory: true, gate: true },
+        { name: 'Asset return', owner: 'IT Administrator', approver: 'IT Administrator', after: 0, mandatory: true, gate: true },
+        { name: 'Exit interview', owner: 'HR Administrator', approver: 'HR Administrator', after: -3, mandatory: true, gate: false },
+        { name: 'Final settlement', owner: 'Finance Controller', approver: 'Finance Controller', after: 30, mandatory: true, gate: true },
+        { name: 'Exit documents', owner: 'HR Administrator', approver: 'HR Administrator', after: 30, mandatory: true, gate: false }
+      ] },
+    { id: 'xc-short', name: 'Intern and contract exit', appliesTo: 'Intern', status: 'Active',
+      description: 'A shorter close for a placement or a fixed term: no settlement run, no successor.',
+      steps: [
+        { name: 'End of term acknowledged', owner: 'HR Administrator', approver: 'Reporting Manager', after: -14, mandatory: true, gate: false },
+        { name: 'Work handed back', owner: 'Reporting Manager', approver: 'Reporting Manager', after: -2, mandatory: true, gate: false },
+        { name: 'Access revocation', owner: 'IT Administrator', approver: 'Organization Admin', after: 0, mandatory: true, gate: true },
+        { name: 'Asset return', owner: 'IT Administrator', approver: 'IT Administrator', after: 0, mandatory: true, gate: true },
+        { name: 'Completion letter', owner: 'HR Administrator', approver: 'HR Administrator', after: 7, mandatory: false, gate: false }
+      ] }
+  ];
+
   var offboarding = [];
   var ofbSeq = 140;
   employees.filter(function (e) { return e.status === 'Notice Period' || e.status === 'Exited'; }).forEach(function (e) {
@@ -2260,6 +2297,7 @@
     assets: assets, assetRequests: assetRequests, assetCategories: ASSET_CATS.map(function (c) { return c.name; }),
     onboarding: onboarding, onboardingTemplates: ONB_TEMPLATES, onboardingTaskNames: ONB_TASKS,
     offboarding: offboarding, offboardingTaskNames: OFB_TASKS, exitReasons: EXIT_REASONS,
+    exitChecklists: EXIT_CHECKLISTS, exitOwners: EXIT_OWNERS,
     policies: POLICIES, docFolders: DOC_FOLDERS, acknowledgements: acknowledgements, documentCategories: DOC_CATEGORIES,
     employeeDocuments: employeeDocuments,
     qualifications: qualifications, experience: experience,
