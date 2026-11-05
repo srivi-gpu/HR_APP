@@ -2052,7 +2052,14 @@
               { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true },
               { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
                 csv: function (c) { return c.value; },
-                cell: function (c) { return ui.inr(c.value, { short: true }); } }
+                /* The space is non-breaking. Dropping the column took the table's floor
+                   under the card, but at 1241 the Value column still lands at 101px and
+                   the short form wants 66px of its 65px of content, so between 1241 and
+                   1273 "₹43.63" sat on one line and "L" on the next — a different number.
+                   Measured with a Range over the text node: a cell's own client rect
+                   stays 1 however the text inside it breaks, which is how this was
+                   missed the first time. */
+                cell: function (c) { return ui.inr(c.value, { short: true }).replace(/ /g, '\u00a0'); } }
             ],
             emptyIcon: I.package, emptyTitle: 'Nothing in the register yet'
           })),
@@ -2164,8 +2171,14 @@
                and the width it used to take goes to the name and the holder. */
             { key: 'category', header: 'Category', width: 104, align: 'center', sortable: true,
               cell: function (a) {
-                return h(ui.Tip, { text: a.category },
-                  h('span', { className: 'ast-mark' }, assetIcon(a.category, 18)));
+                /* The word is in the cell, hidden, rather than only in the tooltip:
+                   `aria-describedby` is read when a control takes focus, and a screen
+                   reader walking the table row by row never focuses this. Not a tab
+                   stop either — twenty-five rows of two marks apiece put fifty stops
+                   between the search box and the first thing anybody wants to press. */
+                return h(ui.Tip, { text: a.category, focusable: false },
+                  h('span', { className: 'ast-mark' }, assetIcon(a.category, 18)),
+                  h('span', { className: 'vi-sr' }, a.category));
               } },
             { key: 'location', header: 'Location', width: 132, csv: function (a) { return locName(a.location); },
               cell: function (a) { return locName(a.location); } },
@@ -2192,8 +2205,9 @@
               csv: function (a) { return a.status + ' (' + (a.condition || '—') + ')'; },
               cell: function (a) {
                 var m = STATUS_MARK[a.status] || STATUS_MARK.Retired;
-                return h(ui.Tip, { text: statusDetail(a) },
-                  h('span', { className: 'ast-state is-' + m.tone }, m.icon));
+                return h(ui.Tip, { text: statusDetail(a), focusable: false },
+                  h('span', { className: 'ast-state is-' + m.tone }, m.icon),
+                  h('span', { className: 'vi-sr' }, statusDetail(a).replace(/\n/g, '. ')));
               } },
             { key: 'actions', header: '', width: 118, align: 'right',
               cell: function (a) {
@@ -2386,13 +2400,15 @@
     /* With the switch on, Ara decides what its rule covers as soon as the screen is
        opened, which is what "automatically" has to mean for a queue nobody is
        watching. Turning it off leaves every request for a person. */
+    var waiting = store.collection('assetRequests')
+      .filter(function (r) { return r.status === 'Pending Approval'; }).length;
     React.useEffect(function () {
       if (!auto) return;
       var pending = act.araAssetQueue().filter(function (x) { return x.verdict.approve; });
       if (!pending.length) return;
       var res = act.araDecideAssetRequests();
       if (res && res.n) ui.toast(res.message, 'success');
-    });
+    }, [auto, waiting]);
 
     var all = store.collection('assetRequests');
     var rows = statusSt[0] ? all.filter(function (r) { return REQ_WORD[r.status] === statusSt[0]; }) : all;
@@ -2466,10 +2482,11 @@
               cell: function (r) { return person(r.employee); } },
             /* The category as its mark, as in the inventory: eight categories, each
                one shape, with the word a hover away. */
-            { key: 'category', header: 'For', width: 92, align: 'center', sortable: true,
+            { key: 'category', header: 'Category', width: 92, align: 'center', sortable: true,
               cell: function (r) {
-                return h(ui.Tip, { text: r.category + '\n' + (r.kind || 'New asset') },
-                  h('span', { className: 'ast-mark' }, assetIcon(r.category, 18)));
+                return h(ui.Tip, { text: r.category + '\n' + (r.kind || 'New asset'), focusable: false },
+                  h('span', { className: 'ast-mark' }, assetIcon(r.category, 18)),
+                  h('span', { className: 'vi-sr' }, r.category + ' \u00b7 ' + (r.kind || 'New asset')));
               } },
             { key: 'reason', header: 'Reason' },
             { key: 'requestedOn', header: 'Requested', width: 124, sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
@@ -2504,7 +2521,7 @@
                 /* Only the ones Ara will not take get a pair of buttons: a request Ara
                    has already decided is not waiting for anybody to press anything. */
                 return h('span', { className: 'row gap-2', style: { justifyContent: 'flex-end' } },
-                  h(V.Button, { variant: 'ghost', className: 'vi-btn--sm',
+                  h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
                     onClick: function () { decide(r, false); } }, 'Decline'),
                   h(V.Button, { variant: 'primary', className: 'vi-btn--sm',
                     onClick: function () { decide(r, true); } }, 'Approve'));

@@ -1365,6 +1365,18 @@ html.lenis, html.lenis body { height: auto; }
 .jkit__n strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
 .jkit__n span { font-size: 12px; color: var(--text-muted); }
 
+/* Whether a swap's replacement has agreed, said on their own row rather than in a
+   column of its own. */
+.agreed { display: inline-flex; align-items: center; gap: 5px; color: var(--warning-fg); }
+.agreed.is-yes { color: var(--success-fg); }
+.agreed i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+
+/* A correction is a before and an after, so the two punch columns read as one
+   cell: what the clock said, then what it should have said. */
+.punchfix { display: inline-flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.punchfix__was { color: var(--text-muted); text-decoration: line-through; }
+.punchfix__to { color: var(--text-muted); }
+
 /* ---------- Ara on the asset queue ---------- */
 /* The band sits above the table and carries its own controls, so what Ara has
    already done and the switch that stops it are never in two different places. */

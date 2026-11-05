@@ -827,7 +827,6 @@
           { key: 'category', header: 'Category' },
           { key: 'reason', header: 'Reason' },
           { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (a) { return ui.dateLabel(a.requestedOn); } },
-          { key: 'status', header: 'Status', cell: function (a) { return chip ? chip(a.status) : a.status; } },
           /* Who decided it, and why — the same reason IT sees, because a decision the
              person it is about cannot read back is not one they can argue with. */
           { key: 'decidedBy', header: 'Decided by',
@@ -836,7 +835,8 @@
               return h(ui.Tip, { text: a.decidedBy + (a.decidedOn ? ' · ' + ui.dateLabel(a.decidedOn) : '')
                 + (a.decidedWhy ? '\n' + a.decidedWhy : '') },
                 h('span', { className: 'dby' + (a.decidedBy === 'Ara' ? ' dby--ara' : '') }, a.decidedBy));
-            } }
+            } },
+          { key: 'status', header: 'Status', cell: function (a) { return chip ? chip(a.status) : a.status; } }
         ],
         emptyIcon: I.package, emptyTitle: 'No requests raised',
         emptyBody: 'Ask for a new asset, or report a fault on one you hold, and it shows up here.'

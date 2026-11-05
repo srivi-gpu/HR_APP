@@ -387,6 +387,16 @@
       { path: 'recognition', label: 'Recognition', section: '2.3', note: 'Recognition you have received and given.' }
     ]},
 
+    /* Approving is not a rank, it is a position in the tree: anybody with somebody
+       under them answers their leave, their corrections, their swaps and their
+       claims, and the person at the end of a branch answers nobody's. So the inbox
+       is declared for every employee-side workspace and js/permissions.js decides
+       whether it appears, by asking the reporting line rather than the label on the
+       account. A junior designer sees requests; the senior they report to sees the
+       requests and the inbox. */
+    { path: 'approvals', label: 'Approval inbox', icon: 'checklist', section: '6.5',
+      note: 'Leave, regularizations, swaps and claims from the people who report to you.' },
+
     { path: 'exit', label: 'Offboarding', icon: 'logout', section: '4.49', tabs: [
       { path: 'resignation', label: 'Resignation', section: '4.49', note: 'Submit a resignation with proposed last working day and reason.' },
       { path: 'notice', label: 'Notice period', section: '4.50', note: 'Your notice period, approved last working day and what remains.' },
@@ -396,21 +406,18 @@
     ]}
   ];
 
-  /* --------------------------------------------------------- TEAM MEMBER
+  /* --------------------------------------------------------- MANAGER
 
-     A team member is an employee who also approves. Everything in the employee
-     workspace is theirs unchanged — their own leave, their own payslips, their own
-     record — and the approval inbox is added to it, because somebody reports to them.
+     The same list, deliberately. A manager is a team member who happens to have
+     people under them, and there is no screen they get for being called one: their
+     own leave, their own payslips, their own record, the same as anybody's. The one
+     thing that differs — the approval inbox — is in the list above, where it is
+     decided by the reporting tree rather than by which workspace is open.
 
-     It is the employee list plus one item rather than a list of its own, so a screen
-     added to the employee workspace reaches a manager too and the two cannot drift
-     apart. Whether the inbox actually appears is not decided here: js/permissions.js
-     asks the reporting tree, and somebody with nobody under them does not get it
-     however their account is labelled. */
-  var TEAM_ITEMS = ME_ITEMS.concat([
-    { path: 'approvals', label: 'Approval inbox', icon: 'checklist', section: '6.5',
-      note: 'Leave, regularizations, swaps and claims from the people who report to you.' }
-  ]);
+     The two workspaces exist so the prototype can be looked at from both ends of a
+     branch at once: `me` opens as somebody who reports to a manager, `team` as the
+     manager sixteen people report to. Sharing one list is what stops them drifting. */
+  var TEAM_ITEMS = ME_ITEMS;
 
   /* ------------------------------------------------- Global, outside a role */
   var GLOBAL = [
@@ -560,13 +567,13 @@
        they can see about themselves — that is identical — but whether anybody reports
        to them, and so whether anything comes to them to approve. */
     { id: 'me', label: 'Team member', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
-      persona: 'Ananya Rao', blurb: 'A team member with nobody reporting to them: attendance, leave, payslips, documents and reviews.' },
+      persona: 'Ananya Rao', blurb: 'The end of a branch: nobody reports to Ananya, so she asks for leave and for assets and approves nothing.' },
     /* The persona has to be somebody with reports, or the workspace would open on an
        approval inbox its own rule hides — and with enough waiting on them that the
        inbox has something in it. Venkat Wadhwa leads sixteen people and has the most
        requests pending of anyone who is not HR. */
     { id: 'team', label: 'Manager', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
-      persona: 'Venkat Wadhwa', blurb: 'A team member who also approves: everything above, plus the requests from the people who report to them.' }
+      persona: 'Venkat Wadhwa', blurb: 'The same workspace, one step up the tree: sixteen people report to Venkat, so their requests come to him.' }
   ];
 
   /* Flattened route table: 'role/item[/tab]' -> metadata.

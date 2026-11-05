@@ -1263,9 +1263,22 @@
   /* The first free unit of the category, so an approved request names the thing it
      will be met with. Reserving is not issuing: the unit stays Available and on the
      shelf until somebody in IT hands it over. */
-  function freeUnitFor(category) {
+  /* Available and not already promised. Two requests for the same category, or a
+     request and a joiner's kit, were both handed the first free unit of it: the
+     register said one thing was set aside for two people, and whoever was issued
+     second took a unit the other had been told was theirs. */
+  function spokenFor() {
+    var taken = {};
+    store.collection('assetRequests').forEach(function (r) {
+      if (r.reserved && r.status === 'Approved') taken[r.reserved] = true;
+    });
+    return taken;
+  }
+
+  function freeUnitFor(category, skip) {
+    var taken = skip || spokenFor();
     return store.collection('assets').filter(function (a) {
-      return a.category === category && a.status === 'Available';
+      return a.category === category && a.status === 'Available' && !taken[a.id];
     })[0] || null;
   }
 
@@ -1311,9 +1324,10 @@
     store.collection('assets').forEach(function (a) {
       if (a.assignedTo === employeeId) held[a.category] = true;
     });
+    var taken = spokenFor();
     var seen = {}, out = [];
     store.collection('assets').forEach(function (a) {
-      if (a.status !== 'Available' || held[a.category] || seen[a.category]) return;
+      if (a.status !== 'Available' || held[a.category] || seen[a.category] || taken[a.id]) return;
       if (dearestOf(a.category) > ARA_ASSET_CAP) return;
       seen[a.category] = true;
       out.push({ category: a.category, unit: a });
@@ -1330,6 +1344,9 @@
 
   function araDecideAssetRequests() {
     var mine = araAssetQueue().filter(function (x) { return x.verdict.approve; });
+    /* Decided one at a time, so each row's reservation is visible to the next: a
+       pass that read the register once would give two access-card requests the
+       same card. */
     mine.forEach(function (x) { decideAssetRequest(x.request.id, true, 'Ara', x.verdict.why); });
     return done(mine.length
       ? 'Ara approved ' + mine.length + ' request' + (mine.length === 1 ? '' : 's')

@@ -771,25 +771,47 @@
      a screen that can only ever be empty for the persona looking at it demonstrates
      nothing. One of each outcome, so the timeline has an approval, a refusal and a
      request still walking the line to show. */
-  addAssetRequest(id('Ananya Rao'), 'Laptop', 'Replacement \u2014 battery swells under load', 'Approved');
+  addAssetRequest(id('Ananya Rao'), 'Laptop', 'Replacement \u2014 battery swells under load', 'Approved',
+    { decidedBy: 'Sandeep Rao', decidedOn: iso(addDays(TODAY, -6)),
+      decidedWhy: 'Over the cap and not a like-for-like swap, so it came to IT. Approved on the service report.' });
   addAssetRequest(id('Ananya Rao'), 'Docking Station', 'Two screens at the Bengaluru desk', 'Pending Approval');
-  addAssetRequest(id('Ananya Rao'), 'Mobile Phone', 'On-call rotation starting next month', 'Rejected');
+  addAssetRequest(id('Ananya Rao'), 'Mobile Phone', 'On-call rotation starting next month', 'Rejected',
+    { decidedBy: 'Sandeep Rao', decidedOn: iso(addDays(TODAY, -4)),
+      decidedWhy: 'The on-call rota has not started. Raise it again in the week it does.' });
   /* Two that Ara's rule takes, because a rule nothing in the data ever meets cannot
      be seen working. One is a replacement for a unit the person is holding — the
      access card that snapped in a lanyard — and one is standard kit nobody needs a
-     manager's permission for. Both are deliberately the cheapest things on the
-     register, which is the whole point of where the cap sits. */
+     manager's permission for. Both arrive already decided, by Ara, the day before
+     this one: that is what happens to a request its rule covers, and seeding them
+     as pending would have the screen decide them the moment anybody opened it,
+     moving a count the prototype's own self-check compares against. Both are
+     deliberately the cheapest things on the register, which is the whole point of
+     where the cap sits. */
   var cardOf = function (name) {
     var who = id(name);
     return assets.filter(function (a) { return a.assignedTo === who && a.category === 'Access Card'; })[0];
   };
+  /* A decided request names the unit it will be met with, so the register can say
+     "this one is set aside" rather than "nothing is free". Reserved, not issued:
+     the unit stays Available until somebody in IT hands it over. */
+  var freeOf = function (category) {
+    return assets.filter(function (a) { return a.category === category && a.status === 'Available'; })[0];
+  };
+  var freeCard = freeOf('Access Card'), freeKeys = freeOf('Keyboard');
   var sneha = cardOf('Sneha Kulkarni');
   if (sneha) {
     addAssetRequest(id('Sneha Kulkarni'), 'Access Card', 'Snapped in the lanyard — cannot badge in at the Pune office',
-      'Pending Approval', { kind: 'Repair', asset: sneha.id, source: 'Portal' });
+      'Approved', { kind: 'Repair', asset: sneha.id, source: 'Portal', decidedBy: 'Ara',
+        reserved: freeCard ? freeCard.id : null,
+        decidedOn: iso(addDays(TODAY, -1)),
+        decidedWhy: 'A like-for-like replacement of the access card Sneha Kulkarni already holds. '
+          + 'The entitlement is not in question.' });
   }
   addAssetRequest(id('Karthik Menon'), 'Keyboard', 'Wrist strain on the stock keyboard; occupational health asked for a split one',
-    'Pending Approval', { kind: 'New asset', source: 'Portal' });
+    'Approved', { kind: 'New asset', source: 'Portal', decidedBy: 'Ara',
+      reserved: freeKeys ? freeKeys.id : null,
+      decidedOn: iso(addDays(TODAY, -1)),
+      decidedWhy: 'Standard kit: the dearest keyboard on the register is inside the cap.' });
 
   var arPool = shuffle(eligible.filter(function (e) { return e.name !== 'Farhan Ali'; }));
   var AR_PENDING = 7;
@@ -2362,7 +2384,7 @@
       pendingLeaveRequests: 14, pendingRegularizations: 8, pendingOnboardingTasks: 16,
       /* 8, not 7: the generated requests drifted by one at some point and the target was
          never caught up. The target is meant to describe the sample data, so it says 8. */
-      pendingAssetRequests: 10
+      pendingAssetRequests: 8
     }
   };
 })();

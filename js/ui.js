@@ -580,7 +580,13 @@
       var el = ref.current;
       if (!el) return;
       var r = el.getBoundingClientRect();
-      openSt[1]({ x: Math.round(r.left + r.width / 2), y: Math.round(r.top), bottom: Math.round(r.bottom) });
+      /* Centred on the trigger, but kept a bubble's half-width inside the window:
+         the rightmost column of a wide table would otherwise put half of its own
+         tooltip off-screen. 160 is half of the 320px the bubble is capped at. */
+      var half = 160, pad = 8;
+      var x = Math.round(r.left + r.width / 2);
+      x = Math.max(half + pad, Math.min(window.innerWidth - half - pad, x));
+      openSt[1]({ x: x, y: Math.round(r.top), bottom: Math.round(r.bottom) });
     }
     function hide() { openSt[1](null); }
 
@@ -754,6 +760,13 @@
 
     React.useEffect(function () { pageSt[1](1); }, [q, p.rows.length, size]);
 
+    /* A column may be for the export only. Folding one column's value into another
+       cell — a request ID under the name it belongs to, a day count into the dates it
+       counts — makes the table fit the card, but it would quietly drop the field from
+       the spreadsheet, where there is no subtext line and someone is filtering on it.
+       `csvOnly` keeps the column in the export and out of the table. */
+    var shown = p.columns.filter(function (c) { return !c.csvOnly; });
+
     function exportCsv() {
       var cols = p.columns.filter(function (c) { return c.key !== 'actions' && c.header; });
       var head = cols.map(function (c) { return '"' + c.header + '"'; }).join(',');
@@ -807,7 +820,7 @@
       rows.length
         ? h(React.Fragment, null,
             h(V.Table, {
-              columns: p.columns, rows: view, selection: p.selection, density: p.density,
+              columns: shown, rows: view, selection: p.selection, density: p.density, tier: p.tier,
               selected: p.selected, onSelectionChange: p.onSelectionChange,
               stickyHeader: p.stickyHeader, maxHeight: p.maxHeight, 'aria-label': p.label
             }),

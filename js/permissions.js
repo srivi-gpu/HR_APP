@@ -279,10 +279,10 @@
       /* It is a workspace now. "An employee with approval rights" was always a
          workspace wearing a disclaimer: the rights are real, they need a screen to be
          used on, and the screen needs a sidebar to be reached from. */
-      { id: 'team', name: 'Team member', workspace: 'Team member', users: 31,
-        description: 'An employee who also approves: everything in the employee workspace, plus the requests from the people who report to them.' },
-      { id: 'me', name: 'Employee', workspace: 'Employee', users: 248,
-        description: 'Self-service access to own records, requests and tasks.' }
+      { id: 'team', name: 'Manager', workspace: 'Manager', users: 31,
+        description: 'A team member who has people under them, so their team\u2019s leave, corrections, swaps and claims come here for a decision.' },
+      { id: 'me', name: 'Team member', workspace: 'Team member', users: 248,
+        description: 'Self-service access to own records, requests and tasks. Nobody reports to them, so there is nothing for them to approve.' }
     ],
     /* What a manager gains on top of the employee role (PRD 10). */
     managerExtras: [

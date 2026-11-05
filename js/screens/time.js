@@ -16,6 +16,16 @@
   function deptName(id) { var d = store.department(id); return d ? d.name : '—'; }
   function locName(id) { var l = store.location(id); return l ? l.name : '—'; }
   function typeName(id) { var t = store.leaveType(id); return t ? t.name : id; }
+
+  /* A range said once: 26 → 27 Nov 2026 inside a month, 28 Nov → 1 Dec 2026 across
+     two, and the whole thing only when the years differ. */
+  function dateSpan(l) {
+    if (l.from === l.to) return l.fromLabel;
+    var a = new Date(l.from + 'T00:00'), b = new Date(l.to + 'T00:00');
+    if (a.getFullYear() !== b.getFullYear()) return l.fromLabel + ' \u2192 ' + l.toLabel;
+    if (a.getMonth() === b.getMonth()) return a.getDate() + ' \u2192 ' + l.toLabel;
+    return a.getDate() + ' ' + MONTHS[a.getMonth()].slice(0, 3) + ' \u2192 ' + l.toLabel;
+  }
   function shiftOf(id) { return store.shift(id); }
   function shiftName(id) { var s = shiftOf(id); return s ? s.name : '—'; }
 
@@ -433,21 +443,32 @@
       if (res && res.ok) { rejectSt[1](null); reasonSt[1](''); }
     }
 
+    /* Same cut as the leave queue, for the same reason: ten columns pushed Approve
+       and Reject off the right-hand edge of a card that hides its overflow. The two
+       punch columns become one — a correction is a before and an after, and reading
+       them apart was never the point — the request ID goes under the name, and the
+       approver under the date. The export keeps every field. */
     var columns = [
-      { key: 'id', header: 'Request', width: 96, cell: function (x) { return h('span', { className: 'mono' }, x.id); } },
       { key: 'employee', header: 'Employee', sortable: true,
         sortValue: function (x) { return empName(x.employee); }, csv: function (x) { return empName(x.employee); },
         cell: function (x) {
           var e = emp(x.employee);
-          return e ? h(ui.Person, { employee: e, sub: deptName(e.department) }) : h('span', { className: 'muted' }, '—');
+          return e ? h(ui.Person, { employee: e, sub: x.id + ' · ' + deptName(e.department) }) : h('span', { className: 'muted' }, '—');
         } },
-      { key: 'date', header: 'Date', sortable: true, cell: function (x) { return x.dateLabel || ui.dateLabel(x.date); } },
+      { key: 'date', header: 'Date', sortable: true,
+        csv: function (x) { return x.date; },
+        cell: function (x) { return { children: x.dateLabel || ui.dateLabel(x.date), subtext: 'With ' + empName(x.approver) }; } },
       { key: 'issue', header: 'Issue' },
-      { key: 'original', header: 'Original', cell: function (x) { return h('span', { className: 'mono' }, x.original); } },
-      { key: 'corrected', header: 'Corrected', cell: function (x) { return h('span', { className: 'mono' }, x.corrected); } },
+      { key: 'original', header: 'Punches', csv: function (x) { return x.original; },
+        cell: function (x) {
+          return h('span', { className: 'punchfix' },
+            h('span', { className: 'mono punchfix__was' }, x.original),
+            h('span', { className: 'punchfix__to', 'aria-hidden': 'true' }, '→'),
+            h('span', { className: 'mono' }, x.corrected));
+        } },
+      { key: 'corrected', header: 'Corrected', csvOnly: true, csv: function (x) { return x.corrected; } },
       { key: 'reason', header: 'Reason' },
-      { key: 'approver', header: 'Approver', csv: function (x) { return empName(x.approver); },
-        cell: function (x) { return empName(x.approver); } },
+      { key: 'approver', header: 'Approver', csvOnly: true, csv: function (x) { return empName(x.approver); } },
       { key: 'status', header: 'Status', cell: function (x) { return h(ui.StatusChip, { status: x.status }); } },
       { key: 'actions', header: '', align: 'right', cell: function (x) {
           if (x.status !== 'Pending Approval') {
@@ -478,6 +499,9 @@
       h(Card, { title: 'Attendance corrections', description: 'Approving writes the corrected punch while keeping the original on the record (PRD 14.3).' },
         h(ui.DataTable, {
           exportName: 'attendance-regularizations', label: 'Attendance corrections', rows: rows, pageSize: 10,
+          /* Two avatars and a pair of decision buttons: heavier than seven columns
+             suggests, so it stacks at the width a nine-column table would. */
+          tier: 'wide',
           search: function (x) { return [x.id, empName(x.employee), x.issue, x.reason].join(' '); },
           searchPlaceholder: 'Search by request, employee or issue',
           columns: columns,
@@ -726,26 +750,43 @@
       if (res && res.ok) { rejectSt[1](null); reasonSt[1](''); }
     }
 
+    /* Ten columns did not fit the card below about 1360px, and the wrapper hides its
+       overflow, so the decision buttons at the right-hand end were simply cut off —
+       the one thing on the row anybody came here to press. Three columns fold into
+       their neighbours rather than disappearing: the request ID under the name it
+       belongs to, the day count into the dates it is a count of, and the approver
+       under the date it was applied, since “who has it” is read together with
+       “how long have they had it”. The export keeps all ten. */
     var columns = [
-      { key: 'id', header: 'Request', width: 96, cell: function (l) { return h('span', { className: 'mono' }, l.id); } },
       { key: 'employee', header: 'Employee', sortable: true,
         sortValue: function (l) { return empName(l.employee); }, csv: function (l) { return empName(l.employee); },
         cell: function (l) {
           var e = emp(l.employee);
-          return e ? h(ui.Person, { employee: e, sub: deptName(e.department), onClick: function () { openSt[1](e.id); } })
+          return e ? h(ui.Person, { employee: e, sub: l.id + ' · ' + deptName(e.department), onClick: function () { openSt[1](e.id); } })
             : h('span', { className: 'muted' }, '—');
         } },
-      { key: 'type', header: 'Type', sortable: true, csv: function (l) { return typeName(l.type); },
-        cell: function (l) { return h(V.Chip, { size: 'sm', shape: 'tag' }, typeName(l.type)); } },
-      { key: 'from', header: 'Dates', sortable: true, csv: function (l) { return l.from + ' to ' + l.to; },
-        cell: function (l) { return l.fromLabel + ' → ' + l.toLabel; } },
-      { key: 'days', header: 'Days', numeric: true, align: 'right', sortable: true,
-        cell: function (l) { return l.days + (l.halfDay ? ' (half)' : ''); } },
+      /* The code, with the name on hover: "Earned Leave" is two words in a column
+         that only ever holds one of six values, and it wrapped on every row. */
+      { key: 'type', header: 'Type', width: 86, sortable: true, csv: function (l) { return typeName(l.type); },
+        cell: function (l) {
+          var t = store.leaveType(l.type) || {};
+          return h(ui.Tip, { text: typeName(l.type), focusable: false },
+            h(V.Chip, { size: 'sm', shape: 'tag' }, t.code || typeName(l.type)),
+            h('span', { className: 'vi-sr' }, typeName(l.type)));
+        } },
+      /* "26 Nov 2026 → 27 Nov 2026" writes the year twice and the month twice, and
+         wrapped onto three lines in a column one phrase wide. Said once. */
+      { key: 'from', header: 'Dates', width: 172, sortable: true, csv: function (l) { return l.from + ' to ' + l.to; },
+        cell: function (l) {
+          return { children: dateSpan(l),
+            subtext: l.days + (l.days === 1 ? ' day' : ' days') + (l.halfDay ? ', half' : '') };
+        } },
+      { key: 'days', header: 'Days', csvOnly: true, csv: function (l) { return l.days; } },
       { key: 'reason', header: 'Reason' },
-      { key: 'appliedOn', header: 'Applied', sortable: true, cell: function (l) { return ui.relTime(l.appliedOn); },
-        csv: function (l) { return l.appliedOn; } },
-      { key: 'approver', header: 'Approver', csv: function (l) { return empName(l.approver); },
-        cell: function (l) { return empName(l.approver); } },
+      { key: 'appliedOn', header: 'Applied', sortable: true,
+        csv: function (l) { return l.appliedOn; },
+        cell: function (l) { return { children: ui.relTime(l.appliedOn), subtext: 'With ' + empName(l.approver) }; } },
+      { key: 'approver', header: 'Approver', csvOnly: true, csv: function (l) { return empName(l.approver); } },
       { key: 'status', header: 'Status', cell: function (l) { return h(ui.StatusChip, { status: l.status }); } },
       { key: 'actions', header: '', align: 'right', cell: function (l) {
           if (l.status !== 'Pending Approval') {
@@ -774,6 +815,9 @@
       },
         h(ui.DataTable, {
           exportName: 'leave-requests', label: 'Leave requests', rows: rows, pageSize: 10,
+          /* Two avatars and a pair of decision buttons: heavier than seven columns
+             suggests, so it stacks at the width a nine-column table would. */
+          tier: 'wide',
           search: function (l) { return [l.id, empName(l.employee), typeName(l.type), l.reason, l.status].join(' '); },
           searchPlaceholder: 'Search by request, employee or type',
           filters: h(React.Fragment, null,
@@ -1371,34 +1415,43 @@
     function decide(id, decision) { ui.report(act.decideShiftSwap(id, decision)); }
 
     var columns = [
-      { key: 'id', header: 'Request', width: 96, cell: function (x) { return h('span', { className: 'mono' }, x.id); } },
+      /* The ID moves under the name for the same reason it did on the other two
+         queues: nine columns cut the decision buttons off the end of the row. */
       { key: 'employee', header: 'Requested by', sortable: true,
         sortValue: function (x) { return empName(x.employee); }, csv: function (x) { return empName(x.employee); },
         cell: function (x) {
           var e = emp(x.employee);
-          return e ? h(ui.Person, { employee: e, sub: deptName(e.department) }) : h('span', { className: 'muted' }, '—');
+          return e ? h(ui.Person, { employee: e, sub: x.id + ' · ' + deptName(e.department) }) : h('span', { className: 'muted' }, '—');
         } },
+      /* Whether the replacement has agreed was a column of its own, two words wide,
+         carrying a fact about the person in the column beside it. It sits under their
+         name now — the thing you want to know about a replacement is whether they
+         said yes — and the row fits the card. */
       { key: 'with', header: 'Replacement', csv: function (x) { return empName(x.with); },
         cell: function (x) {
           var e = emp(x.with);
-          return e ? h(ui.Person, { employee: e, sub: shiftName(e.shift) }) : h('span', { className: 'muted' }, '—');
+          if (!e) return h('span', { className: 'muted' }, '—');
+          return h(ui.Person, { employee: e, sub: h('span', { className: 'agreed' + (x.counterpartyAgreed ? ' is-yes' : '') },
+            h('i', { 'aria-hidden': 'true' }), x.counterpartyAgreed ? 'Agreed' : 'Not confirmed') });
         } },
-      { key: 'date', header: 'Date', sortable: true, cell: function (x) { return ui.dateLabel(x.date); } },
-      { key: 'from', header: 'Swap', csv: function (x) { return shiftName(x.from) + ' to ' + shiftName(x.to); },
+      /* A swap happens on a day, so the day belongs to the swap rather than to a
+         column of its own — the last 84px between this row and the card's edge. */
+      { key: 'date', header: 'Date', csvOnly: true, csv: function (x) { return x.date; } },
+      { key: 'from', header: 'Swap', sortable: true,
+        sortValue: function (x) { return x.date; },
+        csv: function (x) { return shiftName(x.from) + ' to ' + shiftName(x.to); },
         cell: function (x) {
-          return h('span', { className: 'row gap-2' },
-            h(V.Chip, { size: 'sm', shape: 'tag' }, (shiftOf(x.from) || {}).code || '—'),
-            h('span', { className: 'muted' }, '→'),
-            h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, (shiftOf(x.to) || {}).code || '—'));
+          return {
+            children: h('span', { className: 'row gap-2' },
+              h(V.Chip, { size: 'sm', shape: 'tag' }, (shiftOf(x.from) || {}).code || '—'),
+              h('span', { className: 'muted' }, '→'),
+              h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, (shiftOf(x.to) || {}).code || '—')),
+            subtext: ui.dateLabel(x.date)
+          };
         } },
       { key: 'reason', header: 'Reason' },
-      { key: 'counterpartyAgreed', header: 'Counterparty', align: 'center',
-        csv: function (x) { return x.counterpartyAgreed ? 'Agreed' : 'Not confirmed'; },
-        cell: function (x) {
-          return x.counterpartyAgreed
-            ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Agreed')
-            : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, 'Not confirmed');
-        } },
+      { key: 'counterpartyAgreed', header: 'Counterparty', csvOnly: true,
+        csv: function (x) { return x.counterpartyAgreed ? 'Agreed' : 'Not confirmed'; } },
       { key: 'status', header: 'Status', cell: function (x) { return h(ui.StatusChip, { status: x.status }); } },
       { key: 'actions', header: '', align: 'right', cell: function (x) {
           if (x.status !== 'Pending Approval') return h('span', { className: 'muted', style: { fontSize: 12 } }, 'Decided');
@@ -1426,6 +1479,9 @@
       h(Card, { title: 'Shift swap requests', description: 'Approving writes both halves of the swap into the roster (PRD 5.1).' },
         h(ui.DataTable, {
           exportName: 'shift-swaps', label: 'Shift swap requests', rows: rows, pageSize: 10,
+          /* Two avatars and a pair of decision buttons: heavier than seven columns
+             suggests, so it stacks at the width a nine-column table would. */
+          tier: 'wide',
           search: function (x) { return [x.id, empName(x.employee), empName(x.with), x.reason].join(' '); },
           searchPlaceholder: 'Search by request, employee or reason',
           columns: columns,
