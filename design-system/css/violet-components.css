@@ -451,11 +451,21 @@
 
 /* ---------- Table ---------- */
 .vi-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.vi-table-wrap { overflow: auto; border: 1px solid var(--elevation-5); border-radius: var(--radius-lg); background: var(--alternate); --vi-avatar-ring: var(--alternate); }
-.vi-table { width: 100%; border-collapse: separate; border-spacing: 0; font-family: var(--font-sans); color: var(--text-main); }
+/* A table lays its content out inside the page rather than sliding sideways under it.
+   The wrap used to be `overflow: auto`, which turned every table too wide for its card
+   into a second scrollbar inside the page's own — and a column you have to scroll to is
+   a column nobody reads. Nothing here is wide by nature: it was wide because the header
+   and every cell title were `white-space: nowrap`, so one long designation or one
+   sentence of prose set the width of the whole table. They wrap now, and the table
+   fits. A sticky-header table still scrolls, vertically, because that is what a
+   max-height is for. */
+.vi-table-wrap { overflow: hidden; container-type: inline-size; border: 1px solid var(--elevation-5); border-radius: var(--radius-lg); background: var(--alternate); --vi-avatar-ring: var(--alternate); }
+.vi-table-wrap.is-sticky { overflow-y: auto; }
+.vi-table { width: 100%; border-collapse: separate; border-spacing: 0; font-family: var(--font-sans); color: var(--text-main); table-layout: auto; }
+.vi-th, .vi-td { overflow-wrap: break-word; }
 /* header */
-.vi-th { height: 48px; padding: 0 var(--space-4); background: var(--primary-container); color: var(--on-primary-container);
-  font-size: 16px; line-height: 1.25; font-weight: 400; text-align: left; white-space: nowrap; vertical-align: middle; }
+.vi-th { height: 48px; padding: 10px var(--space-3); background: var(--primary-container); color: var(--on-primary-container);
+  font-size: 15px; line-height: 1.25; font-weight: 400; text-align: left; white-space: normal; vertical-align: middle; }
 [data-theme="dark"] .vi-th { background: var(--primary-tint-20); }
 .vi-table-wrap.is-sticky .vi-th { position: sticky; top: 0; z-index: 2; }
 .vi-th.is-right { text-align: right; } .vi-th.is-center { text-align: center; }
@@ -471,8 +481,8 @@
 .vi-th--select, .vi-td--select { width: 20px; padding-right: 0; }
 .vi-th.vi-th--select .vi-check__box { background: var(--alternate); }
 /* body */
-.vi-td { padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-secondary); vertical-align: middle;
-  font-size: 16px; line-height: 1.4; background: var(--alternate); transition: background-color .12s ease; }
+.vi-td { padding: var(--space-3); border-bottom: 1px solid var(--border-secondary); vertical-align: middle;
+  font-size: 15px; line-height: 1.4; background: var(--alternate); transition: background-color .12s ease; }
 [data-theme="dark"] .vi-td { border-bottom-color: var(--elevation-4); }
 .vi-table tbody tr:last-child .vi-td { border-bottom: 0; }
 .vi-table--hover tbody tr:hover .vi-td { background: var(--elevation-2); }
@@ -480,14 +490,16 @@
 [data-theme="dark"] .vi-table tbody tr.is-selected .vi-td { background: var(--primary-tint-10); }
 .vi-td.is-right { text-align: right; } .vi-td.is-center { text-align: center; }
 .vi-td.is-numeric { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-.vi-cell { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.vi-cell { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 .vi-td.is-right .vi-cell { justify-content: flex-end; } .vi-td.is-center .vi-cell { justify-content: center; }
 .vi-td.is-actions .vi-cell { justify-content: flex-end; }
 .vi-cell__control { display: inline-flex; flex: none; }
 .vi-cell__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .vi-cell__titlerow { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
-.vi-cell__title { color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.vi-cell__sub { color: var(--text-secondary); font-size: 14px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Wrapping rather than ellipsis. A truncated cell is content the table is hiding from
+   you, and in a table that now fits there is room to show it. */
+.vi-cell__title { color: var(--text-main); overflow-wrap: break-word; }
+.vi-cell__sub { color: var(--text-secondary); font-size: 13.5px; line-height: 1.4; overflow-wrap: break-word; }
 .vi-cell__icons { display: inline-flex; gap: var(--space-2); flex: none; color: var(--text-secondary); }
 .vi-cell__icon { display: inline-flex; width: 20px; height: 20px; }
 .vi-cell__icon > svg { width: 100%; height: 100%; display: block; }
@@ -498,6 +510,111 @@
 .vi-cell__action > svg { width: 24px; height: 24px; display: block; }
 .vi-cell__action:hover { background: var(--elevation-3); }
 .vi-cell__action:focus-visible { outline: 2px solid var(--info); outline-offset: -2px; }
+
+/* A wide table — eight columns or more — earns its space back from the padding and the
+   type size rather than from a scrollbar. */
+.vi-table--wide .vi-th { padding: 8px var(--space-2); font-size: 13.5px; }
+.vi-table--wide .vi-td { padding: var(--space-2); font-size: 13.5px; }
+.vi-table--wide .vi-cell { gap: var(--space-2); }
+.vi-table--wide .vi-cell__sub { font-size: 12.5px; }
+.vi-table--wide .vi-cell__action { width: 30px; height: 30px; padding: 4px; }
+.vi-table--wide .vi-cell__action > svg { width: 20px; height: 20px; }
+.vi-table--wide .vi-cell__actions { gap: 2px; }
+
+/* Below the width where columns stop being readable, a row stops being a row: each
+   cell becomes a label-and-value pair, stacked. This is the honest answer to a table
+   in a half-width card — the alternative was a scrollbar inside a scrollbar, and a
+   column you have to scroll to is a column nobody reads. A wide table crosses over
+   earlier, because ten columns need more room than five to stay a table.
+
+   `data-label` comes from the column header (design-system/js/violet.js); a cell whose
+   header is not a plain string — an actions column, say — simply has no label, which
+   is what you want. */
+@container (max-width: 560px) {
+  .vi-table { --vi-stack: 1; }
+}
+@container (max-width: 700px) {
+  .vi-table--mid { --vi-stack: 1; }
+}
+@container (max-width: 880px) {
+  .vi-table--wide { --vi-stack: 1; }
+}
+/* The stacked layout itself, switched on by --vi-stack above. `style()` queries are
+   not available everywhere yet, so the switch is read with a selector on the class
+   rather than a container query of its own. */
+@container (max-width: 880px) {
+  .vi-table--wide thead, .vi-table--mid thead { display: none; }
+  .vi-table--wide, .vi-table--wide tbody { display: block; width: 100%; }
+  .vi-table--wide tbody tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 2px 20px; padding: 11px 13px; border-bottom: 1px solid var(--border-secondary); }
+  .vi-table--wide tbody tr:last-child { border-bottom: 0; }
+  .vi-table--wide .vi-td { display: grid; grid-template-columns: minmax(92px, 36%) 1fr; align-items: baseline;
+    gap: 10px; padding: 5px 0; border-bottom: 0; background: none; }
+  .vi-table--wide .vi-td::before { content: attr(data-label); color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
+  .vi-table--wide .vi-td:not([data-label]) { grid-template-columns: 1fr; }
+  .vi-table--wide .vi-td:not([data-label]) { grid-column: 1 / -1; }
+  .vi-table--wide .vi-td:not([data-label])::before { display: none; }
+  .vi-table--wide .vi-td.is-right, .vi-table--wide .vi-td.is-center { text-align: left; }
+  .vi-table--wide .vi-td.is-right .vi-cell, .vi-table--wide .vi-td.is-center .vi-cell,
+  .vi-table--wide .vi-td.is-actions .vi-cell { justify-content: flex-start; }
+  .vi-table--wide .vi-cell__actions { margin-left: 0; }
+  /* The row background moves to the row once the cells stop being cells, or the hover
+     tint lands on half a record. */
+  .vi-table--wide .vi-td { background: none; }
+  .vi-table--wide.vi-table--hover tbody tr:hover { background: var(--elevation-2); }
+  .vi-table--wide tbody tr.is-selected { background: var(--primary-tint-5); }
+}
+@container (max-width: 700px) {
+  .vi-table--mid, .vi-table--mid tbody { display: block; width: 100%; }
+  .vi-table--mid tbody tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 2px 20px; padding: 11px 13px; border-bottom: 1px solid var(--border-secondary); }
+  .vi-table--mid tbody tr:last-child { border-bottom: 0; }
+  .vi-table--mid .vi-td { display: grid; grid-template-columns: minmax(92px, 36%) 1fr; align-items: baseline;
+    gap: 10px; padding: 5px 0; border-bottom: 0; background: none; }
+  .vi-table--mid .vi-td::before { content: attr(data-label); color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
+  .vi-table--mid .vi-td:not([data-label]) { grid-template-columns: 1fr; }
+  .vi-table--mid .vi-td:not([data-label]) { grid-column: 1 / -1; }
+  .vi-table--mid .vi-td:not([data-label])::before { display: none; }
+  .vi-table--mid .vi-td.is-right, .vi-table--mid .vi-td.is-center { text-align: left; }
+  .vi-table--mid .vi-td.is-right .vi-cell, .vi-table--mid .vi-td.is-center .vi-cell,
+  .vi-table--mid .vi-td.is-actions .vi-cell { justify-content: flex-start; }
+  .vi-table--mid .vi-cell__actions { margin-left: 0; }
+  /* The row background moves to the row once the cells stop being cells, or the hover
+     tint lands on half a record. */
+  .vi-table--mid .vi-td { background: none; }
+  .vi-table--mid.vi-table--hover tbody tr:hover { background: var(--elevation-2); }
+  .vi-table--mid tbody tr.is-selected { background: var(--primary-tint-5); }
+}
+@container (max-width: 560px) {
+  .vi-table thead { display: none; }
+  .vi-table, .vi-table tbody { display: block; width: 100%; }
+  .vi-table tbody tr { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 2px 20px; padding: 11px 13px; border-bottom: 1px solid var(--border-secondary); }
+  .vi-table tbody tr:last-child { border-bottom: 0; }
+  .vi-table .vi-td { display: grid; grid-template-columns: minmax(92px, 36%) 1fr; align-items: baseline;
+    gap: 10px; padding: 5px 0; border-bottom: 0; background: none; }
+  .vi-table .vi-td::before { content: attr(data-label); color: var(--text-secondary); font-size: 13px; line-height: 1.4; }
+  .vi-table .vi-td:not([data-label]) { grid-template-columns: 1fr; }
+  .vi-table .vi-td:not([data-label]) { grid-column: 1 / -1; }
+  .vi-table .vi-td:not([data-label])::before { display: none; }
+  .vi-table .vi-td.is-right, .vi-table .vi-td.is-center { text-align: left; }
+  .vi-table .vi-td.is-right .vi-cell, .vi-table .vi-td.is-center .vi-cell,
+  .vi-table .vi-td.is-actions .vi-cell { justify-content: flex-start; }
+  .vi-table .vi-cell__actions { margin-left: 0; }
+  /* The row background moves to the row once the cells stop being cells, or the hover
+     tint lands on half a record. */
+  .vi-table .vi-td { background: none; }
+  .vi-table.vi-table--hover tbody tr:hover { background: var(--elevation-2); }
+  .vi-table tbody tr.is-selected { background: var(--primary-tint-5); }
+}
+
+/* In a table that fits, a person's name and a status label wrap rather than being
+   clipped with an ellipsis: the row is already two lines tall, and the width this
+   gives back is what keeps the last two columns on screen. */
+.vi-td .person__name, .vi-td .person__sub { white-space: normal; overflow: visible; text-overflow: clip; }
+.vi-td .vi-chip { white-space: normal; height: auto; min-height: 26px; padding-top: 3px; padding-bottom: 3px; line-height: 1.3; }
+/* A bar in a cell fills the width it is given rather than collapsing to nothing: as a
+   flex item with no basis it had none, which is why the utilisation column looked
+   empty once the row stacked. */
+.vi-td .vi-progress, .vi-td .vi-slider { flex: 1 1 auto; min-width: 72px; }
+.vi-table--wide .vi-td .vi-chip, .vi-table--mid .vi-td .vi-chip { font-size: 12.5px; padding-left: var(--space-2); padding-right: var(--space-2); }
 .vi-cell__action:disabled { color: var(--elevation-7); background: transparent; cursor: not-allowed; }
 /* compact density */
 .vi-table--compact .vi-th { height: 40px; padding: 0 var(--space-3); font-size: 14px; }

@@ -2077,10 +2077,18 @@
             h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1], options: ASSET_STATUSES }),
             h(ui.Filter, { label: 'Location', value: locSt[0], onChange: locSt[1], options: locOptions() })),
           columns: [
-            { key: 'id', header: 'Asset ID', sortable: true, cell: function (a) { return h('span', { className: 'mono' }, a.id); } },
-            { key: 'name', header: 'Asset', sortable: true },
+            /* The asset ID and the serial used to be columns of their own. Eleven
+               columns is more than this table has room for, and neither of those two
+               is read on its own — they are how you identify the thing in the row
+               beside them. So they sit under the name, and the table fits. */
+            { key: 'name', header: 'Asset', sortable: true,
+              /* The export still carries all three, because a spreadsheet has no
+                 subtext line to put them on. */
+              csv: function (a) { return a.name + ' (' + a.id + ' · ' + a.serial + ')'; },
+              cell: function (a) {
+                return { children: a.name, subtext: a.id + ' · ' + a.serial };
+              } },
             { key: 'category', header: 'Category', sortable: true },
-            { key: 'serial', header: 'Serial', cell: function (a) { return h('span', { className: 'mono' }, a.serial); } },
             { key: 'location', header: 'Location', csv: function (a) { return locName(a.location); },
               cell: function (a) { return locName(a.location); } },
             { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
