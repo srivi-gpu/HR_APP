@@ -71,6 +71,10 @@
        is the same authority as system settings. Without these two, a module grant that
        withheld attendance still left the row on the rail. */
     'hr/time': 'attendance', 'me/time': 'attendance', 'admin/data': 'settings',
+    /* The manager's workspace is the team member's under another prefix, so every
+       exception above that names a `me/` route needs its twin here. */
+    'team/dashboard': 'people', 'team/announcements': 'engagement', 'team/profile': 'people',
+    'team/exit': 'offboarding', 'team/time': 'attendance',
     /* Admin's People module governs accounts, access and the reporting structure, not
        employee records, so it is gated on User management rather than on `people` —
        which admin only reads. The HR workspace keeps `hr/people` on employee records. */
@@ -218,7 +222,7 @@
      the access-denied screen instead of rendering. */
   /* Routes a module grant may never take away: the way in, the way to find things, and
      a person's own record and notifications. */
-  var OPEN_PATHS = /^(admin|hr|me)\/(dashboard|search)(\/|$)|^me\/profile(\/|$)/;
+  var OPEN_PATHS = /^(admin|hr|me|team)\/(dashboard|search)(\/|$)|^(me|team)\/profile(\/|$)/;
   function allows(role, path) {
     if (OPEN_PATHS.test(path || '')) {
       var m0 = moduleOf(path);
@@ -275,10 +279,10 @@
       /* It is a workspace now. "An employee with approval rights" was always a
          workspace wearing a disclaimer: the rights are real, they need a screen to be
          used on, and the screen needs a sidebar to be reached from. */
-      { id: 'team', name: 'Team member', workspace: 'Team member', users: 31,
-        description: 'An employee who also approves: everything in the employee workspace, plus the requests from the people who report to them.' },
-      { id: 'me', name: 'Employee', workspace: 'Employee', users: 248,
-        description: 'Self-service access to own records, requests and tasks.' }
+      { id: 'team', name: 'Manager', workspace: 'Manager', users: 31,
+        description: 'A team member who has people under them, so their team\u2019s leave, corrections, swaps and claims come here for a decision.' },
+      { id: 'me', name: 'Team member', workspace: 'Team member', users: 248,
+        description: 'Self-service access to own records, requests and tasks. Nobody reports to them, so there is nothing for them to approve.' }
     ],
     /* What a manager gains on top of the employee role (PRD 10). */
     managerExtras: [

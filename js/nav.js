@@ -387,27 +387,34 @@
       { path: 'recognition', label: 'Recognition', section: '2.3', note: 'Recognition you have received and given.' }
     ]},
 
+    /* Approving is not a rank, it is a position in the tree: anybody with somebody
+       under them answers their leave, their corrections, their swaps and their
+       claims, and the person at the end of a branch answers nobody's. So the inbox
+       is declared for every employee-side workspace and js/permissions.js decides
+       whether it appears, by asking the reporting line rather than the label on the
+       account. A junior designer sees requests; the senior they report to sees the
+       requests and the inbox. */
+    { path: 'approvals', label: 'Approval inbox', icon: 'checklist', section: '6.5',
+      note: 'Leave, regularizations, swaps and claims from the people who report to you.' },
+
     { path: 'exit', label: 'Offboarding', icon: 'logout', section: '4.49', tabs: [
       { path: 'resignation', label: 'Resignation', section: '4.49', note: 'Submit a resignation with proposed last working day and reason.' },
       { path: 'formalities', label: 'Exit formalities', section: '4.50', note: 'Exit interview, final settlement and exit documents.' }
     ]}
   ];
 
-  /* --------------------------------------------------------- TEAM MEMBER
+  /* --------------------------------------------------------- MANAGER
 
-     A team member is an employee who also approves. Everything in the employee
-     workspace is theirs unchanged — their own leave, their own payslips, their own
-     record — and the approval inbox is added to it, because somebody reports to them.
+     The same list, deliberately. A manager is a team member who happens to have
+     people under them, and there is no screen they get for being called one: their
+     own leave, their own payslips, their own record, the same as anybody's. The one
+     thing that differs — the approval inbox — is in the list above, where it is
+     decided by the reporting tree rather than by which workspace is open.
 
-     It is the employee list plus one item rather than a list of its own, so a screen
-     added to the employee workspace reaches a manager too and the two cannot drift
-     apart. Whether the inbox actually appears is not decided here: js/permissions.js
-     asks the reporting tree, and somebody with nobody under them does not get it
-     however their account is labelled. */
-  var TEAM_ITEMS = ME_ITEMS.concat([
-    { path: 'approvals', label: 'Approval inbox', icon: 'checklist', section: '6.5',
-      note: 'Leave, regularizations, swaps and claims from the people who report to you.' }
-  ]);
+     The two workspaces exist so the prototype can be looked at from both ends of a
+     branch at once: `me` opens as somebody who reports to a manager, `team` as the
+     manager sixteen people report to. Sharing one list is what stops them drifting. */
+  var TEAM_ITEMS = ME_ITEMS;
 
   /* ------------------------------------------------- Global, outside a role */
   var GLOBAL = [
@@ -553,14 +560,17 @@
       persona: 'Rohit Khanna', blurb: 'Organization setup, users, permissions, billing and platform settings.' },
     { id: 'hr', label: 'HR', icon: 'users', items: HR_ITEMS, groups: build('hr', HR_ITEMS), home: 'hr/dashboard',
       persona: 'Priya Sharma', blurb: 'People operations, policies, workflows and the employee lifecycle.' },
-    { id: 'me', label: 'Employee', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
-      persona: 'Ananya Rao', blurb: 'Self-service: attendance, leave, payslips, documents and reviews.' },
+    /* Both of the last two are team members. The difference between them is not what
+       they can see about themselves — that is identical — but whether anybody reports
+       to them, and so whether anything comes to them to approve. */
+    { id: 'me', label: 'Team member', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
+      persona: 'Ananya Rao', blurb: 'The end of a branch: nobody reports to Ananya, so she asks for leave and for assets and approves nothing.' },
     /* The persona has to be somebody with reports, or the workspace would open on an
        approval inbox its own rule hides — and with enough waiting on them that the
        inbox has something in it. Venkat Wadhwa leads sixteen people and has the most
        requests pending of anyone who is not HR. */
-    { id: 'team', label: 'Team member', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
-      persona: 'Venkat Wadhwa', blurb: 'Everything an employee has, plus the requests from the people who report to you.' }
+    { id: 'team', label: 'Manager', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
+      persona: 'Venkat Wadhwa', blurb: 'The same workspace, one step up the tree: sixteen people report to Venkat, so their requests come to him.' }
   ];
 
   /* Flattened route table: 'role/item[/tab]' -> metadata.
@@ -571,6 +581,24 @@
      supplies the group label where the item has a row, which is what the breadcrumb
      and the page eyebrow read. */
   var routes = {};
+  var ROLE_IDS = {};
+  ROLES.forEach(function (r) { ROLE_IDS[r.id] = true; });
+
+  /* An inherited item carries the route of the workspace it was written for — the
+     manager's list is the team member's plus one — so a tab naming `me/leave/overview`
+     has to read as `team/leave/overview` when a manager is the one looking at it.
+     Without this, following the rail would drop a manager into the other workspace,
+     because the route names it. A route under a prefix that is not a role is left
+     alone, as is one already under this role's own. */
+  /* Which workspace is built out of another's item list. The manager's is the team
+     member's plus an approval inbox, so a `me/` route is also a route of theirs. */
+  var INHERITS = { team: 'me' };
+
+  function rebase(route, roleId) {
+    if (!route || !roleId) return route;
+    var head = route.slice(0, route.indexOf('/'));
+    return (head !== roleId && ROLE_IDS[head]) ? roleId + route.slice(head.length) : route;
+  }
   ROLES.forEach(function (role) {
     var groupOf = {};
     role.groups.forEach(function (group) {
@@ -593,7 +621,7 @@
       (item.tabs || []).forEach(function (tab, i) {
         /* A tab may name an absolute route of its own, so one rail item can gather
            screens that already live under different paths without moving them. */
-        var at = tab.route || (base + '/' + tab.path);
+        var at = tab.route ? rebase(tab.route, role.id) : (base + '/' + tab.path);
         routes[at] = {
           role: role.id, group: group, item: item, tab: tab, label: tab.label,
           section: tab.section, note: tab.note, path: at, isFirstTab: i === 0
@@ -613,7 +641,7 @@
       var m = routes[path];
       if (m.item && m.item.tabs && !m.tab) {
         var first = m.item.tabs[0];
-        return routes[first.route || (path + '/' + first.path)];
+        return routes[first.route ? rebase(first.route, m.role) : (path + '/' + first.path)];
       }
       return m;
     }
@@ -621,7 +649,8 @@
   }
 
   HRMS.nav = {
-    roles: ROLES, global: GLOBAL, routes: routes, role: role, resolve: resolve,
+    roles: ROLES, global: GLOBAL, routes: routes, role: role, resolve: resolve, rebase: rebase,
+    inherits: INHERITS,
     count: Object.keys(routes).length
   };
 })();

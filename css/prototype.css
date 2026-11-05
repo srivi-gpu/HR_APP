@@ -84,7 +84,11 @@
 /* ---------- Person cell ---------- */
 .person { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
 .person__text { display: flex; flex-direction: column; min-width: 0; }
+/* A table cell has a column width to respect, so a name there still truncates. A
+   list row has the whole card to itself and a line below it, so it wraps: a name
+   is the one thing on a row nobody can guess from its first eighteen letters. */
 .person__name { font-size: 14px; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list__row .person__name, .lrow .person__name { white-space: normal; overflow: visible; text-overflow: clip; }
 .person__sub { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Filter bar above tables ---------- */
@@ -188,7 +192,7 @@
 /* ---------- Simple horizontal bar chart for distributions ---------- */
 .bars { display: flex; flex-direction: column; gap: 10px; }
 .bars__row { display: grid; grid-template-columns: minmax(96px, 30%) 1fr auto; gap: 12px; align-items: center; font-size: 13px; }
-.bars__label { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bars__label { color: var(--text-secondary); line-height: 1.35; }
 .bars__track { height: 8px; border-radius: var(--tl-round); background: var(--bg-muted); overflow: hidden; }
 .bars__fill { height: 100%; border-radius: var(--tl-round); background: var(--brand-solid); }
 .bars__value { font-variant-numeric: tabular-nums; color: var(--text-primary); min-width: 2.5ch; text-align: right; }
@@ -710,7 +714,9 @@
 .pchip__k { font-size: 11px; color: var(--text-secondary); }
 .pchip__v { display: flex; align-items: center; gap: 7px; font-size: 14px; color: var(--text-primary); min-width: 0; }
 .pchip__v svg { width: 15px; height: 15px; flex: none; color: var(--text-secondary); }
-.pchip__v span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A work address is the one value on this row somebody copies out of it, so it
+   wraps at the @ rather than ending in an ellipsis. */
+.pchip__v span { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 640px) {
   .phead__body { flex-wrap: wrap; gap: 12px; }
   .phead__aside { width: 100%; padding-bottom: 0; }
@@ -1344,7 +1350,10 @@
 .tile__ico svg { width: 19px; height: 19px; }
 .tile__m { display: grid; min-width: 0; }
 .tile__m strong { font-family: var(--font-flex); font-size: 23px; line-height: 1.15; font-weight: 600; color: var(--text-primary); }
-.tile__m span { font-size: 12.5px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* The label wraps rather than truncates. These are two- and three-word labels in a
+   grid that can land a few pixels short — “On time, in a ro…” costs the reader the
+   whole point of the tile to save one line. */
+.tile__m span { font-size: 12.5px; line-height: 1.35; color: var(--text-secondary); }
 .tile--good .tile__ico { background: var(--success-bg); color: var(--success-fg); }
 .tile--info .tile__ico { background: var(--info-bg); color: var(--info-fg); }
 .tile--brand .tile__ico { background: var(--brand-soft); color: var(--brand-solid); }
@@ -1376,7 +1385,7 @@
 .rbar__row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto minmax(90px, 0.9fr);
   align-items: center; gap: 12px; padding: 7px 2px; border-bottom: 1px solid var(--elevation-5, var(--border-subtle)); }
 .rbar__row:last-child { border-bottom: 0; }
-.rbar__label { font-size: 13.5px; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rbar__label { font-size: 13.5px; line-height: 1.35; color: var(--text-primary); }
 .rbar__n { font-size: 13.5px; font-weight: 500; color: var(--text-primary); text-align: right; min-width: 30px; }
 .rbar__pc { font-size: 12.5px; color: var(--text-secondary); text-align: right; min-width: 38px; }
 .rbar__track { height: 7px; border-radius: var(--tl-round); background: var(--elevation-3, var(--bg-subtle)); overflow: hidden; }

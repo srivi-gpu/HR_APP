@@ -114,7 +114,8 @@
             /* An item whose tabs keep their own routes is current when any of them is. */
             var on = p.path === base || p.path.indexOf(base + '/') === 0
               || (item.tabs || []).some(function (t) {
-                return t.route && (p.path === t.route || p.path.indexOf(t.route + '/') === 0);
+                var at = HRMS.nav.rebase(t.route, role.id);
+                return t.route && (p.path === at || p.path.indexOf(at + '/') === 0);
               });
             var badge = badgeFor(item);
             return h(V.ListItem, {
