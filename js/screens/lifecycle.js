@@ -1254,22 +1254,22 @@
       { mode: 'folder', icon: I.folder, label: 'Folder', hint: 'Creates the folder and fills it' }
     ];
 
-    return h('span', { className: 'menu', ref: ref },
+    return h('span', { className: 'pmenu', ref: ref },
       h(V.Button, {
         variant: 'primary', className: 'vi-btn--sm', iconStart: I.up, iconEnd: I.chevron,
         'aria-haspopup': 'menu', 'aria-expanded': openSt[0] ? 'true' : 'false',
         onClick: function () { openSt[1](!openSt[0]); }
       }, 'Upload'),
-      openSt[0] ? h('ul', { className: 'menu__list', role: 'menu' }, items.map(function (it) {
+      openSt[0] ? h('ul', { className: 'pmenu__list', role: 'menu' }, items.map(function (it) {
         return h('li', { key: it.mode, role: 'none' },
           h('button', {
-            type: 'button', role: 'menuitem', className: 'menu__item',
+            type: 'button', role: 'menuitem', className: 'pmenu__item',
             onClick: function () { pick(it.mode); }
           },
             h('span', { className: 'empty__mark', style: { width: 26, height: 26 } }, it.icon),
-            h('span', { className: 'menu__text' },
-              h('span', { className: 'menu__label' }, it.label),
-              h('span', { className: 'menu__hint' }, it.hint))));
+            h('span', { className: 'pmenu__text' },
+              h('span', { className: 'pmenu__label' }, it.label),
+              h('span', { className: 'pmenu__hint' }, it.hint))));
       })) : null);
   }
 
