@@ -37,7 +37,12 @@
   }
   function palette() {
     var brand = cssVar('--brand-solid', '#5733c1');
-    return ['#3d2496', brand, '#7a5ad2', '#a690e4', '#2f7ae5', '#1f7a6e', '#2f8a52', '#c2741a', '#c02848', '#b4249e']
+    /* The chart ramp from the stylesheet, so the network picture matches every other
+       chart in the product and carries no orange: a branch of an org chart is a
+       department, not a warning. */
+    return [cssVar('--chart-1', brand), brand, cssVar('--chart-2', '#7a5ad2'),
+      cssVar('--chart-3', '#a690e4'), cssVar('--chart-4', '#2f7ae5'),
+      cssVar('--chart-5', '#1f7a6e'), cssVar('--chart-6', '#5b6472'), '#3d2496']
       .map(function (c) { return window.am5.color(c); });
   }
 

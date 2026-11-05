@@ -134,9 +134,9 @@
 .iso--warm .iso__t { fill: #fde9d9; } .iso--warm .iso__l { fill: #f8b98a; } .iso--warm .iso__r { fill: #e2894c; }
 .ast-iso__tape { fill: none; stroke: #fff; stroke-opacity: .7; stroke-width: 2.4; }
 .ast-iso__bar { fill: #ffffff; opacity: .55; }
-.ast-iso__bar.is-hi { fill: var(--priority-high); opacity: 1; }
+.ast-iso__bar.is-hi { fill: var(--chart-4); opacity: 1; }
 .ast-iso__spark { fill: var(--brand-solid); opacity: .75; }
-.ast-iso__dot { fill: var(--priority-high); opacity: .7; }
+.ast-iso__dot { fill: var(--chart-4); opacity: .7; }
 
 .ast-hero__n { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
 .ast-hero__n b { font-family: var(--font-flex); font-size: clamp(44px, 4.4vw, 60px); line-height: 1; font-weight: 420; letter-spacing: -.03em; color: var(--text-primary); font-variant-numeric: tabular-nums; }

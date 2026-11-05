@@ -61,7 +61,9 @@
 /* ---------- Chart ---------- */
 .chart { position: relative; }
 .chart svg { display: block; width: 100%; height: auto; max-height: 264px; overflow: visible; }
-.chart__grid line { stroke: var(--border-subtle); stroke-width: 1; }
+/* The gridlines are a chart token, so they sit a shade back from the page's own
+   borders instead of competing with them. */
+.chart__grid line { stroke: var(--chart-grid, var(--border-subtle)); stroke-width: 1; }
 .chart__axis { font-size: 11px; fill: var(--text-muted); }
 .chart__line { fill: none; stroke: var(--brand-solid); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
 .chart__dot { fill: var(--bg-surface); stroke: var(--brand-solid); stroke-width: 1.5; }

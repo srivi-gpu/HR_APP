@@ -12,7 +12,7 @@
 .adm__glow { position: absolute; inset: -40px -10px auto; height: 460px; pointer-events: none; z-index: 0; overflow: hidden; }
 .adm__glow i { position: absolute; display: block; width: 520px; height: 472px; border-radius: 50%; filter: blur(100px); opacity: .25; }
 .adm__glow i:first-child { right: -40px; top: -140px; background: var(--brand-solid); opacity: .16; }
-.adm__glow i:last-child  { left: 28%;   top: -90px;  background: var(--priority-high); opacity: .13; }
+.adm__glow i:last-child  { left: 28%;   top: -90px;  background: var(--chart-4); opacity: .13; }
 .adm > *:not(.adm__glow) { position: relative; z-index: 1; }
 
 .adm__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }

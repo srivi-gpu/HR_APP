@@ -531,10 +531,14 @@
      The same twelve items the queue holds, grouped by the kind of work, so the card says
      at a glance what the admin owes and each slice's row opens where it is done. */
   var QUEUE_KINDS = [
+    /* These four are a queue broken down by kind, not four levels of severity, so
+       they take the chart ramp. Revoking access keeps the danger colour because it is
+       the one of the four that is genuinely urgent — somebody who has left can still
+       sign in — and the other three are work, not alarms. */
     { k: 'revoke', t: 'Revoke access', c: 'var(--danger-fg)', to: 'admin/roles/review' },
-    { k: 'mfa', t: 'Require MFA', c: 'var(--info-fg)', to: 'admin/settings' },
-    { k: 'invite', t: 'Resend invite', c: 'var(--warning-fg)', to: 'admin/users/all' },
-    { k: 'suspend', t: 'Decide suspension', c: 'var(--text-muted)', to: 'admin/users/all' }
+    { k: 'mfa', t: 'Require MFA', c: 'var(--chart-1)', to: 'admin/settings' },
+    { k: 'invite', t: 'Resend invite', c: 'var(--chart-4)', to: 'admin/users/all' },
+    { k: 'suspend', t: 'Decide suspension', c: 'var(--chart-6)', to: 'admin/users/all' }
   ];
 
   function Donut(p) {
@@ -557,9 +561,11 @@
      the request and where Tracklivo has got to with it. Stacked by that status, per
      category, so "what are people asking for, and what is cleared to issue" is one read. */
   var TL_STATUS = [
+    /* Ready, waiting and refused really are an outcome, so these three keep their
+       semantic colours. */
     { s: 'Approved', t: 'Ready to issue', c: 'var(--success-fg)' },
-    { s: 'Pending Approval', t: 'In Tracklivo', c: 'var(--brand-solid)' },
-    { s: 'Rejected', t: 'Declined', c: 'var(--border-strong)' }
+    { s: 'Pending Approval', t: 'In Tracklivo', c: 'var(--chart-1)' },
+    { s: 'Rejected', t: 'Declined', c: 'var(--chart-6)' }
   ];
   function tracklivoRows() {
     var by = {};
@@ -824,13 +830,13 @@
           h('div', { className: 'adm-gauges' },
             h(Gauge, { pct: sub.seatsUsed / sub.seats * 100, color: 'var(--brand-solid)', t: 'Seats',
               s: num(sub.seatsUsed) + ' of ' + num(sub.seats) }),
-            h(Gauge, { pct: ai.used / ai.credits * 100, color: 'var(--priority-high)', t: 'AI credits',
+            h(Gauge, { pct: ai.used / ai.credits * 100, color: 'var(--chart-4)', t: 'AI credits',
               s: num(ai.used) + ' of ' + num(ai.credits) })),
           h('span', { className: 'adm-sub' }, 'Where the credits went this month'),
           h('div', { className: 'adm-stack adm-stack--wide' }, ai.byModule.map(function (m) {
             return h('div', { className: 'adm-stack__r adm-stack__r--static', key: m.module },
               h('span', { className: 'adm-stack__l', title: m.module }, m.module),
-              h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (m.credits / aiMax * 100) + '%', background: 'var(--priority-high)' } })),
+              h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (m.credits / aiMax * 100) + '%', background: 'var(--chart-4)' } })),
               h('b', null, (m.credits / 1000).toFixed(1) + 'k'));
           })))),
 
