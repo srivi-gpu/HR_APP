@@ -22,9 +22,6 @@
   }
   var CHECK = g('M5 13l4 4L19 7', 15);
   var UP = g('M7 14l5-5 5 5', 13);
-  var USER_OK = g('M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c.5-3.6 3.2-6 6.5-6 1.3 0 2.5.4 3.5 1M15 18l2 2 4-4.5', 18);
-  var USER_OFF = g('M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c.5-3.6 3.2-6 6.5-6 1.3 0 2.5.4 3.5 1M16 16l5 5M21 16l-5 5', 18);
-  var PULSE = g('M3 12h4l2.5-6 4 12 2.5-6H21', 18);
   var KEY = g('M14.5 9.5a4 4 0 1 1-1.2-2.9M14.5 9.5L21 16v3h-3v-2h-2v-2h-2l-1.3-1.3', 18);
 
   var num = function (n) { return Number(n || 0).toLocaleString('en-IN'); };
@@ -204,10 +201,10 @@
       .sort(function (x, y) { return x.date < y.date ? -1 : 1; }).slice(0, 3);
 
     var KPIS = [
-      { ico: I.users, t: 'Total users', s: '+' + s.newJoiners + ' this month', up: true, n: users.length },
-      { ico: USER_OK, t: 'Active users', s: pct(active.length, users.length) + '% signed in this week', n: active.length },
-      { ico: USER_OFF, t: 'Inactive users', s: pct(inactive, users.length) + '% quiet for over a week', n: inactive },
-      { ico: I.mail, t: 'Pending invitations', s: 'Awaiting activation', warn: pending.length > 0, n: pending.length }
+      { t: 'Total users', s: '+' + s.newJoiners + ' this month', up: true, n: users.length },
+      { t: 'Active users', s: pct(active.length, users.length) + '% signed in this week', n: active.length },
+      { t: 'Inactive users', s: pct(inactive, users.length) + '% quiet for over a week', n: inactive },
+      { t: 'Pending invitations', s: 'Awaiting activation', warn: pending.length > 0, n: pending.length }
     ];
 
     return h('div', { className: 'adm' },
@@ -228,7 +225,6 @@
         h('div', { className: 'adm-kpis' }, KPIS.map(function (k) {
           return h('div', { className: 'adm-kpi', key: k.t },
             h('div', { className: 'adm-kpi__t' },
-              h('span', { className: 'adm-ico' }, k.ico),
               h('span', { className: 'adm-kpi__l' }, h('strong', null, k.t),
                 h('span', { className: k.up ? 'admb-up' : k.warn ? 'admb-warn' : null }, k.up ? UP : null, k.s))),
             h('span', { className: 'adm-kpi__n' }, num(k.n)));

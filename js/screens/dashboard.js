@@ -49,17 +49,20 @@
   }
   var ROLE_NAME = { admin: 'Organization Admin', hr: 'HR Administrator', manager: 'Manager', me: 'Employee' };
 
-  /* ---------- the four KPIs ---------- */
+  /* ---------- the four KPIs ----------
+     Each names the action it is about, so the arrow on the card opens the same modal
+     Ara's own suggestions open. A KPI whose action has nothing left to do shows no
+     arrow rather than an arrow that leads to an empty list. */
   function kpis(s, users) {
     var running = store.collection('onboarding').filter(function (o) { return o.stage !== 'Completed'; }).length;
     var sub = seed.subscription;
     return [
-      { ico: CHECK, t: 'Active accounts', s: 'Of ' + num(users.length) + ' on the directory',
+      { k: 'quiet', t: 'Active accounts', s: 'Of ' + num(users.length) + ' on the directory',
         n: users.filter(function (u) { return u.status === 'Active'; }).length },
-      { ico: XMARK, t: 'Without MFA', s: 'Password-only sign-in',
+      { k: 'nudge', t: 'Without MFA', s: 'Password-only sign-in',
         n: users.filter(function (u) { return !u.mfa; }).length },
-      { ico: I.gear, t: 'Open onboarding tasks', s: 'Across ' + running + ' people joining', n: s.pendingOnboardingTasks },
-      { ico: WIFI, t: 'Seats in use', s: 'Of ' + sub.seats + ' on ' + sub.plan,
+      { k: 'onboarding', t: 'Open onboarding tasks', s: 'Across ' + running + ' people joining', n: s.pendingOnboardingTasks },
+      { k: 'leaving', t: 'Seats in use', s: 'Of ' + sub.seats + ' on ' + sub.plan,
         n: Math.round(sub.seatsUsed / sub.seats * 100), unit: '%' }
     ];
   }
@@ -102,106 +105,197 @@
      with. Requiring MFA does not enrol anyone: the KPI for accounts without MFA still
      counts them until they set it up, because that is still true. */
   function suggestions(users, buckets, queue) {
-    var out = [], today = seed.todayIso;
+    var out = [], today = seed.todayIso, act = HRMS.actions;
     var priv = privileged(users);
     var privNoMfa = priv.filter(function (u) { return !u.mfa && !u.mfaRequired; });
-    var managersNoMfa = users.filter(function (u) { return u.role === 'manager' && !u.mfa && !u.mfaRequired; });
-    var noMfa = users.filter(function (u) { return !u.mfa; });
+    var noMfa = users.filter(function (u) { return !u.mfa && !u.mfaNudgedOn; });
     var never = users.filter(function (u) { return !u.lastSignIn && u.resentOn !== today; });
     var quiet = users.filter(function (u) {
       return u.lastSignIn && daysBetween(u.lastSignIn, today) > 7 && !u.remindedOn;
     });
     var leaving = queue.filter(function (r) { return r.kind === 'revoke' && !r.scheduled; });
-    var sub = seed.subscription;
+
+    /* Open onboarding tasks, gathered by who owns them: one nudge per owner, not one
+       per task, because a person with six of them wants one message about six. */
+    var owners = {};
+    store.collection('onboarding').forEach(function (o) {
+      if (o.stage === 'Completed' || o.nudgedOn === today) return;
+      (o.tasks || []).filter(function (t) { return !t.done; }).forEach(function (t) {
+        var e = owners[t.assignee] || (owners[t.assignee] = { id: t.assignee, n: 0, who: {} });
+        e.n++; e.who[o.employee] = true;
+      });
+    });
+    var ownerRows = Object.keys(owners).map(function (id) { return owners[id]; })
+      .sort(function (x, y) { return y.n - x.n; });
+    var openTasks = ownerRows.reduce(function (n, r) { return n + r.n; }, 0);
 
     function userTargets(list, sub) {
-      return list.map(function (u) { return { id: u.id, t: nameOf(u.employee), s: sub(u) }; });
+      return list.map(function (u) { return { id: u.id, emp: u.employee, t: nameOf(u.employee), s: sub(u) }; });
     }
     function setUsers(field, value) {
       return function (ids) { ids.forEach(function (id) { var o = {}; o[field] = value; store.setOverride('users', id, o); }); };
     }
+    /* The people behind the chosen rows, for the notification each action sends. */
+    function empsOf(targets, ids) {
+      return targets.filter(function (t) { return ids.indexOf(t.id) > -1; })
+        .map(function (t) { return t.emp; }).filter(Boolean);
+    }
 
-    if (privNoMfa.length) out.push({
-      k: 'priv', bucket: null, icon: I.shield, tone: 'bad', impact: 'High impact',
-      t: 'Require MFA for the ' + plural(privNoMfa.length, 'privileged account') + ' without it',
-      s: privNoMfa.length + ' of the ' + priv.length + ' people with admin or HR rights sign in with a password alone. ' +
-        'Requiring it for those two roles first protects the accounts that can change everyone else’s, without ' +
-        'asking all ' + num(users.length) + ' people to set it up on the same day.',
-      targets: userTargets(privNoMfa, function (u) { return ROLE_NAME[u.role]; }),
-      verb: function (n) { return 'Require MFA for ' + plural(n, 'account'); },
-      run: setUsers('mfaRequired', true), undo: setUsers('mfaRequired', false),
-      done: function (n) { return 'MFA is now required for ' + plural(n, 'account') + '. Each will be asked to set it up at their next sign-in.'; },
-      log: function (n) { return 'required MFA for ' + plural(n, 'privileged account'); }, cat: 'Security',
-      a: 'Open security settings', to: 'admin/settings'
-    });
-    if (never.length) out.push({
-      k: 'never', bucket: 'never', icon: I.mail, tone: 'warn', impact: 'Blocking',
-      t: plural(never.length, 'invitation') + ' never accepted',
-      s: 'These accounts were invited and have never signed in. ' +
-        never.map(function (u) { return nameOf(u.employee); }).join(' and ') +
-        (never.length === 1 ? ' was' : ' were') + ' invited on ' + ui.dateLabel(never[0].invitedOn) +
-        ' and ' + (never.length === 1 ? 'is' : 'are') + ' already past their start date, so the invite has probably gone to spam.',
-      targets: userTargets(never, function (u) { return 'Invited ' + ui.dateLabel(u.invitedOn); }),
-      verb: function (n) { return 'Resend ' + plural(n, 'invitation'); },
-      run: setUsers('resentOn', today), undo: setUsers('resentOn', null),
-      done: function (n) { return plural(n, 'invitation') + ' resent today, from the same sender address.'; },
-      log: function (n) { return 'resent ' + plural(n, 'invitation'); }, cat: 'User activity',
-      a: 'Open users', to: 'admin/users/all'
-    });
-    if (leaving.length) out.push({
-      k: 'leaving', bucket: null, icon: I.logout, tone: 'warn', impact: 'Time-bound',
-      t: 'Schedule access removal for ' + plural(leaving.length, 'leaver'),
-      s: 'Every one of them is on notice with their access still open. Scheduling the revocation for each last ' +
-        'working day now means nobody has to remember to do it on the day — the earliest is ' +
-        ui.dateLabel(leaving[0].due) + '.',
-      targets: leaving.map(function (r) { return { id: r.id, t: r.who, s: 'Last day ' + ui.dateLabel(r.due), due: r.due }; }),
-      verb: function (n) { return 'Schedule removal for ' + plural(n, 'leaver'); },
-      run: function (ids) {
-        ids.forEach(function (id) { var o = store.find('offboarding', id); if (o) store.setOverride('offboarding', id, { revokeScheduled: o.lastWorkingDay }); });
-      },
-      undo: function (ids) { ids.forEach(function (id) { store.setOverride('offboarding', id, { revokeScheduled: null }); }); },
-      done: function (n) { return 'Access for ' + plural(n, 'leaver') + ' will close at the end of each last working day.'; },
-      log: function (n) { return 'scheduled access removal for ' + plural(n, 'leaver'); }, cat: 'Security',
-      a: 'Open access review', to: 'admin/roles/review'
-    });
-    if (quiet.length) out.push({
-      k: 'quiet', bucket: 'month', icon: I.clock, tone: 'info', impact: 'Worth a look',
-      t: plural(quiet.length, 'account') + ' quiet for over a week',
-      s: 'Nobody here has signed in for eight days or more. Most will be leave or travel, which is why this is a ' +
-        'reminder rather than a suspension — but an account nobody is using is also one nobody would notice being used.',
-      targets: userTargets(quiet, function (u) { return daysBetween(u.lastSignIn, today) + ' days since sign-in'; }),
-      verb: function (n) { return 'Send ' + plural(n, 'sign-in reminder'); },
-      run: setUsers('remindedOn', today), undo: setUsers('remindedOn', null),
-      done: function (n) { return plural(n, 'reminder') + ' sent. Anyone still quiet in a week shows up in access review.'; },
-      log: function (n) { return 'sent ' + plural(n, 'sign-in reminder'); }, cat: 'User activity',
-      a: 'Open access review', to: 'admin/roles/review'
-    });
-    if (managersNoMfa.length) out.push({
-      k: 'mfa', bucket: null, icon: KEY, tone: 'info', impact: 'Next step',
-      t: 'Next, require MFA for the ' + plural(managersNoMfa.length, 'manager') + ' without it',
-      s: Math.round(noMfa.length / users.length * 100) + '% of the directory signs in without a second factor. ' +
-        'Managers approve leave, expenses and attendance, so they are the next group after admin and HR; a group ' +
-        'at a time keeps the helpdesk queue manageable.',
-      targets: userTargets(managersNoMfa, function (u) { return deptOf(u.employee); }),
-      verb: function (n) { return 'Require MFA for ' + plural(n, 'manager'); },
-      run: setUsers('mfaRequired', true), undo: setUsers('mfaRequired', false),
-      done: function (n) { return 'MFA is now required for ' + plural(n, 'manager') + '.'; },
-      log: function (n) { return 'required MFA for ' + plural(n, 'manager'); }, cat: 'Security',
-      a: 'Open security settings', to: 'admin/settings'
-    });
-    if (!store.pref('renewalReminder')) out.push({
-      k: 'seats', bucket: null, icon: WIFI, tone: 'info', impact: 'Plan',
-      t: (sub.seats - sub.seatsUsed) + ' seats free before the ' + sub.renewsLabel + ' renewal',
-      s: sub.seatsUsed + ' of ' + sub.seats + ' seats are in use. With ' + plural(queue.filter(function (r) { return r.kind === 'revoke'; }).length, 'leaver') +
-        ' on notice, the renewal is the moment to decide whether ' + sub.seats + ' is still the right number.',
-      targets: [],
-      verb: function () { return 'Remind me a week before renewal'; },
-      run: function () { store.setPref('renewalReminder', sub.renews); },
-      undo: function () { store.setPref('renewalReminder', null); },
-      done: function () { return 'Ara will remind you on ' + ui.dateLabel(seed.util ? seed.util.iso(seed.util.addDays(new Date(sub.renews + 'T00:00'), -7)) : sub.renews) + ', a week before the plan renews.'; },
-      log: function () { return 'set a reminder before the ' + sub.renewsLabel + ' renewal'; }, cat: 'Configuration',
-      a: 'Open billing', to: 'admin/billing/billing'
-    });
+    if (privNoMfa.length) {
+      var privT = userTargets(privNoMfa, function (u) { return ROLE_NAME[u.role]; });
+      out.push({
+        k: 'priv', bucket: null, icon: I.shield, tone: 'bad', impact: 'High impact',
+        t: 'Require MFA for the ' + plural(privNoMfa.length, 'privileged account') + ' without it',
+        s: privNoMfa.length + ' of the ' + priv.length + ' people with admin or HR rights sign in with a password alone. ' +
+          'Requiring it for those two roles first protects the accounts that can change everyone else’s, without ' +
+          'asking all ' + num(users.length) + ' people to set it up on the same day.',
+        targets: privT,
+        verb: function (n) { return 'Require MFA for ' + plural(n, 'account'); },
+        run: function (ids) {
+          setUsers('mfaRequired', true)(ids);
+          act.notifyEach(empsOf(privT, ids), function () {
+            return { kind: 'Security', roles: ['me', 'hr', 'admin'], route: 'me/profile',
+              title: 'Set up two-factor sign-in', body: 'Your role can change other people’s accounts, so MFA is now required on it.' };
+          });
+        },
+        undo: setUsers('mfaRequired', false),
+        done: function (n) { return 'MFA is now required for ' + plural(n, 'account') + ', and each person has been told.'; },
+        log: function (n) { return 'required MFA for ' + plural(n, 'privileged account'); }, cat: 'Security',
+        a: 'Open security settings', to: 'admin/settings'
+      });
+    }
+    if (never.length) {
+      var nvT = userTargets(never, function (u) { return 'Invited ' + ui.dateLabel(u.invitedOn); });
+      out.push({
+        k: 'never', bucket: 'never', icon: I.mail, tone: 'warn', impact: 'Blocking',
+        t: plural(never.length, 'invitation') + ' never accepted',
+        s: 'These accounts were invited and have never signed in. ' +
+          never.map(function (u) { return nameOf(u.employee); }).join(' and ') +
+          (never.length === 1 ? ' was' : ' were') + ' invited on ' + ui.dateLabel(never[0].invitedOn) +
+          ' and ' + (never.length === 1 ? 'is' : 'are') + ' already past their start date, so the invite has probably gone to spam.',
+        targets: nvT,
+        verb: function (n) { return 'Resend ' + plural(n, 'invitation'); },
+        run: function (ids) {
+          setUsers('resentOn', today)(ids);
+          act.notifyEach(empsOf(nvT, ids), function () {
+            return { kind: 'Invitation', roles: ['me'], route: 'me/dashboard',
+              title: 'Your invitation has been resent', body: 'Activate your account to pick up your onboarding tasks.' };
+          });
+        },
+        undo: setUsers('resentOn', null),
+        done: function (n) { return plural(n, 'invitation') + ' resent, from the same sender address.'; },
+        log: function (n) { return 'resent ' + plural(n, 'invitation'); }, cat: 'User activity',
+        a: 'Open users', to: 'admin/users/all'
+      });
+    }
+    if (leaving.length) {
+      out.push({
+        k: 'leaving', bucket: null, icon: I.logout, tone: 'warn', impact: 'Frees seats',
+        t: 'Close access for ' + plural(leaving.length, 'leaver') + ' on their last day',
+        s: 'Every one of them is on notice with their access still open. Scheduling it now means nobody has to ' +
+          'remember on the day — the earliest is ' + ui.dateLabel(leaving[0].due) + ' — and each seat returns ' +
+          'to the plan as they go.',
+        targets: leaving.map(function (r) { return { id: r.id, emp: r.emp, t: r.who, s: 'Last day ' + ui.dateLabel(r.due) }; }),
+        verb: function (n) { return 'Schedule ' + plural(n, 'account') + ' to close'; },
+        run: function (ids) {
+          ids.forEach(function (id) {
+            var o = store.find('offboarding', id);
+            if (o) {
+              store.setOverride('offboarding', id, { revokeScheduled: o.lastWorkingDay });
+              act.notify({ to: o.employee, kind: 'Offboarding', roles: ['me'], route: 'me/exit/formalities',
+                title: 'Your access closes on your last working day',
+                body: 'Save anything personal before ' + ui.dateLabel(o.lastWorkingDay) + '.' });
+            }
+          });
+        },
+        undo: function (ids) { ids.forEach(function (id) { store.setOverride('offboarding', id, { revokeScheduled: null }); }); },
+        done: function (n) { return plural(n, 'account') + ' will close at the end of each last working day, freeing ' +
+          plural(n, 'seat') + ' on the plan.'; },
+        log: function (n) { return 'scheduled access removal for ' + plural(n, 'leaver'); }, cat: 'Security',
+        a: 'Open access review', to: 'admin/roles/review'
+      });
+    }
+    if (noMfa.length) {
+      var ndT = userTargets(noMfa, function (u) { return ROLE_NAME[u.role] + ' · ' + deptOf(u.employee); });
+      out.push({
+        k: 'nudge', bucket: null, icon: KEY, tone: 'info', impact: 'Reaches people',
+        t: 'Nudge the ' + plural(noMfa.length, 'account') + ' still signing in on a password',
+        s: Math.round(noMfa.length / (users.length || 1) * 100) + '% of the directory has no second factor. A nudge puts ' +
+          'the setup link in front of each of them without forcing anyone out of their session — the people who act ' +
+          'on it are the ones you no longer have to require it of.',
+        targets: ndT,
+        verb: function (n) { return 'Send ' + plural(n, 'nudge'); },
+        run: function (ids) {
+          setUsers('mfaNudgedOn', today)(ids);
+          act.notifyEach(empsOf(ndT, ids), function () {
+            return { kind: 'Security', roles: ['me', 'hr', 'admin'], route: 'me/profile',
+              title: 'Add two-factor sign-in to your account', body: 'It takes a minute and protects your pay and personal details.' };
+          });
+        },
+        undo: setUsers('mfaNudgedOn', null),
+        done: function (n) { return plural(n, 'nudge') + ' sent. Each lands in their notifications with the setup link.'; },
+        log: function (n) { return 'sent ' + plural(n, 'MFA nudge'); }, cat: 'Security',
+        a: 'Open security settings', to: 'admin/settings'
+      });
+    }
+    if (ownerRows.length) {
+      out.push({
+        k: 'onboarding', bucket: null, icon: I.checklist, tone: 'info', impact: 'Unblocks joiners',
+        t: 'Nudge the owners of ' + plural(openTasks, 'open onboarding task'),
+        s: plural(openTasks, 'task') + ' across ' + plural(store.collection('onboarding').filter(function (o) { return o.stage !== 'Completed'; }).length, 'joiner') +
+          ' are still open, and every one of them is somebody’s to do. A nudge tells each owner what is theirs and ' +
+          'whose first week it is holding up.',
+        targets: ownerRows.map(function (r) {
+          return { id: r.id, emp: r.id, t: nameOf(r.id),
+            s: plural(r.n, 'task') + ' · ' + plural(Object.keys(r.who).length, 'joiner') };
+        }),
+        verb: function (n) { return 'Nudge ' + plural(n, 'owner'); },
+        run: function (ids) {
+          store.collection('onboarding').forEach(function (o) {
+            if (o.stage === 'Completed') return;
+            var mine = (o.tasks || []).filter(function (t) { return !t.done && ids.indexOf(t.assignee) > -1; });
+            if (mine.length) store.setOverride('onboarding', o.id, { nudgedOn: today });
+          });
+          ids.forEach(function (id) {
+            var r = owners[id];
+            if (!r) return;
+            act.notify({ to: id, kind: 'Onboarding Reminder', roles: ['me', 'hr', 'admin'], route: 'hr/onboarding/tasks',
+              title: plural(r.n, 'onboarding task') + ' waiting on you',
+              body: 'Across ' + plural(Object.keys(r.who).length, 'joiner') + ' who have already started.' });
+          });
+        },
+        undo: function () {
+          store.collection('onboarding').forEach(function (o) {
+            if (o.nudgedOn === today) store.setOverride('onboarding', o.id, { nudgedOn: null });
+          });
+        },
+        done: function (n) { return plural(n, 'owner') + ' told what is theirs, with the joiners it is holding up.'; },
+        log: function (n) { return 'nudged ' + plural(n, 'onboarding task owner'); }, cat: 'User activity',
+        a: 'Open onboarding', to: 'hr/onboarding/dashboard'
+      });
+    }
+    if (quiet.length) {
+      var qT = userTargets(quiet, function (u) { return daysBetween(u.lastSignIn, today) + ' days since sign-in'; });
+      out.push({
+        k: 'quiet', bucket: 'month', icon: I.clock, tone: 'info', impact: 'Worth a look',
+        t: plural(quiet.length, 'account') + ' quiet for over a week',
+        s: 'Nobody here has signed in for eight days or more. Most will be leave or travel, which is why this is a ' +
+          'reminder rather than a suspension — but an account nobody is using is also one nobody would notice being used.',
+        targets: qT,
+        verb: function (n) { return 'Send ' + plural(n, 'sign-in reminder'); },
+        run: function (ids) {
+          setUsers('remindedOn', today)(ids);
+          act.notifyEach(empsOf(qT, ids), function () {
+            return { kind: 'Security', roles: ['me', 'hr', 'admin'], route: 'me/dashboard',
+              title: 'We have not seen you in a while', body: 'Sign in when you are back so your account stays active.' };
+          });
+        },
+        undo: setUsers('remindedOn', null),
+        done: function (n) { return plural(n, 'reminder') + ' sent. Anyone still quiet in a week shows up in access review.'; },
+        log: function (n) { return 'sent ' + plural(n, 'sign-in reminder'); }, cat: 'User activity',
+        a: 'Open access review', to: 'admin/roles/review'
+      });
+    }
     var gone = store.pref('araDismissed') || [];
     return out.filter(function (x) { return gone.indexOf(x.k) < 0; });
   }
@@ -259,7 +353,12 @@
     var x = p.item;
     var pickSt = React.useState(x.targets.map(function (t) { return t.id; }));
     var doneSt = React.useState(null);
+    var allSt = React.useState(false);
     var picked = pickSt[0];
+    /* A rule can reach a hundred and fifty people. Show a handful, and open the rest
+       on request: a wall of checkboxes is not a review, it is a scroll. */
+    var CAP = 8;
+    var shown = allSt[0] ? x.targets : x.targets.slice(0, CAP);
     var n = x.targets.length ? picked.length : 1;
 
     function toggle(id) {
@@ -318,14 +417,17 @@
           h('button', { type: 'button', className: 'dash__link',
             onClick: function () { pickSt[1](picked.length === x.targets.length ? [] : x.targets.map(function (t) { return t.id; })); } },
             picked.length === x.targets.length ? 'Clear all' : 'Select all')),
-        h('div', { className: 'ara-pick__list' }, x.targets.map(function (t) {
+        h('div', { className: 'ara-pick__list' }, shown.map(function (t) {
           var on = picked.indexOf(t.id) > -1;
           return h('label', { className: 'ara-pick__r' + (on ? ' is-on' : ''), key: t.id },
             h('input', { type: 'checkbox', checked: on, onChange: function () { toggle(t.id); } }),
             h(V.Avatar, { name: t.t, size: 'xs' }),
             h('span', { className: 'grow' }, t.t),
             h('small', null, t.s));
-        }))) : null);
+        })),
+        x.targets.length > CAP ? h('button', { type: 'button', className: 'ara-pick__more',
+          onClick: function () { allSt[1](!allSt[0]); } },
+          allSt[0] ? 'Show the first ' + CAP : 'Show all ' + num(x.targets.length)) : null) : null);
   }
 
   /* All of them at once, in the order they matter, each a step from being done. */
@@ -361,7 +463,7 @@
       var t = (o.tasks || []).filter(function (x) { return x.name === 'Access revocation'; })[0];
       if (t && t.done) return;
       var d = daysBetween(today, o.lastWorkingDay);
-      rows.push({ id: o.id, who: nameOf(o.employee), dept: deptOf(o.employee), kind: 'revoke', due: o.lastWorkingDay,
+      rows.push({ id: o.id, emp: o.employee, who: nameOf(o.employee), dept: deptOf(o.employee), kind: 'revoke', due: o.lastWorkingDay,
         when: 'Last day ' + ui.dateLabel(o.lastWorkingDay), scheduled: !!o.revokeScheduled,
         status: o.revokeScheduled ? 'Scheduled' : d < 0 ? 'Overdue' : d <= 30 ? 'Due soon' : 'Scheduled', to: 'admin/roles/review' });
     });
@@ -490,22 +592,24 @@
     var tlReady = store.collection('assetRequests').filter(function (r) { return r.status === 'Approved'; }).length;
     var tlConn = (seed.integrations.filter(function (x) { return x.name === 'Tracklivo'; })[0] || {}).connectedOn;
     var sugg = suggestions(users, buckets, queue);
-    var flags = {};
-    sugg.forEach(function (x) { if (x.bucket) flags[x.bucket] = x; });
+    var flags = {}, byKey = {};
+    sugg.forEach(function (x) { if (x.bucket) flags[x.bucket] = x; byKey[x.k] = x; });
+    var top = sugg[0] || null;
     var active7 = buckets[0].n + buckets[1].n;
 
     var integrations = seed.integrations;
     var offline = integrations.filter(function (x) { return x.status !== 'Connected'; });
+    /* Newest first, each with the tone its dot takes on the timeline. */
     var alerts = offline.map(function (x) {
-      return { icon: I.plug, t: x.name + ' not connected', s: x.summary ? x.summary.split('. ')[0] + '.' : x.kind,
-        src: x.provider, tgt: x.kind, at: 'Today', to: 'admin/integrations' };
+      return { tone: 'warn', t: x.name + ' not connected', s: x.summary ? x.summary.replace(/\.\s[\s\S]*$/, '.') : x.kind,
+        at: 'Today', to: 'admin/integrations' };
     }).concat([
-      { icon: I.person, t: plural(s.invited, 'invitation') + ' unaccepted', s: 'Past the start date and never signed in. Resend or revoke them.',
-        src: 'User management', tgt: plural(s.invited, 'account'), at: '11:04', to: 'admin/users/all' },
-      { icon: I.shield, t: 'Single sign-on not configured', s: 'Everyone signs in with an email and a password only.',
-        src: 'Authentication', tgt: 'All ' + num(users.length) + ' users', at: '09:51', to: 'admin/settings' },
-      { icon: I.database, t: 'Nightly backup completed', s: 'No errors reported.',
-        src: 'Core platform', tgt: 'Object store', at: '04:00', to: 'admin/settings' }
+      { tone: 'warn', t: plural(s.invited, 'invitation') + ' unaccepted', s: 'Past the start date and never signed in.',
+        at: '11:04', to: 'admin/users/all' },
+      { tone: 'bad', t: 'Single sign-on not configured', s: 'Everyone signs in with an email and a password only.',
+        at: '09:51', to: 'admin/settings' },
+      { tone: 'good', t: 'Nightly backup completed', s: 'No errors reported \u00b7 core platform to object store.',
+        at: '04:00', to: 'admin/settings' }
     ]);
 
     return h('div', { className: 'adm' },
@@ -521,15 +625,29 @@
             h('span', null, 'Read on ' + seed.todayLabel),
             h('i', null),
             h('span', null, me ? 'Signed in as ' + me.name : 'Administrator'))),
-        p.switcher),
+        /* Ara sits at the head, before the option switcher: one small button for every
+           suggestion on the page, wherever its subject appears below. */
+        h('div', { className: 'adm__tools' },
+          sugg.length ? h('button', {
+            type: 'button', className: 'adm-ara', onClick: function () { allSt[1](true); },
+            title: plural(sugg.length, 'suggestion') + ' from Ara',
+            'aria-label': 'Ara has ' + plural(sugg.length, 'suggestion')
+          }, ARA, h('span', { className: 'adm-ara__n' }, sugg.length)) : null,
+          p.switcher)),
 
       /* Four numbers on one card, divided by rules. */
       h('section', { className: 'adm-card', style: { padding: 0 }, 'aria-label': 'Key figures' },
         h('div', { className: 'adm-kpis' }, kpis(s, users).map(function (k) {
+          var action = byKey[k.k];
           return h('div', { className: 'adm-kpi', key: k.t },
             h('div', { className: 'adm-kpi__t' },
-              h('span', { className: 'adm-ico' }, k.ico),
-              h('span', { className: 'adm-kpi__l' }, h('strong', null, k.t), h('span', null, k.s))),
+              h('span', { className: 'adm-kpi__l' }, h('strong', null, k.t), h('span', null, k.s)),
+              /* The arrow is the way from the figure to the thing to do about it. */
+              action ? h('button', {
+                type: 'button', className: 'adm-kpi__go', onClick: function () { openSt[1](action); },
+                title: action.verb(action.targets.length || 1),
+                'aria-label': action.verb(action.targets.length || 1)
+              }, I.right) : null),
             h('span', { className: 'adm-kpi__n' }, num(k.n), k.unit ? h('small', null, k.unit) : null));
         }))),
 
@@ -591,20 +709,21 @@
               h('h2', null, 'Sign-in activity'),
               h('p', null, h('b', { className: 'adm-inl' }, num(active7)), ' signed in this week \u00b7 ',
                 h('b', { className: 'adm-inl' }, Math.round(active7 / (users.length || 1) * 100) + '%'), ' of the directory')),
-            h('button', { type: 'button', className: 'adm-sug', onClick: function () { allSt[1](true); } },
-              ARA, 'Ara suggests', h('span', { className: 'adm-sug__n' }, sugg.length))),
+            null),
           h(SigninChart, { buckets: buckets, flags: flags, onOpen: function (f) { openSt[1](f); } }),
-          /* The top two, inline, so the card says what to do as well as what is true.
-             The rest are one click away in the modal the head button opens. */
-          h('div', { className: 'adm-tips' }, sugg.slice(0, 2).map(function (x) {
-            return h('button', { key: x.k, type: 'button', className: 'adm-tip ' + TONE_CLASS[x.tone],
-              onClick: function () { openSt[1](x); } },
-              h('span', { className: 'adm-tip__i' }, x.icon),
-              h('span', { className: 'adm-tip__m' },
-                h('small', null, 'Ara suggests'),
-                h('strong', null, x.t)),
-              I.right);
-          })))),
+          /* One suggestion under the chart, the most pressing. The rest are behind Ara
+             at the head of the page: a card should carry a line about itself, not a
+             stack of everything Ara has noticed. */
+          top ? h('div', { className: 'adm-tip' },
+            h('span', { className: 'adm-tip__i' }, ARA),
+            h('span', { className: 'adm-tip__m' },
+              h('strong', null, top.t),
+              h('span', null, top.s.split('. ')[0] + '.')),
+            h('button', { type: 'button', className: 'adm-tip__go', onClick: function () { openSt[1](top); } },
+              top.verb(top.targets.length || 1)),
+            h('button', { type: 'button', className: 'adm-tip__x', 'aria-label': 'Dismiss this suggestion',
+              onClick: function () { store.setPref('araDismissed', (store.pref('araDismissed') || []).concat([top.k])); } },
+              I.close)) : null)),
 
       h('div', { className: 'adm-low' },
         /* The access work queued against the admin, by kind. */
@@ -659,15 +778,14 @@
               h('h2', null, 'Alerts'),
               h('p', null, 'Raised by the platform today')),
             h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/audit/security'); } }, 'All', I.right)),
-          h('div', { className: 'adm-alerts' }, alerts.map(function (a) {
-            return h('div', { className: 'adm-alert', key: a.t },
-              h('span', { className: 'adm-ico' }, a.icon),
-              h('div', { className: 'adm-alert__m' },
-                h('strong', { className: 'adm-alert__h', title: a.t }, a.t),
-                h('span', { className: 'adm-alert__s', title: a.s }, a.s),
-                h('span', { className: 'adm-alert__kv' }, a.src, ' \u2192 ', a.tgt, ' \u00b7 ', a.at)),
-              h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + a.t,
-                onClick: function () { router.go(a.to); } }, I.right));
+          /* A minimal timeline: the time, a dot on the line, and what happened. */
+          h('ol', { className: 'adm-tl' }, alerts.map(function (a) {
+            return h('li', { className: 'adm-tl__r is-' + (a.tone || 'info'), key: a.t },
+              h('span', { className: 'adm-tl__time' }, a.at),
+              h('span', { className: 'adm-tl__dot', 'aria-hidden': 'true' }),
+              h('button', { type: 'button', className: 'adm-tl__m', onClick: function () { router.go(a.to); } },
+                h('strong', { title: a.t }, a.t),
+                h('span', { title: a.s }, a.s)));
           })))),
 
       openSt[0] ? h(SuggestionModal, { key: openSt[0].k, item: openSt[0], onClose: function () { openSt[1](null); } }) : null,
