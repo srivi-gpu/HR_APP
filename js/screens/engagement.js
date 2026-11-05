@@ -1561,15 +1561,16 @@
 
     var modules = {};
     all.forEach(function (w) { modules[w.module] = true; });
-    var pending = store.collection('approvals').filter(function (a) { return a.status === 'Pending Approval'; });
-    var kindRows = countRows(pending, function (a) { return a.kind; });
 
     var open = openSt[0] && all.filter(function (w) { return w.id === openSt[0]; })[0];
     var kill = killSt[0] && store.find('approvalWorkflows', killSt[0]);
 
     /* The four counters that used to head this screen are gone. Three of them
        counted the table underneath them, and the fourth — the fastest escalation —
-       was a number nobody acts on. The flows themselves lead now. */
+       was a number nobody acts on. The three reference cards that used to follow it
+       went the same way: the approver kinds and the engine's behaviour are what the
+       builder already shows you while you pick them, and the live queue belongs to
+       the approval inbox, which this screen links to. The flows are the screen. */
     return h(React.Fragment, null,
       h(Grid, null,
         h(Card, { span: 12, title: 'Approval workflows',
@@ -1640,49 +1641,7 @@
               : 'Without a flow a request has nobody to go to.',
             emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
               onClick: function () { editSt[1](false); } }, 'New approval flow')
-          })),
-
-        h(Card, { span: 6, title: 'Approver kinds', description: 'What a level can resolve to (PRD 6.2).' },
-          h('div', { className: 'list' }, APPROVER_TYPES.map(function (t) {
-            var uses = all.filter(function (w) {
-              return w.stages.some(function (st) { return st.type === t.id; });
-            }).length;
-            return h('div', { className: 'list__row', key: t.id },
-              h('div', { className: 'list__main' },
-                h('span', { className: 'list__title' }, t.label),
-                h('span', { className: 'list__meta' }, t.note)),
-              h(V.Chip, { size: 'sm', shape: 'tag' }, uses + ' workflow' + (uses === 1 ? '' : 's')));
           }))),
-
-        h(Card, { span: 6, title: 'Engine behaviour', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 6.2') },
-          h(ui.KeyValue, { rows: [
-            ['Sequential', 'Each level is asked after the one before it approves'],
-            ['Parallel', 'Every approver is asked at once; all must approve'],
-            ['Escalation', 'An untouched request moves to the fallback approver'],
-            ['Rejection', 'Always carries a reason, and the requester is notified'],
-            ['Cancellation', 'Closes the whole chain, including levels not yet asked'],
-            ['Delegation', 'An approver on leave delegates to their own manager'],
-            ['History', 'Every decision is retained for audit (PRD 14)']
-          ]}),
-          h('div', { className: 'checks' },
-            [['Escalate automatically when a level goes untouched', true],
-              ['Require a reason on every rejection', true],
-              ['Notify the requester at each level', true],
-              ['Let an approver delegate while on leave', true],
-              ['Allow the final approver to edit the request before approving', false]].map(function (row) {
-              return h('div', { className: 'checks__row', key: row[0] },
-                h(V.Switch, {
-                  defaultChecked: row[1], 'aria-label': row[0],
-                  onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); }
-                }),
-                h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-            }))),
-
-        h(Card, { span: 12, title: 'Live queue by request type',
-          description: 'What these workflows currently hold in the approval inbox (PRD 6.5).' },
-          kindRows.length
-            ? h(ui.Bars, { rows: kindRows })
-            : h(ui.Empty, { icon: I.ok, title: 'Nothing waiting', body: 'Every request routed by these workflows has been actioned.' }))),
 
       editSt[0] !== null ? h(WorkflowModal, {
         workflow: editSt[0] || null, onClose: function () { editSt[1](null); }
