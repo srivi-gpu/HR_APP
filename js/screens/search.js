@@ -516,7 +516,7 @@
       } else if (e.key === 'Escape') { e.preventDefault(); p.onClose(); }
     }
 
-    return h('div', { className: 'modal__scrim', onMouseDown: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
+    return ui.portal(h('div', { className: 'modal__scrim', onMouseDown: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
       h('div', { className: 'modal palette', role: 'dialog', 'aria-label': 'Search', onKeyDown: onKey },
         h('div', { className: 'palette__field', ref: boxRef },
           h(V.SearchField, {
@@ -606,7 +606,7 @@
 
         h('div', { className: 'palette__foot muted' },
           h('span', null, q ? total + ' result' + (total === 1 ? '' : 's') : HRMS.nav.count + ' screens'),
-          h('span', null, 'Enter to open · ask a question for Ara · Esc to close'))));
+          h('span', null, 'Enter to open · ask a question for Ara · Esc to close')))));
   }
 
   HRMS.screens.register({

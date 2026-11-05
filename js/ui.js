@@ -2,7 +2,7 @@
    Nothing here knows about a specific module. */
 (function () {
   var HRMS = (window.HRMS = window.HRMS || {});
-  var React = window.React, h = React.createElement, V = window.Violet, I = window.Icons;
+  var React = window.React, ReactDOM = window.ReactDOM, h = React.createElement, V = window.Violet, I = window.Icons;
 
   /* ---------- Formatting ---------- */
   function inr(n, opts) {
@@ -482,9 +482,26 @@
     }, [onClose]);
   }
 
+  /* Every overlay is rendered into <body> rather than where it is written.
+
+     A modal is written inside the screen that opens it, which reads correctly and laid
+     out wrongly: the admin dashboard wraps its content in `.adm > :not(.adm__glow) {
+     position: relative }` to lift it above the blurred glow behind it, and that rule
+     out-specifies `.modal__scrim { position: fixed }`, so the scrim became a relatively
+     positioned block *in the page flow* and the dialog appeared below the fold instead
+     of over it. Any ancestor with a transform, a filter or containment would have done
+     the same thing, on any screen, and the next one would have been found the same way
+     — by someone scrolling to look for a dialog.
+
+     A portal ends the whole class of bug: an overlay's position in the DOM no longer
+     depends on which screen opened it. */
+  function portal(node) {
+    return ReactDOM.createPortal(node, document.body);
+  }
+
   function Modal(p) {
     useEscape(p.onClose);
-    return h('div', {
+    return portal(h('div', {
       className: 'modal__scrim',
       onMouseDown: function (e) { if (e.target === e.currentTarget) p.onClose(); }
     },
@@ -497,12 +514,12 @@
             p.description ? h('p', { className: 'muted', style: { fontSize: 13 } }, p.description) : null),
           h(V.IconButton, { icon: I.close, 'aria-label': 'Close', onClick: p.onClose })),
         el('div', { className: 'modal__body' }, p.children),
-        p.footer ? el('div', { className: 'modal__foot' }, p.footer) : null));
+        p.footer ? el('div', { className: 'modal__foot' }, p.footer) : null)));
   }
 
   function Drawer(p) {
     useEscape(p.onClose);
-    return h('div', {
+    return portal(h('div', {
       className: 'drawer__scrim',
       onMouseDown: function (e) { if (e.target === e.currentTarget) p.onClose(); }
     },
@@ -514,7 +531,7 @@
             p.description ? h('p', { className: 'muted', style: { fontSize: 13 } }, p.description) : null),
           h(V.IconButton, { icon: I.close, 'aria-label': 'Close', onClick: p.onClose })),
         el('div', { className: 'drawer__body' }, p.children),
-        p.footer ? el('div', { className: 'drawer__foot' }, p.footer) : null));
+        p.footer ? el('div', { className: 'drawer__foot' }, p.footer) : null)));
   }
 
   function Confirm(p) {
@@ -716,7 +733,7 @@
     PageHead: PageHead, Card: Card, Grid: Grid, Stat: Stat, Stats: Stats, KeyValue: KeyValue,
     Person: Person, StatusChip: StatusChip, Empty: Empty, Stub: Stub, ModuleTabs: ModuleTabs,
     DataTable: DataTable, Bars: Bars, Timeline: Timeline,
-    Modal: Modal, Drawer: Drawer, Confirm: Confirm,
+    Modal: Modal, Drawer: Drawer, Confirm: Confirm, portal: portal,
     useForm: useForm, FieldRow: FieldRow, FormSection: FormSection,
     EmployeePicker: EmployeePicker, Filter: Filter, Nudge: Nudge,
     toast: toast, report: report, ToastHost: ToastHost

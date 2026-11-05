@@ -129,7 +129,7 @@
   function TeamAction(p) {
     var cfg = ACTIONS[p.kind]; if (!cfg) return null;
     var vSt = useState({});
-    return h('div', { className: 'modal__scrim', onClick: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
+    return ui.portal(h('div', { className: 'modal__scrim', onClick: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
       h('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': cfg.t, style: { width: 'min(520px, 100%)' } },
         h('div', { className: 'modal__head' },
           h('h2', { style: { fontFamily: 'var(--font-flex)', fontSize: 20, fontWeight: 600 } }, cfg.t),
@@ -148,7 +148,7 @@
           h(V.Button, { onClick: function () {
             var first = Object.keys(vSt[0]).map(function (k) { return vSt[0][k]; }).filter(Boolean)[0];
             p.onDone(cfg.t + (first ? ' · ' + first : '') + ' — saved in the prototype.');
-          } }, cfg.ok))));
+          } }, cfg.ok)))));
   }
 
   /* ---------- Org tree + teams ----------
