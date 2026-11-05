@@ -399,9 +399,6 @@
 
     { path: 'exit', label: 'Offboarding', icon: 'logout', section: '4.49', tabs: [
       { path: 'resignation', label: 'Resignation', section: '4.49', note: 'Submit a resignation with proposed last working day and reason.' },
-      { path: 'notice', label: 'Notice period', section: '4.50', note: 'Your notice period, approved last working day and what remains.' },
-      { path: 'handover', label: 'Knowledge transfer', section: '4.50', note: 'Handover tasks assigned to you.' },
-      { path: 'assets', label: 'Asset return', section: '4.32', note: 'Assets to return, and what has been verified.' },
       { path: 'formalities', label: 'Exit formalities', section: '4.50', note: 'Exit interview, final settlement and exit documents.' }
     ]}
   ];

@@ -399,7 +399,7 @@
             { key: 'admin', header: 'Admin', cell: function (m) { return levelChip('admin', m); } },
             { key: 'hr', header: 'HR', cell: function (m) { return levelChip('hr', m); } },
             { key: 'me', header: 'Employee', cell: function (m) { return levelChip('me', m); } },
-            { key: 'confidential', header: 'Confidential', align: 'center',
+            { key: 'confidential', header: 'Confidential',
               cell: function (m) { return m.confidential ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', icon: I.lock }, 'Restricted') : ''; } }
           ],
           rows: perms.matrix

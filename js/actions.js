@@ -520,11 +520,15 @@
     var errors = rules.required([{ key: 'name', label: 'Designation name' }, { key: 'code', label: 'Designation code' }], form);
     var dup = rules.uniqueIn('designations', 'code', form.code, null, 'Designation code ' + form.code);
     if (dup && !errors.code) errors.code = dup;
-    if (!form.level) errors.level = 'Job level is required';
     if (rules.hasErrors(errors)) return fail(errors);
     store.add('designations', {
       id: 'des-' + form.code.toLowerCase(), code: form.code.toUpperCase(), name: form.name,
-      level: Number(form.level), reportsTo: form.reportsTo || null,
+      /* A designation is a name and a code. The job level and the reporting line it
+         used to ask for are gone from the form, but the record keeps a level because
+         an employee's own level is copied from their designation: without one, every
+         screen that sorts or labels by level would be reading undefined. One is the
+         entry level, which is what a designation nobody has graded should be. */
+      level: Number(form.level) || 1, reportsTo: form.reportsTo || null,
       description: form.description || '', status: form.status || 'Active'
     });
     store.log('created the ' + form.name + ' designation', 'Configuration');
@@ -2042,9 +2046,6 @@
       lastWorkingDay: form.lastWorkingDay,
       lastWorkingDayLabel: pretty(new Date(form.lastWorkingDay + 'T00:00')),
       noticeDays: 60, reason: form.reason, comments: form.comments || '',
-      replacement: form.replacement || null,
-      /* The prototype keeps the name of what was attached, not the file. */
-      attachment: form.attachment || null,
       stage: 'Submitted', status: 'Pending Approval',
       checklist: checklist ? checklist.id : null,
       checklistName: checklist ? checklist.name : null,
