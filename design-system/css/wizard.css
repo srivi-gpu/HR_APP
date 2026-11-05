@@ -194,3 +194,28 @@
 /* An extract that was pulled rather than uploaded says so with the provider's mark
    in front of its name, so the two kinds of row cannot be confused. */
 .file__from { display: inline-grid; place-items: center; vertical-align: -2px; margin-right: 6px; }
+
+/* ---------- The joiner's own onboarding ----------
+   The same wizard shell the organisation setup uses, because it is the same kind of
+   thing: something you do on the way in rather than a place you arrive at. */
+.jn-card { display: grid; gap: 10px; padding: 16px 18px; border-radius: 16px;
+  background: var(--brand-softer); border: 1px solid var(--brand-border); }
+.jn-card__h { font-size: 11.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-brand); }
+.jn-kv { display: grid; grid-template-columns: auto 1fr; gap: 7px 18px; margin: 0; align-items: baseline; }
+.jn-kv dt { font-size: 12.5px; color: var(--text-secondary); }
+.jn-kv dd { margin: 0; font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.jn-sub { display: block; margin-top: 4px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-muted); }
+
+.jn-docs { display: grid; gap: 9px; }
+.jn-doc { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 15px;
+  border: 1px solid var(--border-subtle); background: var(--bg-surface); }
+.jn-doc.is-on { border-color: var(--success-border, var(--brand-border)); background: var(--success-bg); }
+.jn-doc__i { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px;
+  background: var(--bg-subtle, rgba(127,127,127,.07)); color: var(--text-secondary); }
+.jn-doc.is-on .jn-doc__i { background: var(--success-fg); color: #fff; }
+.jn-doc__i svg { width: 17px; height: 17px; }
+.jn-doc__m { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.jn-doc__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.jn-doc__m span { font-size: 12.5px; line-height: 1.4; color: var(--text-secondary); }
+.jn-doc__up { flex: none; }

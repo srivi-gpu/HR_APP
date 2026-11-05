@@ -5,7 +5,12 @@
   var React = window.React, h = React.createElement, V = window.Violet, I = window.Icons;
   var store = HRMS.store, router = HRMS.router, ui = HRMS.ui;
 
-  var CHROMELESS = ['global/login', 'global/forgot', 'global/reset', 'global/activate', 'global/invite', 'global/setup'];
+  /* Screens that draw themselves, without the rail and top bar, and that a person who
+     has not signed in may reach: the way in, and the two wizards that sit on it — the
+     organisation setup an admin meets after signing up, and the joiner's own
+     onboarding. Both open over the sign-in screen and sign you in by finishing. */
+  var CHROMELESS = ['global/login', 'global/forgot', 'global/reset', 'global/activate', 'global/invite',
+    'global/setup', 'global/joiner'];
 
   /* Re-render whenever the store changes, so a write anywhere updates every screen. */
   function useStore() {

@@ -635,10 +635,24 @@
 
           h('div', { className: 'auth-or' }, h('span', null, 'or continue with')),
           h('div', { className: 'auth-sso' },
-            [['Google', GOOGLE], ['Microsoft', MICROSOFT], ['Company SSO', h('span', { className: 'auth-sso__mark' }, I.building)]].map(function (p) {
+            /* Google opens the joiner's own onboarding rather than signing in: it is
+               the one way into that flow while the product has no mail transport to
+               send somebody a link, and a new joiner arriving with the credentials IT
+               issued is the case it demonstrates. The other two sign in normally. */
+            [['Google', GOOGLE, 'joiner'], ['Microsoft', MICROSOFT, 'sso'],
+             ['Company SSO', h('span', { className: 'auth-sso__mark' }, I.building), 'sso']].map(function (p) {
               return h('button', {
-                key: p[0], type: 'button', className: 'auth-sso__btn', title: p[0], 'aria-label': 'Continue with ' + p[0],
-                disabled: !!busySt[0], onClick: function () { enter('sso'); }
+                key: p[0], type: 'button', className: 'auth-sso__btn', title: p[0],
+                'aria-label': p[2] === 'joiner' ? 'Continue as a new joiner' : 'Continue with ' + p[0],
+                disabled: !!busySt[0],
+                onClick: function () {
+                  if (p[2] !== 'joiner') return enter('sso');
+                  /* Not signed in yet. The wizard draws the sign-in screen behind
+                     itself, the way the organisation wizard does, and signing in is
+                     what finishing it does — setting the flag here put an HR sidebar
+                     behind a joiner's first five minutes. */
+                  router.go('global/joiner');
+                }
               }, p[1]);
             }),
             h('button', {

@@ -28,7 +28,7 @@
      no notion of being signed out at all: an empty hash fell through to the stored
      role's dashboard, so the first thing a visitor saw was somebody's workspace. */
   var DEFAULTS = { role: 'hr', signedIn: false, theme: 'system', railCollapsed: false,
-    readNotifications: [], setupComplete: false };
+    readNotifications: [], setupComplete: false, joinerAs: null };
 
   /* Being signed in lasts as long as the tab does. Everything else about a session is
      worth remembering — which workspace, which theme, whether the rail is collapsed —
@@ -222,8 +222,21 @@
         || collectionOf('employees').filter(function (e) { return e.name === name; })[0];
       return base ? HRMS.store.employee(base.id) : null;
     },
-    /* The signed-in employee for a workspace, per nav.js. */
+    /* The signed-in employee for a workspace, per nav.js.
+
+       The employee workspace has one exception: somebody who has just been through
+       the joiner's first-run onboarding is signed in as themselves, not as the seeded
+       persona. Without that, finishing your own onboarding dropped you into a
+       stranger's dashboard — the records you had just filled in belonged to one person
+       and the workspace opened on another. */
     persona: function (roleId) {
+      if (roleId === 'me' || roleId === 'team') {
+        var asJoiner = pref('joinerAs');
+        if (asJoiner) {
+          var who = HRMS.store.employee(asJoiner);
+          if (who) return who;
+        }
+      }
       var role = HRMS.nav.role(roleId);
       return HRMS.store.employeeByName(role.persona);
     },

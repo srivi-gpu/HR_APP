@@ -423,6 +423,7 @@
     { path: 'global/activate', label: 'Account activation', section: '11.1', note: 'Activate an account from an invitation link.' },
     { path: 'global/invite', label: 'Invitation acceptance', section: '11.1', note: 'Accept an invitation and create credentials.' },
     { path: 'global/setup', label: 'First-run setup', section: '3.2', note: 'The organisation wizard an Admin lands on after signing up: documents, entity, offices, structure and HR access.' },
+    { path: 'global/joiner', label: 'Joiner onboarding', section: '5.1', note: 'What a new joiner does with the credentials IT issued them: their details, their documents, their bank account and the policies.' },
     { path: 'global/notifications', label: 'Notification centre', section: '7', note: 'Every notification addressed to you, with read state and deep links.' },
     { path: 'global/map', label: 'Screen map', section: '11', note: 'Every route in the information architecture on one page.' },
     { path: 'global/help', label: 'Help & support', section: '11.1', note: 'Guides and a way to raise a support request.' },
