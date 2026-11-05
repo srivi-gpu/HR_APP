@@ -1981,7 +1981,7 @@
          admin opens this page to act on, so they come first. The breakdown below is
          reference: true, useful, and not urgent. */
       h(Grid, null,
-        h(Card, { span: 7, title: 'Value by category',
+        h(Card, { span: 8, title: 'Value by category',
           description: 'Where the ' + ui.inr(value, { short: true }) + ' on the register actually sits.' },
           h('div', { className: 'ast-share' },
             h('span', { className: 'ast-share__bar', 'aria-hidden': 'true' },
@@ -2007,17 +2007,26 @@
                   return h('span', { className: 'ast-cell' },
                     h('span', { className: 'ast-cell__i' }, assetIcon(c.name, 16)), c.name);
                 } },
-              { key: 'units', header: 'Units', numeric: true, align: 'right', sortable: true },
-              { key: 'assigned', header: 'Assigned', numeric: true, align: 'right', sortable: true },
-              { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true },
-              { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
+              /* Four columns of one to three digits under headings two and three times
+                 their width: left to size themselves, the headings took the room and the
+                 category name and the amount were squeezed into two lines apiece. The
+                 widths are the amounts' own, with the heading and its sort control the
+                 widest thing each has to hold. */
+              { key: 'units', header: 'Units', width: 92, numeric: true, align: 'right', sortable: true },
+              { key: 'assigned', header: 'Assigned', width: 118, numeric: true, align: 'right', sortable: true },
+              { key: 'available', header: 'Available', width: 120, numeric: true, align: 'right', sortable: true },
+              { key: 'value', header: 'Value', width: 116, numeric: true, align: 'right', sortable: true,
                 csv: function (c) { return c.value; },
-                cell: function (c) { return ui.inr(c.value, { short: true }); } }
+                /* A non-breaking space, so the short form never breaks between the figure
+                   and its unit: "\u20b944.52" on one line and "L" on the next reads as a
+                   different number. The project has no nowrap class to reach for, so the
+                   amount carries it rather than the table. */
+                cell: function (c) { return ui.inr(c.value, { short: true }).replace(/ /g, '\u00a0'); } }
             ],
             emptyIcon: I.package, emptyTitle: 'Nothing in the register yet'
           })),
 
-        h(Card, { span: 5, title: 'Needs attention',
+        h(Card, { span: 4, title: 'Needs attention',
           description: 'Each one opens where it can be settled.' },
           h('div', { className: 'lrows' }, ATTENTION.map(function (a) {
             return h('button', { type: 'button', className: 'lrow lrow--go', key: a.t,
