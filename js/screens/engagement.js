@@ -1922,7 +1922,8 @@
           onChange: function (e) { pickImage(e.target.files && e.target.files[0]); e.target.value = ''; }
         }),
 
-        h(V.Button, {
+        /* The composer posts from the toolbar; a dialog supplies its own footer. */
+        p.hidePost ? null : h(V.Button, {
           variant: 'primary', className: 'composer__post', disabled: p.posting, onClick: p.onPost
         }, 'Post')) : null);
   }
@@ -1978,11 +1979,95 @@
   }
 
   /* The fourth state: what the composer produced. */
+  /* The three-dot menu of a post. Violet has no menu component, so this follows the
+     same positioned-list pattern the document library's Upload button uses. */
+  function PostMenu(p) {
+    var openSt = React.useState(false);
+    var ref = React.useRef(null);
+    React.useEffect(function () {
+      if (!openSt[0]) return;
+      function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) openSt[1](false); }
+      function onKey(e) { if (e.key === 'Escape') openSt[1](false); }
+      document.addEventListener('mousedown', onDoc);
+      document.addEventListener('keydown', onKey);
+      return function () {
+        document.removeEventListener('mousedown', onDoc);
+        document.removeEventListener('keydown', onKey);
+      };
+    }, [openSt[0]]);
+
+    function pick(fn) { openSt[1](false); fn(); }
+    return h('span', { className: 'pmenu', ref: ref },
+      h(V.IconButton, {
+        icon: I.dots, 'aria-label': 'Announcement actions',
+        'aria-haspopup': 'menu', 'aria-expanded': openSt[0] ? 'true' : 'false',
+        onClick: function () { openSt[1](!openSt[0]); }
+      }),
+      openSt[0] ? h('ul', { className: 'pmenu__list', role: 'menu' },
+        p.items.map(function (it) {
+          return h('li', { key: it.label, role: 'none' },
+            h('button', {
+              type: 'button', role: 'menuitem', className: 'pmenu__item',
+              onClick: function () { pick(it.onClick); }
+            },
+              h('span', { className: 'empty__mark', style: { width: 26, height: 26 } }, it.icon),
+              h('span', { className: 'pmenu__text' },
+                h('span', { className: 'pmenu__label' }, it.label),
+                it.hint ? h('span', { className: 'pmenu__hint' }, it.hint) : null)));
+        })) : null);
+  }
+
+  /* Editing reuses the composer's editor, so a post is changed in the thing that
+     wrote it rather than in a plain textarea that would strip its formatting. */
+  function EditAnnouncementModal(p) {
+    var a = p.announcement;
+    var editorRef = React.useRef(null);
+    var titleSt = React.useState(a.title || '');
+    var htmlSt = React.useState(a.html || '');
+
+    /* Seed the editable surface once; React does not own its contents. */
+    React.useEffect(function () {
+      if (!editorRef.current) return;
+      editorRef.current.innerHTML = a.html || ('<div>' + (a.body || '') + '</div>');
+      htmlSt[1](editorRef.current.innerHTML);
+    }, []);
+
+    function save() {
+      var clean = sanitizeHtml(htmlSt[0]);
+      var text = htmlToText(clean);
+      if (!text && !/<img/i.test(clean)) { ui.toast('An announcement cannot be empty', 'error'); return; }
+      var res = ui.report(act.editAnnouncement(a.id, {
+        title: titleSt[0].trim(), body: text, html: clean
+      }));
+      if (res && res.ok) p.onClose();
+    }
+
+    return h(ui.Modal, {
+      title: 'Edit announcement', wide: true,
+      description: 'Posted ' + ui.dateLabel(a.on) + '. Everyone sees the change at once.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, 'Save changes'))
+    },
+      h('div', { className: 'composer is-open', style: { marginBottom: 0 } },
+        h('div', { className: 'composer__top' },
+          h(RichEditor, {
+            editorRef: editorRef, open: true, hidePost: true,
+            showTitle: true, title: titleSt[0], onTitle: titleSt[1],
+            onChange: htmlSt[1], onFocus: function () {}
+          }))));
+  }
+
   function PostedAnnouncement(p) {
     var a = p.announcement, me = p.me;
     var showCommentsSt = React.useState(false);
+    var editSt = React.useState(false);
+    var confirmSt = React.useState(false);
     var author = a.by ? emp(a.by) : null;
     var mine = me && author && me.id === author.id;
+    /* An employee reads an announcement; only HR changes one. */
+    var canManage = act.canPostAnnouncements();
 
     var likeEmoji = REACTIONS[0].emoji;
     var likes = store.collection('announcementReactions').filter(function (r) {
@@ -1999,7 +2084,17 @@
           h('span', { className: 'post__title' },
             mine ? 'You have posted an announcement' : authorName(a) + ' posted an announcement'),
           h('span', { className: 'post__when' }, ui.dateLabel(a.on))),
-        a.pinned ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.flag }, 'Pinned') : null),
+        a.pinned ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.flag }, 'Pinned') : null,
+        a.editedOn ? h('span', { className: 'post__when' }, 'edited ' + ui.dateLabel(a.editedOn)) : null,
+        canManage ? h(PostMenu, { items: [
+          { label: a.pinned ? 'Unpin' : 'Pin to the top', icon: I.flag,
+            hint: a.pinned ? 'Let it fall back into the order' : 'Keep it above the rest',
+            onClick: function () { ui.report(act.pinAnnouncement(a.id, !a.pinned)); } },
+          { label: 'Edit', icon: I.pencil, hint: 'Change the title or the text',
+            onClick: function () { editSt[1](true); } },
+          { label: 'Delete', icon: I.trash, hint: 'Takes its likes and comments too',
+            onClick: function () { confirmSt[1](true); } }
+        ] }) : null),
 
       h('div', { className: 'post__body' },
         a.title ? h('h3', null, a.title) : null,
@@ -2026,7 +2121,19 @@
 
       showCommentsSt[0]
         ? h('div', { style: { padding: '0 18px 14px' } }, h(Comments, { announcement: a.id, me: me }))
-        : null);
+        : null,
+
+      editSt[0] ? h(EditAnnouncementModal, {
+        announcement: a, onClose: function () { editSt[1](false); }
+      }) : null,
+      confirmSt[0] ? h(ui.Confirm, {
+        title: 'Delete this announcement?',
+        body: (a.title ? '"' + a.title + '"' : 'This announcement')
+          + ' is removed for everyone, with its likes and comments. This cannot be undone.',
+        confirmLabel: 'Delete', tone: 'danger',
+        onConfirm: function () { ui.report(act.deleteAnnouncement(a.id)); },
+        onClose: function () { confirmSt[1](false); }
+      }) : null);
   }
 
   function announcementsScreen(canPost) {

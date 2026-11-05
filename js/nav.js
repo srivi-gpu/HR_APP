@@ -258,19 +258,24 @@
 
     /* The header above the tabs belongs to the person, not to one tab, so the frame
        draws it once for every tab of this module. */
+    /* The header above the tabs belongs to the person, not to one tab, so the frame
+       draws it once for every tab of this module.
+
+       Contact and emergency contacts were tabs of their own holding four fields each;
+       they are sections of Personal details now. Preferences and notification channels
+       left: appearance is a switch in the top bar, and neither is a fact about the
+       person, which is what the rest of this module is. Leave, attendance and
+       performance join it, because "how is this person doing" is asked of a profile. */
     { path: 'profile', label: 'My profile', icon: 'person', section: '4.4', banner: 'me/profile', tabs: [
       { path: 'overview', label: 'Overview', section: '4.4', note: 'Your record at a glance: who you report to, how the year is going, and this month\u2019s attendance.' },
-      { path: 'personal', label: 'Personal', section: '4.4', note: 'Name, date of birth and personal contact details.' },
+      { path: 'personal', label: 'Personal details', section: '4.4', note: 'Name, date of birth, personal contact details, addresses and who to reach in an emergency.' },
       { path: 'employment', label: 'Employment', section: '4.4', note: 'Employee ID, joining date, department, designation and manager.' },
-      { path: 'contact', label: 'Contact', section: '4.3', note: 'Current and permanent address.' },
-      { path: 'emergency', label: 'Emergency contacts', section: '4.3', note: 'Who to reach, and how, in an emergency.' },
-      { path: 'education', label: 'Education & experience', section: '2.3', note: 'Qualifications and prior employment.' },
+      { path: 'education', label: 'Education & experience', section: '2.3', note: 'Qualifications and prior employment, kept by you.' },
       { path: 'bank', label: 'Bank details', section: '2.3', note: 'Salary account details. Changes here need HR approval.' },
-      /* Your own papers belong with the rest of your record, not in the company
-         library, which is where they used to be looked for. */
       { path: 'documents', label: 'Documents', section: '4.24', note: 'Your own documents: share one with HR, and see what has been verified.' },
-      { path: 'preferences', label: 'Preferences', section: '11.1', note: 'Appearance and other personal preferences held in this browser.' },
-      { path: 'notifications', label: 'Notification channels', section: '7.2', note: 'Which notifications reach you in-app and by email.' }
+      { path: 'leave', label: 'Leave', section: '4.12', note: 'Your balances and recent requests.' },
+      { path: 'attendance', label: 'Attendance', section: '4.17', note: 'Your last thirty days, and the month so far.' },
+      { path: 'performance', label: 'Performance', section: '4.46', note: 'Goals, the open cycle and where you stand.' }
     ]},
 
     /* One item, as in HR: was I at work, and if not, why not. Attendance and leave

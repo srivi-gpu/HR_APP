@@ -1621,6 +1621,55 @@
   });
 
   /* ------------------------------------------------------------------ Exports */
+  /* ------------------------------------------- Qualifications and experience
+     Education used to be two arrays written into the profile screen, the same two for
+     everyone, which could not be edited because they were not data. They are records
+     now. Built from a hash of the employee id rather than from r(): the seeded random
+     stream feeds the figures PRD 15 fixes, and must not move. */
+  var DEGREES = [
+    ['Bachelor of Technology', 'Information Technology'], ['Bachelor of Engineering', 'Computer Science'],
+    ['Bachelor of Commerce', 'Accounting'], ['Bachelor of Design', 'Communication Design'],
+    ['Master of Business Administration', 'Human Resources'], ['Master of Computer Applications', '']
+  ];
+  var INSTITUTES = ['Anna University', 'University of Delhi', 'Osmania University',
+    'National Institute of Design', 'Symbiosis International', 'VIT Vellore'];
+  var PRIOR_ROLES = ['Associate', 'Senior Associate', 'Analyst', 'Consultant', 'Executive', 'Specialist'];
+  var PRIOR_FIRMS = ['Brightlane Studio', 'Finwise', 'Cobalt Systems', 'Northwind Labs',
+    'Meridian Consulting', 'Zephyr Technologies'];
+
+  function idHash(str) {
+    var n = 0;
+    for (var ih = 0; ih < str.length; ih++) n = (n * 31 + str.charCodeAt(ih)) % 100000;
+    return n;
+  }
+
+  var qualifications = [];
+  var experience = [];
+  live.forEach(function (e) {
+    var seedN = idHash(e.id);
+    var joinYear = Number(String(e.joined).slice(0, 4));
+    var deg = DEGREES[seedN % DEGREES.length];
+    var gradYear = joinYear - (2 + (seedN % 4));
+    qualifications.push({
+      id: 'QL-' + e.id + '-1', employee: e.id, level: deg[0], specialisation: deg[1],
+      institution: INSTITUTES[(seedN >> 2) % INSTITUTES.length],
+      year: gradYear, grade: (60 + (seedN % 38)) + '%'
+    });
+    qualifications.push({
+      id: 'QL-' + e.id + '-2', employee: e.id, level: 'Higher Secondary', specialisation: '',
+      institution: 'Kendriya Vidyalaya', year: gradYear - 4, grade: (62 + ((seedN >> 3) % 36)) + '%'
+    });
+    /* Anyone who joined within two years of graduating started here. */
+    if (joinYear - gradYear >= 2) {
+      experience.push({
+        id: 'EX-' + e.id + '-1', employee: e.id,
+        role: PRIOR_ROLES[(seedN >> 1) % PRIOR_ROLES.length],
+        company: PRIOR_FIRMS[(seedN >> 4) % PRIOR_FIRMS.length],
+        from: gradYear, to: joinYear
+      });
+    }
+  });
+
   HRMS.seed = {
     today: TODAY, todayIso: iso(TODAY), todayLabel: pretty(TODAY),
     org: ORG, entities: ENTITIES, locations: LOCATIONS, departments: DEPARTMENTS, designations: DESIGNATIONS,
@@ -1636,6 +1685,7 @@
     offboarding: offboarding, offboardingTaskNames: OFB_TASKS, exitReasons: EXIT_REASONS,
     policies: POLICIES, docFolders: DOC_FOLDERS, acknowledgements: acknowledgements, documentCategories: DOC_CATEGORIES,
     employeeDocuments: employeeDocuments,
+    qualifications: qualifications, experience: experience,
     salaryComponents: SALARY_COMPONENTS, salaryStructures: SALARY_STRUCTURES, payrollCycles: payrollCycles,
     reimbursements: reimbursements, reimbursementKinds: REIMBURSEMENT_KINDS,
     salaryRevisions: salaryRevisions, loans: loans,

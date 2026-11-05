@@ -111,6 +111,33 @@
 
   /* PRD 4.5: an employee may propose a change to a sensitive field, but the record
      only updates once HR approves. The proposed value is parked on the request. */
+  /* --------------------------------------------- Qualifications and experience
+     A person's own education record, which they keep themselves. It is not pay or
+     identity, so it saves directly rather than queueing for approval. */
+  function saveEducationEntry(kind, employeeId, entry) {
+    if (kind !== 'qualifications' && kind !== 'experience') return fail({ _: 'Unknown record type' });
+    var errors = kind === 'qualifications'
+      ? rules.required([{ key: 'level', label: 'Qualification' }, { key: 'institution', label: 'Institution' }], entry)
+      : rules.required([{ key: 'role', label: 'Role' }, { key: 'company', label: 'Company' }], entry);
+    if (rules.hasErrors(errors)) return fail(errors);
+    if (entry.id) {
+      store.setOverride(kind, entry.id, entry);
+      store.log('updated an education record', 'User activity');
+      return done('Saved');
+    }
+    var id = (kind === 'qualifications' ? 'QL-' : 'EX-') + employeeId + '-' + Date.now().toString(36);
+    store.add(kind, Object.assign({ id: id, employee: employeeId }, entry));
+    store.log('added an education record', 'User activity');
+    return done('Added');
+  }
+  function deleteEducationEntry(kind, id) {
+    if (kind !== 'qualifications' && kind !== 'experience') return fail({ _: 'Unknown record type' });
+    if (!store.find(kind, id)) return fail({ _: 'That record no longer exists' });
+    store.remove(kind, id);
+    store.log('removed an education record', 'User activity');
+    return done('Removed');
+  }
+
   function requestProfileChange(employeeId, fields, label) {
     var employee = store.employee(employeeId);
     if (!employee) return fail({ _: 'Employee not found' });
@@ -1172,6 +1199,47 @@
 
   /* A reaction is one row per person per emoji, so this adds or removes rather than
      counting up and down. Reacting twice with the same emoji takes it back. */
+  /* Pinning, editing and withdrawing are the poster's, which here means HR's. An
+     employee reads an announcement and reacts to it; they do not change one. */
+  function pinAnnouncement(id, pinned) {
+    if (!canPostAnnouncements()) return fail({ _: 'Only HR can pin an announcement' });
+    var a = store.find('announcements', id);
+    if (!a) return fail({ _: 'That announcement no longer exists' });
+    store.setOverride('announcements', id, { pinned: !!pinned });
+    store.log((pinned ? 'pinned' : 'unpinned') + ' the announcement "' + (a.title || a.body.slice(0, 40)) + '"', 'User activity');
+    return done(pinned ? 'Pinned to the top' : 'Unpinned');
+  }
+  function editAnnouncement(id, form) {
+    if (!canPostAnnouncements()) return fail({ _: 'Only HR can edit an announcement' });
+    var a = store.find('announcements', id);
+    if (!a) return fail({ _: 'That announcement no longer exists' });
+    var errors = rules.required([{ key: 'body', label: 'Announcement' }], form);
+    if (rules.hasErrors(errors)) return fail(errors);
+    store.setOverride('announcements', id, {
+      title: String(form.title || '').trim(),
+      body: form.body,
+      html: form.html || null,
+      editedOn: today()
+    });
+    store.log('edited the announcement ' + id, 'User activity');
+    return done('Announcement updated');
+  }
+  function deleteAnnouncement(id) {
+    if (!canPostAnnouncements()) return fail({ _: 'Only HR can delete an announcement' });
+    var a = store.find('announcements', id);
+    if (!a) return fail({ _: 'That announcement no longer exists' });
+    /* The reactions and comments go too: left behind they would belong to nothing. */
+    store.collection('announcementReactions')
+      .filter(function (r) { return r.announcement === id; })
+      .forEach(function (r) { store.remove('announcementReactions', r.id); });
+    store.collection('announcementComments')
+      .filter(function (c) { return c.announcement === id; })
+      .forEach(function (c) { store.remove('announcementComments', c.id); });
+    store.remove('announcements', id);
+    store.log('deleted the announcement "' + (a.title || a.body.slice(0, 40)) + '"', 'User activity');
+    return done('Announcement deleted');
+  }
+
   function toggleAnnouncementReaction(announcementId, emoji) {
     var me = store.persona(store.pref('role'));
     if (!me) return fail({ _: 'No signed-in employee' });
@@ -1433,6 +1501,7 @@
     createEmployee: createEmployee, editEmployee: editEmployee,
     changeEmployeeStatus: changeEmployeeStatus, importEmployees: importEmployees,
     requestProfileChange: requestProfileChange,
+    saveEducationEntry: saveEducationEntry, deleteEducationEntry: deleteEducationEntry,
     /* Organization */
     createDepartment: createDepartment, createDesignation: createDesignation,
     createLocation: createLocation, updateOrganization: updateOrganization,
@@ -1473,6 +1542,8 @@
     submitFeedback: submitFeedback, createActionPlan: createActionPlan,
     /* Announcements */
     canPostAnnouncements: canPostAnnouncements, postAnnouncement: postAnnouncement,
+    pinAnnouncement: pinAnnouncement, editAnnouncement: editAnnouncement,
+    deleteAnnouncement: deleteAnnouncement,
     toggleAnnouncementReaction: toggleAnnouncementReaction, commentOnAnnouncement: commentOnAnnouncement,
     /* Onboarding & offboarding */
     initiateOnboarding: initiateOnboarding, completeOnboardingTask: completeOnboardingTask,
