@@ -249,8 +249,167 @@
           + ((roleById(role.basedOn) || {}).name || 'Employee') + '. This cannot be undone from here.')) : null);
   }
 
+
+  /* ===================================================== Module access, per person
+
+     The Roles tab says what a job can do. This one says what a *person* does, which is
+     a different question and the one HR actually asks: four people hold the HR role and
+     one runs payroll, one runs recruitment and two run the lifecycle, yet before this
+     every one of them could open every HR screen, because the only dial was the role
+     they shared.
+
+     A grant only ever takes away. It is intersected with the role in
+     js/permissions.js, never added to it, so narrowing somebody can never hand them
+     something their role did not already carry — which is what makes this safe to edit
+     without re-reading the role matrix first.
+
+     Nobody is narrowed until somebody is narrowed: with no grant, a person has
+     everything their role allows, which is exactly what they had before this existed. */
+
+  var ROLE_NAME = { admin: 'Organization Admin', hr: 'HR Administrator', manager: 'Manager', me: 'Employee' };
+  function emp(id) { return store.employee(id); }
+
+  /* Ready-made sets for the shapes an HR team actually splits into, so the common case
+     is one press rather than fourteen ticks. */
+  var PRESETS = {
+    hr: [
+      { k: 'lifecycle', t: 'Lifecycle', s: 'Joiners, leavers, records and documents',
+        mods: ['people', 'onboarding', 'offboarding', 'documents', 'departments', 'designations', 'approvals'] },
+      { k: 'payroll', t: 'Payroll', s: 'Pay, statutory and the reports that follow it',
+        mods: ['payroll', 'reports', 'people', 'approvals'] },
+      { k: 'time', t: 'Time and attendance', s: 'Leave, attendance, shifts and their approvals',
+        mods: ['leave', 'attendance', 'shifts', 'approvals', 'people'] },
+      { k: 'engagement', t: 'Engagement and performance', s: 'Reviews, surveys and announcements',
+        mods: ['performance', 'engagement', 'people'] }
+    ],
+    admin: [
+      { k: 'platform', t: 'Platform', s: 'Users, permissions, security and the audit trail',
+        mods: ['users', 'roles', 'settings', 'audit', 'org', 'locations'] },
+      { k: 'itops', t: 'IT operations', s: 'Assets, integrations and the data map',
+        mods: ['assets', 'integrations', 'settings', 'audit'] },
+      { k: 'commercial', t: 'Commercial', s: 'Billing, usage and reporting',
+        mods: ['billing', 'reports', 'org'] }
+    ]
+  };
+
+  function ModuleAccess() {
+    var roleSt = React.useState('hr');
+    var pickSt = React.useState(null);        // the user being edited
+    var draftSt = React.useState(null);       // their module ids, or null for everything
+    var role = roleSt[0];
+
+    var users = store.collection('users').filter(function (u) {
+      return u.role === role && u.status !== 'Deactivated';
+    });
+    var modules = perms.modulesForRole(role);
+    var presets = PRESETS[role] || [];
+
+    function open(u) {
+      pickSt[1](u);
+      draftSt[1]((perms.grantFor(u.id) || modules.map(function (m) { return m.id; })).slice());
+    }
+    function toggle(id) {
+      var d = draftSt[0] || [];
+      draftSt[1](d.indexOf(id) >= 0 ? d.filter(function (x) { return x !== id; }) : d.concat([id]));
+    }
+    function save(all) {
+      var u = pickSt[0];
+      perms.setGrant(u.id, role, all ? null : draftSt[0]);
+      store.log((all ? 'cleared the module grant for ' : 'set the modules for ')
+        + (emp(u.employee) || {}).name, 'Permission changes');
+      ui.toast(all
+        ? (emp(u.employee) || {}).name + ' reaches everything the role allows'
+        : (emp(u.employee) || {}).name + ' now reaches ' + draftSt[0].length + ' of ' + modules.length + ' modules',
+        'success');
+      pickSt[1](null);
+    }
+
+    function grantLabel(u) {
+      var g = perms.grantFor(u.id);
+      return g ? g.length + ' of ' + modules.length + ' modules' : 'Everything the role allows';
+    }
+
+    return h(React.Fragment, null,
+      h(PageHead, {
+        eyebrow: 'Permissions', title: 'Module access',
+        description: 'A role says what a job can do; this says what a person does. A grant only ever takes '
+          + 'away from the role, so narrowing somebody can never hand them something the role did not carry.'
+      }),
+
+      h('div', { className: 'ma-switch' }, ['hr', 'admin'].map(function (r) {
+        var n = store.collection('users').filter(function (u) { return u.role === r && u.status !== 'Deactivated'; }).length;
+        return h('button', {
+          key: r, type: 'button', className: 'ma-switch__b' + (role === r ? ' is-on' : ''),
+          'aria-pressed': role === r ? 'true' : 'false',
+          onClick: function () { roleSt[1](r); pickSt[1](null); }
+        }, ROLE_NAME[r], h('span', null, n));
+      })),
+
+      h(Card, {
+        title: ROLE_NAME[role] + ' accounts',
+        description: 'Everyone holding this role. Open one to narrow it to the modules they run.'
+      },
+        users.length
+          ? h('div', { className: 'ma-list' }, users.map(function (u) {
+              var e = emp(u.employee);
+              var narrowed = !!perms.grantFor(u.id);
+              return h('button', {
+                key: u.id, type: 'button', className: 'ma-row' + (narrowed ? ' is-narrow' : ''),
+                onClick: function () { open(u); }
+              },
+                h(V.Avatar, { name: e ? e.name : u.email, size: 'sm' }),
+                h('span', { className: 'ma-row__m' },
+                  h('strong', null, e ? e.name : u.email),
+                  h('span', null, e ? e.designation : u.email)),
+                h('span', { className: 'ma-row__g' + (narrowed ? ' is-narrow' : '') }, grantLabel(u)),
+                h('span', { className: 'ma-row__go', 'aria-hidden': 'true' }, I.right));
+            }))
+          : h(ui.Empty, { icon: I.users, title: 'Nobody holds this role' })),
+
+      pickSt[0] ? h(ui.Modal, {
+        wide: true,
+        title: (emp(pickSt[0].employee) || {}).name || pickSt[0].email,
+        description: 'Tick the modules this person runs. Everything unticked disappears from their sidebar '
+          + 'and their deep links land on the access-denied screen.',
+        onClose: function () { pickSt[1](null); },
+        footer: h(React.Fragment, null,
+          h(V.Button, { variant: 'outline', onClick: function () { save(true); } },
+            'Give them everything the role allows'),
+          h(V.Button, { variant: 'primary', iconStart: I.check,
+            disabled: !(draftSt[0] || []).length,
+            onClick: function () { save(false); } },
+            'Save ' + (draftSt[0] || []).length + ' modules'))
+      },
+        presets.length ? h('div', { className: 'ma-pre' },
+          h('span', { className: 'ma-pre__h' }, 'Common splits'),
+          h('div', { className: 'ma-pre__r' }, presets.map(function (pp) {
+            return h('button', { key: pp.k, type: 'button', className: 'ma-pre__b',
+              onClick: function () { draftSt[1](pp.mods.filter(function (m) {
+                return modules.some(function (x) { return x.id === m; });
+              })); } },
+              h('strong', null, pp.t), h('span', null, pp.s));
+          }))) : null,
+
+        h('div', { className: 'ma-mods' }, modules.map(function (m) {
+          var on = (draftSt[0] || []).indexOf(m.id) >= 0;
+          return h('label', { key: m.id, className: 'ma-mod' + (on ? ' is-on' : '') },
+            h(V.Checkbox, { checked: on, 'aria-label': m.label, onChange: function () { toggle(m.id); } }),
+            h('span', { className: 'ma-mod__m' },
+              h('strong', null, m.label),
+              h('span', null, LEVEL_LABEL[perms.levelName(role, m.id)] || 'No access')));
+        })),
+
+        (draftSt[0] || []).length === modules.length
+          ? h('p', { className: 'ma-note' }, 'Everything is ticked, which is the same as no grant at all — '
+              + 'saving it records one anyway, so later changes to the role will not widen this person.')
+          : null) : null);
+  }
+
   /* `modules` is the Roles tab of the Permissions module: pick a role, set what it may
      do. The path is unchanged so the permission links already in the product still land
      here; only the tab's label moved. */
-  HRMS.screens.register({ 'admin/roles/modules': RolePermissions });
+  HRMS.screens.register({
+    'admin/roles/modules': RolePermissions,
+    'admin/roles/people': ModuleAccess
+  });
 })();

@@ -74,10 +74,18 @@
           h('span', { className: 'brand__mark' }, 'A'),
           h('span', { className: 'brand__name' }, 'Aptagrim HR'))),
 
+      /* The rail shows what this person can open, not what the role could. A module
+         grant narrows an individual (js/permissions.js), and a row that lands on
+         Access denied is worse than no row: it tells somebody the thing exists and
+         then refuses them. A group with nothing left in it goes too. */
       h('div', { className: 'sidenav__items' }, role.groups.map(function (group, gi) {
+        var items = group.items.filter(function (item) {
+          return item.href || HRMS.permissions.allows(role.id, role.id + '/' + item.path);
+        });
+        if (!items.length) return null;
         return h(React.Fragment, { key: group.label || gi },
           group.label ? h('div', { className: 'sidenav__group' }, group.label) : null,
-          group.items.map(function (item) {
+          items.map(function (item) {
             /* A linked item leaves the single-page prototype, so it renders as a real anchor and
                never takes the selected state — no route of ours is current while it is open. */
             if (item.href) {

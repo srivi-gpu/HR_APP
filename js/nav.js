@@ -64,7 +64,12 @@
        groups and data scopes were four readings of one thing: what a role may do. */
     { path: 'roles', label: 'Permissions', icon: 'shield', section: '10', tabs: [
       { path: 'review', label: 'Access review', section: '10', note: 'Access that looks wrong: people who have left, temporary grants about to lapse, and accounts that can still sign in.' },
-      { path: 'modules', label: 'Roles', section: '10', note: 'Pick a role, then set what it may do in each module.' }
+      { path: 'modules', label: 'Roles', section: '10', note: 'Pick a role, then set what it may do in each module.' },
+      /* A role says what a job can do; it does not say what this person does. Four
+         people hold the HR role and run four different halves of it, so the modules
+         each of them reaches is a per-user question and gets a tab of its own. */
+      { path: 'people', label: 'Module access', section: '10',
+        note: 'Narrow an individual to the modules they actually run. A grant only ever takes away from the role.' }
     ]},
 
     /* Two tabs, not eleven. Billing used to carry six (plan, seats, history, invoices,
