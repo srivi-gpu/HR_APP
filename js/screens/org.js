@@ -1366,14 +1366,19 @@
       store.setOverride('integrations', x.id, {
         status: 'Connected',
         connectedOn: new Date().toISOString().slice(0, 10),
-        lastSync: new Date().toISOString().slice(0, 16)
+        lastSync: new Date().toISOString().slice(0, 16),
+        droppedOn: null
       });
       store.log('connected ' + x.name, 'Configuration');
       ui.toast(x.name + ' connected', 'success');
       p.onClose();
     }
     function disconnect() {
-      store.setOverride('integrations', x.id, { status: 'Not connected', connectedOn: null, lastSync: null });
+      /* `droppedOn` is what separates a provider we never connected from one that was
+         connected and is not any more. The dashboards raise an alert for the second
+         and say nothing about the first. */
+      store.setOverride('integrations', x.id, { status: 'Not connected', connectedOn: null,
+        lastSync: null, droppedOn: new Date().toISOString().slice(0, 10) });
       store.log('disconnected ' + x.name, 'Configuration');
       ui.toast(x.name + ' disconnected');
       p.onClose();

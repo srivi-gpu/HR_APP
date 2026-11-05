@@ -83,8 +83,8 @@
             h('text', { x: PL - 9, y: y(t) + 4, textAnchor: 'end', className: 'adm-plot__ax' }, t));
         }),
         h('path', { d: path + ' L' + x(last) + ' ' + (H - PB) + ' L' + x(0) + ' ' + (H - PB) + ' Z', fill: 'url(#admbGrow)' }),
-        h('path', { d: path, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 2.4, strokeLinecap: 'round' }),
-        h('circle', { cx: x(last), cy: y(d[last].n), r: 5, fill: 'var(--brand-solid)', stroke: 'var(--bg-surface)', strokeWidth: 2.5 }),
+        h('path', { d: path, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 1.6, strokeLinecap: 'round' }),
+        h('circle', { cx: x(last), cy: y(d[last].n), r: 4, fill: 'var(--brand-solid)', stroke: 'var(--bg-surface)', strokeWidth: 2 }),
         d.map(function (pt, i) {
           return h('text', { key: i, x: x(i), y: H - 7, textAnchor: i === 0 ? 'start' : i === last ? 'end' : 'middle', className: 'adm-plot__ax' }, pt.label);
         })));
@@ -96,11 +96,11 @@
     var R = 62, C = 2 * Math.PI * R, GAP = 3, off = 0;
     return h('div', { className: 'admb-ring' },
       h('svg', { viewBox: '0 0 160 160', 'aria-hidden': 'true' },
-        h('circle', { cx: 80, cy: 80, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 18 }),
+        h('circle', { cx: 80, cy: 80, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 10 }),
         p.rows.map(function (r, i) {
           var len = r.n / total * C, dash = Math.max(len - GAP, 1.5), o = off;
           off += len;
-          return h('circle', { key: r.k, cx: 80, cy: 80, r: R, fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 18,
+          return h('circle', { key: r.k, cx: 80, cy: 80, r: R, fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 10,
             strokeDasharray: dash + ' ' + (C - dash), strokeDashoffset: -o, transform: 'rotate(-90 80 80)' });
         })),
       h('span', { className: 'admb-ring__mid' }, h('b', null, num(p.center)), h('span', null, p.caption)));
@@ -112,11 +112,11 @@
     var R = 70, C = Math.PI * R, GAP = 3, off = 0;
     return h('div', { className: 'admb-gauge' },
       h('svg', { viewBox: '0 0 180 104', 'aria-hidden': 'true' },
-        h('path', { d: 'M20 92 A70 70 0 0 1 160 92', fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 20 }),
+        h('path', { d: 'M20 92 A70 70 0 0 1 160 92', fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 11 }),
         p.rows.map(function (r, i) {
           var len = r.n / total * C, dash = Math.max(len - GAP, 1.5), o = off;
           off += len;
-          return h('path', { key: r.k, d: 'M20 92 A70 70 0 0 1 160 92', fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 20,
+          return h('path', { key: r.k, d: 'M20 92 A70 70 0 0 1 160 92', fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 11,
             strokeDasharray: dash + ' ' + (C + 10), strokeDashoffset: -o });
         })),
       h('span', { className: 'admb-gauge__mid' }, h('b', null, p.center), h('span', null, p.caption)));
@@ -171,16 +171,20 @@
         return { k: r.name, n: users.filter(function (u) { return u.role === r.id; }).length };
       });
 
-    var integrations = seed.integrations;
+    var integrations = store.collection('integrations');
     var connected = integrations.filter(function (x) { return x.status === 'Connected'; }).length;
+    /* Health is about something being wrong, not about how long the catalogue is. A
+       provider we never connected is not a fault; one that was connected and dropped
+       out is. */
+    var dropped = integrations.filter(function (x) { return x.status !== 'Connected' && x.droppedOn; }).length;
     /* The prototype keeps no heartbeat for the first three; they are fixed rows. The
        fourth is the integrations on record, so it can and does say when one is down. */
     var HEALTH = [
       { t: 'Application', ok: true, s: 'Operational' },
       { t: 'API services', ok: true, s: 'Operational' },
       { t: 'Database', ok: true, s: 'Operational' },
-      { t: 'Integrations', ok: connected === integrations.length,
-        s: connected === integrations.length ? 'Operational' : connected + ' of ' + integrations.length + ' connected' }
+      { t: 'Integrations', ok: !dropped,
+        s: dropped ? dropped + ' dropped out' : connected + ' connected, all reporting' }
     ];
     var allOk = HEALTH.every(function (x) { return x.ok; });
 

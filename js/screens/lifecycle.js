@@ -1804,9 +1804,9 @@
     var on = Math.max(0, Math.min(100, pct)) / 100 * C;
     return h('div', { className: 'ast-ring' },
       h('svg', { viewBox: '0 0 140 140', 'aria-hidden': 'true' },
-        h('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 16 }),
+        h('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 9 }),
         h('circle', {
-          cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 16,
+          cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 9,
           strokeLinecap: 'round', strokeDasharray: on + ' ' + (C - on),
           transform: 'rotate(-90 70 70)'
         })),
@@ -1876,6 +1876,11 @@
 
       h('ellipse', { cx: 0, cy: 86, rx: 132, ry: 22, className: 'ast-iso__shadow', filter: 'url(#isoBlur)' }),
 
+      /* From here down the scene is grouped by what moves together, so the drawing can
+         assemble itself: the base unfolds, then each object settles onto it, and then
+         everything breathes. The grouping is the only reason these are nested — the
+         geometry is unchanged. */
+      h('g', { className: 'isoG isoG--base' },
       /* the plinth */
       face('pl', [[P.x, P.y + P.s, 0], [P.x + P.s, P.y + P.s, 0], [P.x + P.s, P.y + P.s, P.h], [P.x, P.y + P.s, P.h]], 'url(#isoPL)'),
       face('pr', [[P.x + P.s, P.y, 0], [P.x + P.s, P.y + P.s, 0], [P.x + P.s, P.y + P.s, P.h], [P.x + P.s, P.y, P.h]], 'url(#isoPR)'),
@@ -1887,27 +1892,30 @@
       face('tl', [[T.x, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, Z], [T.x, T.y + T.s, Z]], null, 'ast-iso__tl'),
       face('tr', [[T.x + T.s, T.y, P.h], [T.x + T.s, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, Z], [T.x + T.s, T.y, Z]], null, 'ast-iso__tr'),
       face('tt', [[T.x, T.y, Z], [T.x + T.s, T.y, Z], [T.x + T.s, T.y + T.s, Z], [T.x, T.y + T.s, Z]], 'url(#isoTT)', 'ast-iso__top'),
-      isoGrid(T.x, T.y, T.s, Z, 22),
+      isoGrid(T.x, T.y, T.s, Z, 22)),
 
       /* boxes, back right */
-      cuboid('b1', 22, -56, Z, 34, 34, 30, 'warm'),
-      cuboid('b2', 22, -20, Z, 34, 30, 22, 'warm'),
-      cuboid('b3', 26, -52, Z + 30, 26, 26, 22, 'warm'),
-      h('polyline', { className: 'ast-iso__tape', points: isoPoly([[39, -56, Z + 30], [39, -56, Z]]) }),
+      h('g', { className: 'isoG isoG--boxes' },
+        cuboid('b1', 22, -56, Z, 34, 34, 30, 'warm'),
+        cuboid('b2', 22, -20, Z, 34, 30, 22, 'warm'),
+        cuboid('b3', 26, -52, Z + 30, 26, 26, 22, 'warm'),
+        h('polyline', { className: 'ast-iso__tape', points: isoPoly([[39, -56, Z + 30], [39, -56, Z]]) })),
       /* monitor, back left */
-      cuboid('mstand', -50, -50, Z, 16, 12, 4, 'grey'),
-      cuboid('mneck', -45, -46, Z + 4, 5, 4, 20, 'grey'),
-      panel('mon', -62, -40, Z + 20, 40, 30, 'dark'),
+      h('g', { className: 'isoG isoG--mon' },
+        cuboid('mstand', -50, -50, Z, 16, 12, 4, 'grey'),
+        cuboid('mneck', -45, -46, Z + 4, 5, 4, 20, 'grey'),
+        panel('mon', -62, -40, Z + 20, 40, 30, 'dark')),
       /* laptop, front */
-      cuboid('lbase', -36, 4, Z, 52, 36, 3, 'grey'),
-      panel('lscr', -36, 4, Z + 3, 52, 32, 'dark'),
-      bars.map(function (bh, i) {
-        var x0 = -30 + i * 11;
-        return h('polygon', { key: 'bar' + i, className: 'ast-iso__bar' + (i === 3 ? ' is-hi' : ''),
-          points: isoPoly([[x0, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7 + bh * 0.8], [x0, 3.6, Z + 7 + bh * 0.8]]) });
-      }),
+      h('g', { className: 'isoG isoG--lap' },
+        cuboid('lbase', -36, 4, Z, 52, 36, 3, 'grey'),
+        panel('lscr', -36, 4, Z + 3, 52, 32, 'dark'),
+        bars.map(function (bh, i) {
+          var x0 = -30 + i * 11;
+          return h('polygon', { key: 'bar' + i, className: 'ast-iso__bar' + (i === 3 ? ' is-hi' : ''),
+            points: isoPoly([[x0, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7 + bh * 0.8], [x0, 3.6, Z + 7 + bh * 0.8]]) });
+        })),
       /* phone, front right */
-      cuboid('phone', 28, 30, Z, 14, 24, 2, 'dark'),
+      h('g', { className: 'isoG isoG--phone' }, cuboid('phone', 28, 30, Z, 14, 24, 2, 'dark')),
       /* a sparkle and a mote, floating */
       h('path', { className: 'ast-iso__spark', d: 'M104 -104l4 9.5 9.5 3.5-9.5 3.5-4 9.5-4-9.5-9.5-3.5 9.5-3.5 4-9.5Z' }),
       h('circle', { className: 'ast-iso__dot', cx: -116, cy: -48, r: 4 }));

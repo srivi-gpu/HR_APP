@@ -505,11 +505,11 @@
     var R = 58, C = 2 * Math.PI * R, GAP = total > 1 ? 3 : 0, off = 0;
     return h('div', { className: 'admb-ring adm-donut' },
       h('svg', { viewBox: '0 0 150 150', role: 'img', 'aria-label': p.label },
-        h('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 16 }),
+        h('circle', { cx: 75, cy: 75, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 9 }),
         p.rows.filter(function (r) { return r.n; }).map(function (r) {
           var len = r.n / (total || 1) * C, dash = Math.max(len - GAP, 1.5), o = off;
           off += len;
-          return h('circle', { key: r.k, cx: 75, cy: 75, r: R, fill: 'none', stroke: r.c, strokeWidth: 16,
+          return h('circle', { key: r.k, cx: 75, cy: 75, r: R, fill: 'none', stroke: r.c, strokeWidth: 9,
             strokeDasharray: dash + ' ' + (C - dash), strokeDashoffset: -o, transform: 'rotate(-90 75 75)' });
         })),
       h('span', { className: 'admb-ring__mid' }, h('b', null, total), h('span', null, p.caption)));
@@ -553,8 +553,8 @@
     return h('div', { className: 'adm-gauge' },
       h('span', { className: 'adm-gauge__ring' },
         h('svg', { viewBox: '0 0 84 84', 'aria-hidden': 'true' },
-          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 9 }),
-          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: p.color, strokeWidth: 9, strokeLinecap: 'round',
+          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 5.5 }),
+          h('circle', { cx: 42, cy: 42, r: R, fill: 'none', stroke: p.color, strokeWidth: 5.5, strokeLinecap: 'round',
             strokeDasharray: on + ' ' + (C - on), transform: 'rotate(-90 42 42)' })),
         h('b', null, Math.round(p.pct) + '%')),
       h('span', { className: 'adm-gauge__m' }, h('strong', null, p.t), h('span', null, p.s)));
@@ -597,13 +597,29 @@
     var top = sugg[0] || null;
     var active7 = buckets[0].n + buckets[1].n;
 
-    var integrations = seed.integrations;
+    /* Read through the store, so a provider disconnected in this session shows up here
+       rather than on the next reload. */
+    var integrations = store.collection('integrations');
     var offline = integrations.filter(function (x) { return x.status !== 'Connected'; });
+    /* A provider nobody ever connected is not an alert — the catalogue is a shelf, and
+       most of it is things this organisation does not run. What is an alert is one that
+       was connected and is not any more, which the Integrations screen can now do; and,
+       once, the size of the gap. Before this, every unconnected provider raised its own
+       line, so widening the catalogue from three providers to thirty-four turned the
+       alert timeline into a list of software we have never used. */
+    var dropped = offline.filter(function (x) { return x.droppedOn; });
     /* Newest first, each with the tone its dot takes on the timeline. */
-    var alerts = offline.map(function (x) {
-      return { tone: 'warn', t: x.name + ' not connected', s: x.summary ? x.summary.replace(/\.\s[\s\S]*$/, '.') : x.kind,
-        at: 'Today', to: 'admin/integrations' };
-    }).concat([
+    var alerts = dropped.map(function (x) {
+      return { tone: 'bad', t: x.name + ' disconnected', s: 'It was connected and is not any more. '
+        + (x.kind || '') + '.', at: 'Today', to: 'admin/integrations' };
+    }).concat(offline.length > dropped.length ? [
+      { tone: 'warn',
+        t: (integrations.length - offline.length) + ' of ' + integrations.length + ' providers connected',
+        s: 'The rest of the catalogue is waiting, including '
+          + offline.filter(function (x) { return !x.droppedOn; }).slice(0, 3)
+              .map(function (x) { return x.name; }).join(', ') + '.',
+        at: 'Today', to: 'admin/integrations' }
+    ] : []).concat([
       { tone: 'warn', t: plural(s.invited, 'invitation') + ' unaccepted', s: 'Past the start date and never signed in.',
         at: '11:04', to: 'admin/users/all' },
       { tone: 'bad', t: 'Single sign-on not configured', s: 'Everyone signs in with an email and a password only.',
