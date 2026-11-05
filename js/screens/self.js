@@ -1456,17 +1456,14 @@
   /* The dialog of the design: who, when, why, and whether the role gets backfilled. */
   function ResignationModal(p) {
     var m = p.employee;
-    var fileRef = React.useRef(null);
-    var fileSt = React.useState('');
-    var form = ui.useForm({ replacement: '' }, function (v) { return rules.validResignation(v); });
+    var form = ui.useForm({}, function (v) { return rules.validResignation(v); });
     var shortfall = form.values.lastWorkingDay
       ? rules.noticeShortfall(form.values.lastWorkingDay, 60) : null;
 
     function save() {
       var res = form.submit(function (v) {
         return ui.report(act.submitResignation(m.id, {
-          lastWorkingDay: v.lastWorkingDay, reason: v.reason, replacement: v.replacement,
-          comments: v.comments, attachment: fileSt[0] || null
+          lastWorkingDay: v.lastWorkingDay, reason: v.reason, comments: v.comments
         }));
       });
       if (res && res.ok) p.onClose();
@@ -1482,43 +1479,21 @@
       h(ui.FieldRow, { cols: 2 },
         /* Your own resignation, so this is who you are rather than a choice. */
         h(V.TextField, { label: 'Employee', required: true, value: m.name + ' · ' + m.id, readOnly: true }),
+        /* Tentative: the date is a proposal until the resignation is approved, and
+           the approver can revise it. Calling it final invited an argument later. */
         h(V.DateField, Object.assign({
-          label: 'Last working date', required: true, min: seed.todayIso
+          label: 'Tentative last working date', required: true, min: seed.todayIso
         }, form.field('lastWorkingDay')))),
       shortfall
         ? h('p', { style: { fontSize: 12, color: 'var(--warning-fg)', margin: '-6px 0 10px' } },
           shortfall + '. HR may ask you to serve the full period or settle the shortfall.')
         : null,
-      h(ui.FieldRow, { cols: 2 },
-        h(V.Select, Object.assign({
-          label: 'Reason', required: true, placeholder: 'Select', options: seed.exitReasons
-        }, form.select('reason'))),
-        h(V.Select, Object.assign({
-          label: 'Replacement required', required: true, placeholder: 'Select',
-          options: ['Yes', 'No', 'To be decided']
-        }, form.select('replacement')))),
+      h(V.Select, Object.assign({
+        label: 'Reason', required: true, placeholder: 'Select', options: seed.exitReasons
+      }, form.select('reason'))),
       h(V.TextArea, Object.assign({
         label: 'Explanation (if any)', rows: 3, placeholder: 'Anything you would like HR to know'
       }, form.field('comments'))),
-      h('div', { className: 'stack gap-2' },
-        h('span', { className: 'vi-field__label' }, 'Attachment'),
-        h('div', { className: 'row gap-2', style: { alignItems: 'center' } },
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.clip,
-            onClick: function () { if (fileRef.current) fileRef.current.click(); } }, 'Upload file'),
-          h('span', { className: 'muted', style: { fontSize: 12 } },
-            fileSt[0] || 'A resignation letter, if you have one'),
-          fileSt[0]
-            ? h(V.IconButton, { icon: I.close, 'aria-label': 'Remove the attachment',
-              onClick: function () { fileSt[1](''); } })
-            : null),
-        h('input', {
-          ref: fileRef, type: 'file', className: 'visually-hidden', 'aria-label': 'Choose a file',
-          onChange: function (e) {
-            var f = e.target.files && e.target.files[0];
-            if (f) fileSt[1](f.name);
-            e.target.value = '';
-          }
-        })),
       form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, form.errors._) : null);
   }
 
@@ -1582,16 +1557,9 @@
             ['Request', h('span', { className: 'mono' }, c.id)],
             ['Employee', m.name + ' · ' + m.id],
             ['Submitted on', ui.dateLabel(c.resignedOn)],
-            ['Last working day', c.lastWorkingDayLabel],
+            ['Tentative last working day', c.lastWorkingDayLabel],
             ['Notice period', c.noticeDays + ' days'],
             ['Reason', c.reason],
-            ['Replacement required', c.replacement || 'Not stated'],
-            ['Attachment', c.attachment
-              ? h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
-                h('span', { className: 'mono' }, c.attachment),
-                h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.download,
-                  onClick: function () { ui.toast(c.attachment + ' download started', 'success'); } }, 'Download'))
-              : null],
             ['Approval', h(ui.StatusChip, { status: c.status })]
           ]}),
           c.comments

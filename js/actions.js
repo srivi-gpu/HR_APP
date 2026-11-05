@@ -1875,9 +1875,6 @@
       lastWorkingDay: form.lastWorkingDay,
       lastWorkingDayLabel: pretty(new Date(form.lastWorkingDay + 'T00:00')),
       noticeDays: 60, reason: form.reason, comments: form.comments || '',
-      replacement: form.replacement || null,
-      /* The prototype keeps the name of what was attached, not the file. */
-      attachment: form.attachment || null,
       stage: 'Submitted', status: 'Pending Approval',
       checklist: checklist ? checklist.id : null,
       checklistName: checklist ? checklist.name : null,
