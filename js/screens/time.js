@@ -585,7 +585,7 @@
     'Approved': 'var(--success-fg)',
     'Pending Approval': 'var(--warning-fg)',
     'Rejected': 'var(--danger-fg)',
-    'Cancelled': 'var(--text-muted)'
+    'Cancelled': 'var(--chart-6)'
   };
   var STATUS_ORDER = ['Approved', 'Pending Approval', 'Rejected', 'Cancelled'];
 

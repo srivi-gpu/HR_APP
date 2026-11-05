@@ -36,7 +36,10 @@
   var ADDP = g('M15 19c-.3-3-2.6-5-6-5s-5.7 2-6 5M9 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 8v6M21 11h-6');
   var EYE2 = g('M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z');
   /* Shares of one total: darkest = largest. Monotonic lightness, chroma clears the floor. */
-  var RAMP = ['#3d2496', '#5733c1', '#7a5ad2', '#a690e4'];
+  /* The design system's sequential ramp, not four hex codes: roles are one kind of
+     thing in an order, and the tokens carry a dark value so the ring stays readable
+     on either background. */
+  var RAMP = ['var(--chart-ramp-1)', 'var(--chart-ramp-2)', 'var(--chart-ramp-3)', 'var(--chart-ramp-4)'];
   /* ---------- Small building blocks ---------- */
   function Card(p) {
     return h('section', { className: 'dash__card ' + (p.span || 'c12') },

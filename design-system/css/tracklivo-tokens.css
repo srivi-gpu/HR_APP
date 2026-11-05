@@ -35,6 +35,12 @@
 
   --priority-high:#f97316;
 
+  /* The sequential companion to --chart-1..6 above. Those are for series that are
+     different kinds of thing; this one violet, light to dark, is for series that are
+     the same kind of thing in an order — roles by seniority, a share of a whole. A
+     monochrome ramp says "more of the same" where six hues would say "six things". */
+  --chart-ramp-1:#3d2496; --chart-ramp-2:#5733c1; --chart-ramp-3:#7a5ad2; --chart-ramp-4:#a690e4;
+
   /* Tracklivo shadows, radii and sizes (prefixed: names clash with Violet) */
   --tl-elevation-1: 0 2px 4px #0000000a, 0 8px 16px #0000000a;
   --tl-elevation-2: 0 4px 12px #0000000f, 0 12px 24px #0000000f;
@@ -66,6 +72,8 @@
     --chart-4:#5aa9ff; --chart-5:#4cb8a6; --chart-6:#8c8996;
     --chart-grid:#2b2a31;
     --priority-high:#f59e6b;
+
+    --chart-ramp-1:#c4b2ff; --chart-ramp-2:#a993f0; --chart-ramp-3:#8872d8; --chart-ramp-4:#6b56b0;
     color-scheme: dark;
   }
 }
@@ -84,6 +92,8 @@
   --chart-4:#5aa9ff; --chart-5:#4cb8a6; --chart-6:#8c8996;
   --chart-grid:#2b2a31;
   --priority-high:#f59e6b;
+
+  --chart-ramp-1:#c4b2ff; --chart-ramp-2:#a993f0; --chart-ramp-3:#8872d8; --chart-ramp-4:#6b56b0;
   color-scheme: dark;
 }
 

@@ -42,7 +42,8 @@
        department, not a warning. */
     return [cssVar('--chart-1', brand), brand, cssVar('--chart-2', '#7a5ad2'),
       cssVar('--chart-3', '#a690e4'), cssVar('--chart-4', '#2f7ae5'),
-      cssVar('--chart-5', '#1f7a6e'), cssVar('--chart-6', '#5b6472'), '#3d2496']
+      cssVar('--chart-5', '#1f7a6e'), cssVar('--chart-6', '#5b6472'),
+      cssVar('--chart-ramp-1', '#3d2496')]
       .map(function (c) { return window.am5.color(c); });
   }
 
@@ -257,7 +258,7 @@
 
       var colours = palette().slice(1);   // the first, darkest, is the root's
       function branchColour(d) {
-        if (!d || d.depth === 0) return am5.color(cssVar('--brand-solid', '#5733c1'));
+        if (!d || d.depth === 0) return am5.color(cssVar('--chart-ramp-1', '#3d2496'));
         var c = colours[(d.branch < 0 ? 0 : d.branch) % colours.length];
         return d.depth <= 1 ? c : am5.Color.lighten(c, Math.min(0.55, (d.depth - 1) * 0.28));
       }
