@@ -1238,15 +1238,17 @@
           tabSt[0] === 'leave'
             ? h('div', { className: 'emonth' },
                 h('div', { className: 'emonth__top' },
+                  /* Two series, two of the design system's chart colours: taken and
+                     left, the ring and its legend sharing them. */
                   h(Ring, { value: entitled ? left / entitled : 0, big: left, small: 'days left',
-                    color: 'var(--av-green-fg)' }),
+                    color: 'var(--chart-3)' }),
                   h('div', { className: 'emonth__key' },
                     h('div', { className: 'emonth__k' },
-                      h('i', { style: { background: 'var(--brand-solid)' } }),
+                      h('i', { style: { background: 'var(--chart-1)' } }),
                       h('span', null, h('strong', null, 'Taken · ' + takenThisMonth + ' day' + (takenThisMonth === 1 ? '' : 's')),
                         h('span', null, 'This month'))),
                     h('div', { className: 'emonth__k' },
-                      h('i', { style: { background: 'var(--av-green-fg)' } }),
+                      h('i', { style: { background: 'var(--chart-3)' } }),
                       h('span', null, h('strong', null, 'Left · ' + left + ' days'),
                         h('span', null, balances.map(function (b) {
                           var t = store.leaveType(b.type) || {};

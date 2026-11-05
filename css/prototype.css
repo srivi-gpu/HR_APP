@@ -781,11 +781,15 @@
   font-size: 12px; color: var(--text-secondary);
 }
 .lkpi__foot b { font: 400 16px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.lkpi--a0 { --lkpi-fg: var(--av-violet-fg); --lkpi-bg: var(--av-violet-bg); }
-.lkpi--a1 { --lkpi-fg: var(--av-blue-fg);   --lkpi-bg: var(--av-blue-bg); }
-.lkpi--a2 { --lkpi-fg: var(--av-green-fg);  --lkpi-bg: var(--av-green-bg); }
-.lkpi--a3 { --lkpi-fg: var(--av-peach-fg);  --lkpi-bg: var(--av-peach-bg); }
-.lkpi--a4 { --lkpi-fg: var(--av-grey-fg);   --lkpi-bg: var(--av-grey-bg); }
+/* The design system's categorical chart colours: a leave type is a series, and this
+   is the same palette any chart of leave types would draw in. The chip tint is mixed
+   from the same value rather than kept as a second token, so the two cannot drift. */
+.lkpi--a0 { --lkpi-fg: var(--chart-1); }
+.lkpi--a1 { --lkpi-fg: var(--chart-2); }
+.lkpi--a2 { --lkpi-fg: var(--chart-3); }
+.lkpi--a3 { --lkpi-fg: var(--chart-4); }
+.lkpi--a4 { --lkpi-fg: var(--chart-5); }
+.lkpi { --lkpi-bg: color-mix(in srgb, var(--lkpi-fg, var(--brand-solid)) 14%, transparent); }
 
 /* ---------- Upcoming holidays: a card each, with the festival drawn on it ----------
    The three counters that used to sit here ("this year", "still to come", "optional")

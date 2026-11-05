@@ -35,10 +35,19 @@
       return v || fallback;
     } catch (e) { return fallback; }
   }
+  /* amCharts paints to a canvas and cannot read a CSS variable, so the tokens are
+     resolved here at draw time. The violet ramp first, because the tree is one kind
+     of thing nested in itself, then the categorical hues for the branches that need
+     telling apart. Every value comes from the stylesheet, so a change of accent or a
+     switch to dark carries into the charts on the next draw. */
+  var CHART_TOKENS = [
+    ['--chart-ramp-1', '#3d2496'], ['--chart-ramp-2', '#5733c1'],
+    ['--chart-ramp-3', '#7a5ad2'], ['--chart-ramp-4', '#a690e4'],
+    ['--chart-2', '#1f5fd1'], ['--chart-3', '#1f7a36'],
+    ['--chart-4', '#d97706'], ['--chart-5', '#c02848'], ['--chart-6', '#3b3a40']
+  ];
   function palette() {
-    var brand = cssVar('--brand-solid', '#5733c1');
-    return ['#3d2496', brand, '#7a5ad2', '#a690e4', '#2f7ae5', '#1f7a6e', '#2f8a52', '#c2741a', '#c02848', '#b4249e']
-      .map(function (c) { return window.am5.color(c); });
+    return CHART_TOKENS.map(function (t) { return window.am5.color(cssVar(t[0], t[1])); });
   }
 
   function initials(name) {
@@ -252,7 +261,7 @@
 
       var colours = palette().slice(1);   // the first, darkest, is the root's
       function branchColour(d) {
-        if (!d || d.depth === 0) return am5.color(cssVar('--brand-solid', '#5733c1'));
+        if (!d || d.depth === 0) return am5.color(cssVar('--chart-ramp-1', '#3d2496'));
         var c = colours[(d.branch < 0 ? 0 : d.branch) % colours.length];
         return d.depth <= 1 ? c : am5.Color.lighten(c, Math.min(0.55, (d.depth - 1) * 0.28));
       }

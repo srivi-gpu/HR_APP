@@ -18,6 +18,25 @@
   --info-fg:#0075f5;    --info-bg:#eaf3ff;    --info-hover:#0075f5;
   --priority-high:#f97316;
 
+  /* ---------- Chart colours ----------
+     Every chart in the product draws from these and nothing else, so a graph cannot
+     arrive in a hue the design system does not own. Two sets, because charts ask two
+     different questions:
+
+     --chart-1..6 is categorical: six Tracklivo hues, for series that are different
+     kinds of thing (statuses, modules, locations). Ordered so the first three are the
+     furthest apart, which is what most charts use.
+
+     --chart-ramp-1..4 is sequential: one violet, light to dark, for series that are
+     the same kind of thing in an order (roles by seniority, a share of a whole). A
+     monochrome ramp says "more of the same" where six hues would say "six things".
+
+     Both carry a dark value, so a chart is readable on either background. */
+  --chart-1:#5733c1; --chart-2:#1f5fd1; --chart-3:#1f7a36;
+  --chart-4:#d97706; --chart-5:#c02848; --chart-6:#3b3a40;
+  --chart-ramp-1:#3d2496; --chart-ramp-2:#5733c1; --chart-ramp-3:#7a5ad2; --chart-ramp-4:#a690e4;
+  --chart-grid:#eeeeee;
+
   /* Tracklivo shadows, radii and sizes (prefixed: names clash with Violet) */
   --tl-elevation-1: 0 2px 4px #0000000a, 0 8px 16px #0000000a;
   --tl-elevation-2: 0 4px 12px #0000000f, 0 12px 24px #0000000f;
@@ -46,6 +65,11 @@
     --warning-fg:#f0b45a; --warning-bg:#2e2414; --warning-hover:#f0b45a;
     --info-fg:#5aa9ff;    --info-bg:#12243a;    --info-hover:#5aa9ff;
     --priority-high:#f59e6b;
+
+    --chart-1:#a993f0; --chart-2:#8dbaff; --chart-3:#7fd99a;
+    --chart-4:#f0b45a; --chart-5:#ff6b87; --chart-6:#b9b6c2;
+    --chart-ramp-1:#c4b2ff; --chart-ramp-2:#a993f0; --chart-ramp-3:#8872d8; --chart-ramp-4:#6b56b0;
+    --chart-grid:#2b2a31;
     color-scheme: dark;
   }
 }
@@ -61,6 +85,11 @@
   --warning-fg:#f0b45a; --warning-bg:#2e2414; --warning-hover:#f0b45a;
   --info-fg:#5aa9ff;    --info-bg:#12243a;    --info-hover:#5aa9ff;
   --priority-high:#f59e6b;
+
+  --chart-1:#a993f0; --chart-2:#8dbaff; --chart-3:#7fd99a;
+  --chart-4:#f0b45a; --chart-5:#ff6b87; --chart-6:#b9b6c2;
+  --chart-ramp-1:#c4b2ff; --chart-ramp-2:#a993f0; --chart-ramp-3:#8872d8; --chart-ramp-4:#6b56b0;
+  --chart-grid:#2b2a31;
   color-scheme: dark;
 }
 

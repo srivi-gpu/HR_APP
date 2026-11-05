@@ -28,7 +28,9 @@
   function pct(a, b) { return b ? Math.round(a / b * 100) : 0; }
   function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 864e5); }
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var RAMP = ['var(--brand-solid)', '#8f73df', '#c3b3f1', 'var(--priority-high)'];
+  /* The design system's sequential ramp. Two of these four used to be hex codes that
+     stayed light-mode violet whatever the theme did. */
+  var RAMP = ['var(--chart-ramp-1)', 'var(--chart-ramp-2)', 'var(--chart-ramp-3)', 'var(--chart-ramp-4)'];
 
   function greeting() {
     var hr = new Date().getHours();
