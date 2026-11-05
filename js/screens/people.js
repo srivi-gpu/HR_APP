@@ -13,7 +13,15 @@
   function deptOptions() { return store.collection('departments').map(function (d) { return { value: d.id, label: d.name }; }); }
   function desOptions() { return store.collection('designations').map(function (d) { return { value: d.id, label: d.name }; }); }
   function locOptions() { return store.collection('locations').map(function (l) { return { value: l.id, label: l.name }; }); }
-  var TYPES = ['Full-Time', 'Part-Time', 'Contract', 'Intern', 'Consultant', 'Temporary'];
+  /* Employee types are configuration now (employee setup, PRD 3.3), so they come
+     from the store rather than a list in this file: a type added there has to show
+     up in the Add employee dialog and in the type filters, not just on the screen
+     that created it. Only active types are offered. */
+  function typeNames() {
+    return store.collection('employeeTypes')
+      .filter(function (t) { return t.status !== 'Inactive'; })
+      .map(function (t) { return t.name; });
+  }
 
   /* ======================================================= Employee profile
      A side drawer with the tabs PRD 4.4 lists, opened from any employee table. */
@@ -419,7 +427,7 @@
             h(V.TextField, Object.assign({ label: 'Work email', type: 'email', required: true }, form.field('workEmail')))),
           h(ui.FieldRow, null,
             h(V.DateField, Object.assign({ label: 'Joining date', required: true }, form.field('joined'))),
-            h(V.Select, Object.assign({ label: 'Employment type', required: true, options: TYPES }, form.select('type')))),
+            h(V.Select, Object.assign({ label: 'Employment type', required: true, options: typeNames() }, form.select('type')))),
           h(ui.FieldRow, null,
             h(V.Select, Object.assign({ label: 'Department', required: true, placeholder: 'Choose', options: deptOptions() }, form.select('department'))),
             h(V.Select, Object.assign({ label: 'Designation', required: true, placeholder: 'Choose', options: desOptions() }, form.select('designation')))),
@@ -624,7 +632,7 @@
             filters: h(React.Fragment, null,
               h(ui.Filter, { label: 'Department', value: deptSt[0], onChange: deptSt[1], options: deptOptions() }),
               h(ui.Filter, { label: 'Location', value: locSt[0], onChange: locSt[1], options: locOptions() }),
-              h(ui.Filter, { label: 'Type', value: typeSt[0], onChange: typeSt[1], options: TYPES })),
+              h(ui.Filter, { label: 'Type', value: typeSt[0], onChange: typeSt[1], options: typeNames() })),
             columns: columns,
             emptyIcon: I.users, emptyTitle: opts.emptyTitle || 'No employees found',
             emptyBody: opts.emptyBody || 'Adjust the filters, or add an employee to get started.',
@@ -663,8 +671,7 @@
         value: tabSt[0], onChange: tabSt[1],
         items: [
           { value: 'departments', label: 'Departments', count: departments.length },
-          { value: 'designations', label: 'Designations', count: designations.length },
-          { value: 'hierarchy', label: 'Reporting hierarchy' }
+          { value: 'designations', label: 'Designations', count: designations.length }
         ]
       }),
 
@@ -705,25 +712,6 @@
           ]
         })) : null,
 
-      tabSt[0] === 'hierarchy' ? h(Grid, null,
-        h(Card, { span: 7, title: 'Department heads', description: 'The reporting chain in PRD 3.1.' },
-          h('div', { className: 'list' }, departments.map(function (d) {
-            var head = d.head && emp(d.head);
-            var reports = store.collection('employees').filter(function (e) { return e.manager === d.head && e.status !== 'Exited'; }).length;
-            return h('div', { className: 'list__row', key: d.id },
-              head ? h(ui.Person, { employee: head, sub: d.name }) : h('span', { className: 'muted' }, 'No head for ' + d.name),
-              h('span', { style: { flex: 1 } }),
-              h(V.Chip, { size: 'sm', shape: 'tag' }, reports + ' direct'),
-              h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, d.headcount + ' in dept'));
-          }))),
-        h(Card, { span: 5, title: 'Levels' },
-          h(ui.Bars, {
-            rows: [7, 6, 5, 4, 3, 2, 1].map(function (lvl) {
-              return ['L' + lvl + ' · ' + designations.filter(function (d) { return d.level === lvl; }).map(function (d) { return d.name; })[0],
-                store.collection('employees').filter(function (e) { return e.level === lvl && e.status !== 'Exited'; }).length];
-            })
-          }))) : null,
-
       deptSt[0] ? h(ui.Modal, {
         title: 'Create department', onClose: function () { deptSt[1](false); },
         footer: h(React.Fragment, null,
@@ -757,48 +745,253 @@
         h(V.TextArea, Object.assign({ label: 'Description', rows: 2 }, desForm.field('description')))) : null);
   }
 
-  /* ============================================= Employee configuration (3.3) */
+  /* ============================================= Employee configuration (3.3)
+     Two things live here, and both are now records rather than constants in the
+     source: the employee types an employee can be given, and the status machine the
+     Change status dialog obeys. Each can be added to, edited and deleted.
+
+     The "Employee statuses" bar chart that used to sit between them is gone. It
+     counted how many people hold each status, which is a headcount question the
+     people screens already answer; on a configuration screen it was the one panel
+     that could not be configured. */
+  var TYPE_STATUS = ['Active', 'Inactive'];
+
+  function leavePolicyOptions() {
+    return store.collection('leavePolicies').map(function (lp) { return { value: lp.id, label: lp.name }; });
+  }
+  function leavePolicyName(id) {
+    var lp = id && store.collection('leavePolicies').filter(function (x) { return x.id === id; })[0];
+    return lp ? lp.name : null;
+  }
+
+  function EmployeeTypeModal(p) {
+    var row = p.row;
+    var form = ui.useForm(row
+      ? { name: row.name, code: row.code, probation: row.probation, leavePolicy: row.leavePolicy || '',
+        status: row.status || 'Active', description: row.description || '' }
+      : { name: '', code: '', probation: 3, leavePolicy: '', status: 'Active', description: '' });
+
+    function save() {
+      var res = form.submit(function (v) {
+        return ui.report(row ? act.updateEmployeeType(row.id, v) : act.createEmployeeType(v));
+      });
+      if (res && res.ok) p.onClose();
+    }
+
+    return h(ui.Modal, {
+      title: row ? 'Edit ' + row.name : 'Add an employee type',
+      description: row
+        ? 'Renaming a type moves every employee on it to the new name.'
+        : 'Types appear in the Add employee dialog and in every employee-type filter.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, row ? 'Save changes' : 'Add type'))
+    },
+      h(ui.FieldRow, null,
+        h(V.TextField, Object.assign({ label: 'Type name', required: true, placeholder: 'e.g. Apprentice' }, form.field('name'))),
+        h(V.TextField, Object.assign({ label: 'Code', required: true, placeholder: 'e.g. AP' }, form.field('code')))),
+      h(ui.FieldRow, null,
+        h(V.NumberField, Object.assign({ label: 'Probation', min: 0, max: 24, hint: 'Months. Zero for no probation.' },
+          form.field('probation', { number: true }))),
+        h(V.Select, Object.assign({ label: 'Leave policy', placeholder: 'None', options: leavePolicyOptions() },
+          form.select('leavePolicy')))),
+      h(V.Select, Object.assign({ label: 'Status', options: TYPE_STATUS }, form.select('status'))),
+      h(V.TextArea, Object.assign({ label: 'Description', rows: 2, placeholder: 'What this type is for' },
+        form.field('description'))),
+      looseErrors(form, ['name', 'code', 'probation', 'leavePolicy', 'status', 'description']));
+  }
+
+  function StatusModal(p) {
+    var row = p.row;
+    var others = store.collection('statusTransitions')
+      .filter(function (x) { return !row || x.id !== row.id; });
+    var form = ui.useForm(row
+      ? { status: row.status, to: (row.to || []).slice(), note: row.note || '' }
+      : { status: '', to: [], note: '' });
+
+    function toggle(name) {
+      var next = (form.values.to || []).slice();
+      var at = next.indexOf(name);
+      if (at < 0) next.push(name); else next.splice(at, 1);
+      form.set('to', next);
+    }
+    function save() {
+      var res = form.submit(function (v) {
+        return ui.report(row ? act.updateEmployeeStatus(row.id, v) : act.createEmployeeStatus(v));
+      });
+      if (res && res.ok) p.onClose();
+    }
+
+    return h(ui.Modal, {
+      title: row ? 'Edit ' + row.status : 'Add a status',
+      description: 'Tick the statuses an employee on this one can be moved to. Leave them all clear '
+        + 'to make it terminal.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, row ? 'Save changes' : 'Add status'))
+    },
+      h(V.TextField, Object.assign({ label: 'Status name', required: true, placeholder: 'e.g. Garden Leave' },
+        form.field('status'))),
+      h('div', { className: 'stack gap-2' },
+        h('span', { className: 'eyebrow' }, 'Can move to'),
+        h('div', { className: 'checks' }, others.map(function (o) {
+          return h('div', { className: 'checks__row', key: o.id },
+            h(V.Checkbox, {
+              checked: (form.values.to || []).indexOf(o.status) >= 0,
+              'aria-label': 'Can move to ' + o.status,
+              onChange: function () { toggle(o.status); }
+            }),
+            h('div', { className: 'checks__main' },
+              h('span', { className: 'checks__name' }, o.status),
+              o.note ? h('span', { className: 'checks__note' }, o.note) : null));
+        }))),
+      h(V.TextArea, Object.assign({ label: 'What it means', rows: 2, placeholder: 'A line for whoever picks this status' },
+        form.field('note'))),
+      looseErrors(form, ['status', 'to', 'note']));
+  }
+
+  /* A refusal may key on something the form has no field for — a type still on
+     somebody's record, for one — so anything unbound is shown rather than living
+     only in a toast that fades. */
+  function looseErrors(form, bound) {
+    var loose = Object.keys(form.errors || {})
+      .filter(function (k) { return bound.indexOf(k) < 0; })
+      .map(function (k) { return form.errors[k]; });
+    return loose.length
+      ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, loose.join(' · '))
+      : null;
+  }
+
   function EmployeeConfig() {
+    var typeSt = React.useState(null);      // null | false (new) | row
+    var statusSt = React.useState(null);
+    var killTypeSt = React.useState(null);
+    var killStatusSt = React.useState(null);
+
+    var types = store.collection('employeeTypes');
+    var transitions = store.collection('statusTransitions');
     var counts = {};
-    store.collection('employees').forEach(function (e) { counts[e.status] = (counts[e.status] || 0) + 1; });
-    var typeCounts = {};
-    store.collection('employees').filter(function (e) { return e.status !== 'Exited'; })
-      .forEach(function (e) { typeCounts[e.type] = (typeCounts[e.type] || 0) + 1; });
+    store.collection('employees').forEach(function (e) { counts[e.type] = (counts[e.type] || 0) + 1; });
+    var statusCounts = {};
+    store.collection('employees').forEach(function (e) { statusCounts[e.status] = (statusCounts[e.status] || 0) + 1; });
+
+    var killType = killTypeSt[0] && store.find('employeeTypes', killTypeSt[0]);
+    var killStatus = killStatusSt[0] && store.find('statusTransitions', killStatusSt[0]);
 
     return h(Grid, null,
-      h(Card, { span: 6, title: 'Employee types', description: 'The types available when creating an employee.' },
-        h('div', { className: 'list' }, TYPES.map(function (t) {
-          return h('div', { className: 'list__row', key: t },
-            h('div', { className: 'list__main' },
-              h('span', { className: 'list__title' }, t),
-              h('span', { className: 'list__meta' }, t === 'Full-Time' ? '6 month probation · full leave policy'
-                : t === 'Intern' ? '3 month probation · intern leave policy' : '3 month probation · contract leave policy')),
-            h(V.Chip, { size: 'sm', shape: 'tag' }, (typeCounts[t] || 0) + ' people'));
-        }))),
-
-      h(Card, { span: 6, title: 'Employee statuses', description: 'Status counts across all records, including archived.' },
-        h(ui.Bars, {
-          rows: Object.keys(rules.transitions).map(function (s) { return [s, counts[s] || 0]; })
-            .filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; })
+      h(Card, { span: 12, title: 'Employee types',
+        description: 'The types offered when creating an employee, and what each one implies.',
+        aside: h(V.Button, {
+          variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+          onClick: function () { typeSt[1](false); }
+        }, 'Add type') },
+        h(ui.DataTable, {
+          exportName: 'employee-types', label: 'Employee types', rows: types, pageSize: 10,
+          search: function (t) { return t.name + ' ' + t.code + ' ' + (t.description || ''); },
+          searchPlaceholder: 'Search employee types',
+          columns: [
+            { key: 'name', header: 'Type', sortable: true,
+              cell: function (t) {
+                return h('div', { className: 'stack gap-1' },
+                  h('strong', { style: { fontWeight: 500 } }, t.name),
+                  t.description ? h('span', { className: 'list__meta' }, t.description) : null);
+              } },
+            { key: 'code', header: 'Code', cell: function (t) { return h('span', { className: 'mono' }, t.code); } },
+            { key: 'probation', header: 'Probation', numeric: true, align: 'right', sortable: true,
+              csv: function (t) { return t.probation; },
+              cell: function (t) { return t.probation ? t.probation + ' months' : h('span', { className: 'muted' }, 'None'); } },
+            { key: 'leavePolicy', header: 'Leave policy',
+              csv: function (t) { return leavePolicyName(t.leavePolicy) || ''; },
+              cell: function (t) {
+                var name = leavePolicyName(t.leavePolicy);
+                return name ? h(V.Chip, { size: 'sm', shape: 'tag' }, name) : h('span', { className: 'muted' }, 'Not set');
+              } },
+            { key: 'people', header: 'Employees', numeric: true, align: 'right', sortable: true,
+              sortValue: function (t) { return counts[t.name] || 0; },
+              csv: function (t) { return counts[t.name] || 0; },
+              cell: function (t) { return counts[t.name] || 0; } },
+            { key: 'status', header: 'Status', cell: function (t) { return h(ui.StatusChip, { status: t.status || 'Active' }); } },
+            { key: 'actions', header: 'Action', align: 'right', csv: false,
+              cell: function (t) {
+                return h('span', { className: 'row gap-1', style: { justifyContent: 'flex-end' } },
+                  h(V.IconButton, { icon: I.pencil, title: 'Edit', 'aria-label': 'Edit ' + t.name,
+                    onClick: function () { typeSt[1](t); } }),
+                  h(V.IconButton, { icon: I.trash, title: 'Delete', 'aria-label': 'Delete ' + t.name,
+                    disabled: !!counts[t.name], onClick: function () { killTypeSt[1](t.id); } }));
+              } }
+          ],
+          emptyIcon: I.users, emptyTitle: 'No employee types yet',
+          emptyBody: 'An employee needs a type before the record can be created.',
+          emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
+            onClick: function () { typeSt[1](false); } }, 'Add type')
         })),
 
-      h(Card, { span: 12, title: 'Allowed status transitions',
-        description: 'PRD 14.1: status changes follow these rules, and the Change status dialog only offers valid targets.' },
+      h(Card, { span: 12, title: 'Statuses and allowed transitions',
+        description: 'PRD 14.1: the Change status dialog only offers what a status points to here.',
+        aside: h(V.Button, {
+          variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+          onClick: function () { statusSt[1](false); }
+        }, 'Add status') },
         h(ui.DataTable, {
-          exportName: 'status-transitions', label: 'Status transitions', pageSize: 12, onExport: false,
-          rows: Object.keys(rules.transitions).map(function (from) {
-            return { id: from, from: from, to: rules.transitions[from] };
-          }),
+          exportName: 'status-transitions', label: 'Statuses and transitions', rows: transitions, pageSize: 12,
+          search: function (r) { return r.status + ' ' + (r.note || '') + ' ' + (r.to || []).join(' '); },
+          searchPlaceholder: 'Search statuses',
           columns: [
-            { key: 'from', header: 'From status', cell: function (r) { return h(ui.StatusChip, { status: r.from }); } },
-            { key: 'to', header: 'Can move to', csv: function (r) { return r.to.join('; '); },
+            { key: 'status', header: 'Status', csv: function (r) { return r.status; },
               cell: function (r) {
-                return r.to.length
-                  ? h('span', { className: 'row gap-2 wrap' }, r.to.map(function (s) { return h(V.Chip, { key: s, size: 'sm', shape: 'tag' }, s); }))
+                return h('div', { className: 'stack gap-1' },
+                  h(ui.StatusChip, { status: r.status }),
+                  r.note ? h('span', { className: 'list__meta' }, r.note) : null);
+              } },
+            { key: 'to', header: 'Can move to', csv: function (r) { return (r.to || []).join('; '); },
+              cell: function (r) {
+                return (r.to || []).length
+                  ? h('span', { className: 'row gap-2 wrap' }, r.to.map(function (t) {
+                      return h(V.Chip, { key: t, size: 'sm', shape: 'tag' }, t);
+                    }))
                   : h('span', { className: 'muted' }, 'Terminal — no further transitions');
+              } },
+            { key: 'people', header: 'Employees', numeric: true, align: 'right', sortable: true,
+              sortValue: function (r) { return statusCounts[r.status] || 0; },
+              csv: function (r) { return statusCounts[r.status] || 0; },
+              cell: function (r) { return statusCounts[r.status] || 0; } },
+            { key: 'actions', header: 'Action', align: 'right', csv: false,
+              cell: function (r) {
+                return h('span', { className: 'row gap-1', style: { justifyContent: 'flex-end' } },
+                  h(V.IconButton, { icon: I.pencil, title: 'Edit', 'aria-label': 'Edit ' + r.status,
+                    onClick: function () { statusSt[1](r); } }),
+                  h(V.IconButton, { icon: I.trash, title: 'Delete', 'aria-label': 'Delete ' + r.status,
+                    disabled: !!statusCounts[r.status], onClick: function () { killStatusSt[1](r.id); } }));
               } }
-          ]
-        })));
+          ],
+          emptyIcon: I.relate, emptyTitle: 'No statuses configured',
+          emptyBody: 'Without a status machine an employee record cannot move anywhere.',
+          emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
+            onClick: function () { statusSt[1](false); } }, 'Add status')
+        })),
+
+      typeSt[0] !== null ? h(EmployeeTypeModal, {
+        row: typeSt[0] || null, onClose: function () { typeSt[1](null); }
+      }) : null,
+      statusSt[0] !== null ? h(StatusModal, {
+        row: statusSt[0] || null, onClose: function () { statusSt[1](null); }
+      }) : null,
+      killType ? h(ui.Confirm, {
+        title: 'Delete ' + killType.name + '?',
+        body: 'Nobody is on this type. It disappears from the Add employee dialog and from every type filter.',
+        confirmLabel: 'Delete', tone: 'danger',
+        onConfirm: function () { ui.report(act.deleteEmployeeType(killType.id)); },
+        onClose: function () { killTypeSt[1](null); }
+      }) : null,
+      killStatus ? h(ui.Confirm, {
+        title: 'Delete ' + killStatus.status + '?',
+        body: 'Nobody holds this status. Any other status that could move to it stops offering it.',
+        confirmLabel: 'Delete', tone: 'danger',
+        onConfirm: function () { ui.report(act.deleteEmployeeStatus(killStatus.id)); },
+        onClose: function () { killStatusSt[1](null); }
+      }) : null);
   }
 
   /* ---------------------------------------------------------------- Register */

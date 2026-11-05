@@ -1349,56 +1349,11 @@
      The configuration behind every approval in the product: what triggers a request,
      who approves it, in what order, what happens if nobody acts, and what a rejection
      does. Modules are read from the permission matrix so the two cannot drift. */
-  var APPROVER_TYPES = [
-    { id: 'manager', label: 'Reporting manager', note: 'The requester’s manager at the time of submission.' },
-    { id: 'head', label: 'Department head', note: 'The head of the requester’s department.' },
-    { id: 'role', label: 'Role based', note: 'Anyone holding a role, e.g. HR Administrator.' },
-    { id: 'user', label: 'Specific user', note: 'One named person, used for finance and IT sign-off.' },
-    { id: 'group', label: 'Any one of a group', note: 'The first member of a group to act decides.' }
-  ];
-
-  var WORKFLOWS = [
-    { id: 'wf-leave', name: 'Leave request', module: 'leave', trigger: 'An employee submits a leave request',
-      stages: [{ type: 'manager', label: 'Reporting manager' }, { type: 'role', label: 'HR Administrator' }],
-      sequence: 'Sequential', escalate: 2, escalateTo: 'Department head', reject: 'Returned to the requester with a mandatory reason',
-      note: 'A second level applies only where the request is longer than five working days.' },
-    { id: 'wf-reg', name: 'Attendance regularization', module: 'attendance', trigger: 'An employee raises an attendance correction',
-      stages: [{ type: 'manager', label: 'Reporting manager' }, { type: 'role', label: 'HR Administrator' }],
-      sequence: 'Sequential', escalate: 2, escalateTo: 'HR Administrator', reject: 'Returned with a reason; the original punch is kept',
-      note: 'PRD 14.3: approval records the corrected time without overwriting the original.' },
-    { id: 'wf-swap', name: 'Shift swap', module: 'shifts', trigger: 'Two employees agree a swap and submit it',
-      stages: [{ type: 'manager', label: 'Reporting manager' }],
-      sequence: 'Single', escalate: 1, escalateTo: 'Department head', reject: 'Both employees keep their original shifts',
-      note: 'The counterparty must agree before the request reaches an approver.' },
-    { id: 'wf-asset', name: 'Asset request', module: 'assets', trigger: 'An employee requests an asset category',
-      stages: [{ type: 'user', label: 'IT Administrator' }, { type: 'role', label: 'HR Administrator' }],
-      sequence: 'Sequential', escalate: 3, escalateTo: 'Organization Admin', reject: 'Closed with a reason; no inventory is reserved',
-      note: 'Approval fails if no asset of that category is available (PRD 14.5).' },
-    { id: 'wf-profile', name: 'Profile change', module: 'people', trigger: 'An employee edits a restricted profile field',
-      stages: [{ type: 'role', label: 'HR Administrator' }],
-      sequence: 'Single', escalate: 5, escalateTo: 'HR Manager', reject: 'The field reverts and the employee is told why',
-      note: 'Bank, name and statutory fields always route here (PRD 4.5).' },
-    { id: 'wf-doc', name: 'Document verification', module: 'documents', trigger: 'An employee uploads a document',
-      stages: [{ type: 'role', label: 'HR Administrator' }],
-      sequence: 'Single', escalate: 4, escalateTo: 'HR Manager', reject: 'Marked rejected with a reason; a re-upload is allowed',
-      note: 'Mandatory onboarding documents block activation until verified (PRD 14.1).' },
-    { id: 'wf-payroll', name: 'Payroll release', module: 'payroll', trigger: 'A payroll cycle is moved to review',
-      stages: [{ type: 'user', label: 'Finance Controller' }, { type: 'role', label: 'Organization Admin' }],
-      sequence: 'Sequential', escalate: 1, escalateTo: 'Organization Admin', reject: 'The cycle returns to Draft and inputs reopen',
-      note: 'A finalized cycle is locked; corrections go through an adjustment (PRD 14.6).' },
-    { id: 'wf-resign', name: 'Resignation', module: 'offboarding', trigger: 'An employee submits a resignation',
-      stages: [{ type: 'manager', label: 'Reporting manager' }, { type: 'role', label: 'HR Administrator' }],
-      sequence: 'Sequential', escalate: 3, escalateTo: 'Department head', reject: 'The employee stays active and is told why',
-      note: 'Approval starts the notice period and the clearance checklist (PRD 5.1).' },
-    { id: 'wf-review', name: 'Performance review', module: 'performance', trigger: 'A manager submits a review for publication',
-      stages: [{ type: 'head', label: 'Department head' }, { type: 'group', label: 'Calibration panel' }],
-      sequence: 'Parallel', escalate: 5, escalateTo: 'HR Administrator', reject: 'Returned to the reviewer before the employee sees it',
-      note: 'Ratings are calibrated across teams before results are published (PRD 4.45).' },
-    { id: 'wf-action', name: 'Engagement action plan', module: 'engagement', trigger: 'An action plan is raised from a survey finding',
-      stages: [{ type: 'role', label: 'HR Administrator' }],
-      sequence: 'Single', escalate: 7, escalateTo: 'Department head', reject: 'Closed with a note on the finding',
-      note: 'The owner is notified on assignment and again on the due date.' }
-  ];
+  /* The approver kinds and the workflows themselves live in the seed, because the
+     screen below can now create, edit and delete them and a constant in this file
+     could not be written to. */
+  var APPROVER_TYPES = seed.approverTypes;
+  function workflows() { return store.collection('approvalWorkflows'); }
 
   function moduleLabel(id) { return (perms.byModule[id] || {}).label || id; }
 
@@ -1442,41 +1397,192 @@
         h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6 } }, w.note)));
   }
 
+  /* The builder. An approval flow is a name, what raises it, an ordered chain of
+     approvers, how the chain is run, what happens when nobody acts, and what a
+     rejection does — so the dialog asks for exactly those, in that order, and the
+     chain is edited in place rather than through a second dialog. */
+  var SEQUENCES = ['Sequential', 'Parallel', 'Single'];
+  var ESCALATE_TO = ['Reporting manager', 'Department head', 'HR Manager', 'HR Administrator',
+    'Organization Admin', 'Finance Controller'];
+  var WF_STATUS = ['Active', 'Inactive'];
+
+  function moduleOptions() {
+    return Object.keys(perms.byModule).map(function (id) {
+      return { value: id, label: moduleLabel(id) };
+    }).sort(function (a, b) { return a.label < b.label ? -1 : 1; });
+  }
+  function approverTypeOptions() {
+    return APPROVER_TYPES.map(function (t) { return { value: t.id, label: t.label }; });
+  }
+  function approverTypeLabel(id) {
+    var t = APPROVER_TYPES.filter(function (x) { return x.id === id; })[0];
+    return t ? t.label : id;
+  }
+
+  function WorkflowModal(p) {
+    var w = p.workflow;
+    var form = ui.useForm(w
+      ? { name: w.name, module: w.module, trigger: w.trigger, sequence: w.sequence,
+        escalate: w.escalate, escalateTo: w.escalateTo, reject: w.reject,
+        status: w.status || 'Active', note: w.note || '' }
+      : { name: '', module: '', trigger: '', sequence: 'Sequential',
+        escalate: 2, escalateTo: 'Department head',
+        reject: 'Returned to the requester with a mandatory reason',
+        status: 'Active', note: '' });
+    var stagesSt = React.useState(w
+      ? w.stages.map(function (st) { return { type: st.type, label: st.label }; })
+      : [{ type: 'manager', label: 'Reporting manager' }]);
+    var stages = stagesSt[0];
+
+    function setStage(i, patch) {
+      stagesSt[1](stages.map(function (st, n) { return n === i ? Object.assign({}, st, patch) : st; }));
+    }
+    /* Picking a kind fills the label with that kind's name, unless the label has
+       already been typed over — "Role based" is the kind, "HR Administrator" is the
+       approver, and most levels want the kind's own words. */
+    function pickType(i, value) {
+      var st = stages[i];
+      var untouched = !st.label || st.label === approverTypeLabel(st.type);
+      setStage(i, untouched ? { type: value, label: approverTypeLabel(value) } : { type: value });
+    }
+    function addStage() {
+      stagesSt[1](stages.concat([{ type: 'role', label: approverTypeLabel('role') }]));
+    }
+    function removeStage(i) {
+      stagesSt[1](stages.filter(function (_, n) { return n !== i; }));
+    }
+    function move(i, by) {
+      var next = stages.slice();
+      var to = i + by;
+      if (to < 0 || to >= next.length) return;
+      var tmp = next[i]; next[i] = next[to]; next[to] = tmp;
+      stagesSt[1](next);
+    }
+
+    function save() {
+      var res = form.submit(function (v) {
+        var payload = Object.assign({}, v, { stages: stages });
+        return ui.report(w ? act.updateApprovalWorkflow(w.id, payload) : act.createApprovalWorkflow(payload));
+      });
+      if (res && res.ok) p.onClose();
+    }
+
+    var single = form.values.sequence === 'Single';
+
+    return h(ui.Modal, {
+      title: w ? 'Edit ' + w.name : 'New approval flow',
+      description: 'What raises the request, who decides it, and what happens if nobody does.',
+      wide: true,
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, w ? 'Save changes' : 'Create flow'))
+    },
+      h(ui.FormSection, { title: 'What it is' },
+        h(ui.FieldRow, null,
+          h(V.TextField, Object.assign({ label: 'Approval name', required: true, placeholder: 'e.g. Travel request' },
+            form.field('name'))),
+          h(V.Select, Object.assign({ label: 'Module', required: true, placeholder: 'Choose a module',
+            options: moduleOptions() }, form.select('module')))),
+        h(V.TextField, Object.assign({ label: 'Trigger', required: true,
+          placeholder: 'e.g. An employee submits a travel request',
+          hint: 'The event that raises a request on this flow' }, form.field('trigger')))),
+
+      h(ui.FormSection, { title: 'Approver hierarchy',
+        description: 'Level 1 is asked first. Each level is a kind of approver and the name shown to the requester.' },
+        stages.length
+          ? h('div', { className: 'chain' }, stages.map(function (st, i) {
+              return h('div', { className: 'chain__row', key: i },
+                h('span', { className: 'chain__n' }, i + 1),
+                h('div', { className: 'chain__f' },
+                  h(V.Select, {
+                    label: 'Approver kind', options: approverTypeOptions(), value: st.type,
+                    onChange: function (e) { pickType(i, e.target.value); }
+                  })),
+                h('div', { className: 'chain__f' },
+                  h(V.TextField, {
+                    label: 'Shown as', value: st.label, placeholder: 'e.g. HR Administrator',
+                    onChange: function (e) { setStage(i, { label: e.target.value }); }
+                  })),
+                h('span', { className: 'chain__kill row gap-1' },
+                  h(V.IconButton, { icon: I.up, title: 'Move up', 'aria-label': 'Move level ' + (i + 1) + ' up',
+                    disabled: i === 0, onClick: function () { move(i, -1); } }),
+                  h(V.IconButton, { icon: I.down, title: 'Move down', 'aria-label': 'Move level ' + (i + 1) + ' down',
+                    disabled: i === stages.length - 1, onClick: function () { move(i, 1); } }),
+                  h(V.IconButton, { icon: I.trash, title: 'Remove', 'aria-label': 'Remove level ' + (i + 1),
+                    onClick: function () { removeStage(i); } })));
+            }))
+          : h('div', { className: 'chain__empty' }, 'No levels yet. A flow needs at least one approver.'),
+        h('div', { className: 'row gap-2' },
+          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus, onClick: addStage },
+            'Add level')),
+        form.errors.stages
+          ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, form.errors.stages)
+          : null),
+
+      h(ui.FormSection, { title: 'How it runs' },
+        h(ui.FieldRow, null,
+          h(V.Select, Object.assign({ label: 'Sequence', options: SEQUENCES,
+            hint: single ? 'One decision completes the request'
+              : form.values.sequence === 'Parallel' ? 'Everyone is asked at once and all must approve'
+                : 'Each level is asked after the one before it approves' }, form.select('sequence'))),
+          h(V.Select, Object.assign({ label: 'Status', options: WF_STATUS }, form.select('status')))),
+        h(ui.FieldRow, null,
+          h(V.NumberField, Object.assign({ label: 'Escalate after', min: 0, max: 60,
+            hint: 'Days a level may sit untouched. Zero never escalates.' },
+            form.field('escalate', { number: true }))),
+          h(V.Select, Object.assign({ label: 'Escalate to', options: ESCALATE_TO }, form.select('escalateTo')))),
+        h(V.TextField, Object.assign({ label: 'On rejection',
+          placeholder: 'What happens to the request when a level rejects it' }, form.field('reject'))),
+        h(V.TextArea, Object.assign({ label: 'Notes', rows: 2,
+          placeholder: 'Anything an approver should know about this flow' }, form.field('note')))),
+
+      (function () {
+        var bound = ['name', 'module', 'trigger', 'sequence', 'escalate', 'escalateTo', 'reject', 'status', 'note', 'stages'];
+        var loose = Object.keys(form.errors || {}).filter(function (k) { return bound.indexOf(k) < 0; })
+          .map(function (k) { return form.errors[k]; });
+        return loose.length
+          ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, loose.join(' · '))
+          : null;
+      }()));
+  }
+
   function WorkflowConfig() {
     var openSt = React.useState(null);
+    var editSt = React.useState(null);      // null | false (new) | workflow
+    var killSt = React.useState(null);
     var moduleSt = React.useState('');
     var seqSt = React.useState('');
 
-    var rows = WORKFLOWS;
+    var all = workflows();
+    var rows = all;
     if (moduleSt[0]) rows = rows.filter(function (w) { return w.module === moduleSt[0]; });
     if (seqSt[0]) rows = rows.filter(function (w) { return w.sequence === seqSt[0]; });
 
     var modules = {};
-    WORKFLOWS.forEach(function (w) { modules[w.module] = true; });
+    all.forEach(function (w) { modules[w.module] = true; });
     var pending = store.collection('approvals').filter(function (a) { return a.status === 'Pending Approval'; });
     var kindRows = countRows(pending, function (a) { return a.kind; });
 
-    var open = openSt[0] && WORKFLOWS.filter(function (w) { return w.id === openSt[0]; })[0];
+    var open = openSt[0] && all.filter(function (w) { return w.id === openSt[0]; })[0];
+    var kill = killSt[0] && store.find('approvalWorkflows', killSt[0]);
 
+    /* The four counters that used to head this screen are gone. Three of them
+       counted the table underneath them, and the fourth — the fastest escalation —
+       was a number nobody acts on. The flows themselves lead now. */
     return h(React.Fragment, null,
-      h(Stats, null,
-        h(Stat, { label: 'Workflows', value: WORKFLOWS.length, sub: 'Across ' + Object.keys(modules).length + ' modules' }),
-        h(Stat, { label: 'Multi-level', value: WORKFLOWS.filter(function (w) { return w.stages.length > 1; }).length,
-          sub: WORKFLOWS.filter(function (w) { return w.sequence === 'Parallel'; }).length + ' run in parallel' }),
-        h(Stat, { label: 'Requests waiting', value: pending.length,
-          sub: kindRows.length + ' request types in the inbox',
-          tone: pending.length ? 'warn' : 'good',
-          onClick: function () { router.goAs('hr/approvals'); } }),
-        h(Stat, { label: 'Fastest escalation', value: Math.min.apply(null, WORKFLOWS.map(function (w) { return w.escalate; })), unit: 'day',
-          sub: 'Payroll and shift swaps escalate first' })),
-
       h(Grid, null,
         h(Card, { span: 12, title: 'Approval workflows',
-          description: 'The workflow engine of PRD 6.2: a trigger, an approver chain, a sequence, an escalation and a rejection behaviour.',
-          aside: h(V.Button, {
-            variant: 'outline', className: 'vi-btn--sm', iconStart: I.tasks,
-            onClick: function () { router.goAs('hr/approvals'); }
-          }, 'Approval inbox') },
+          description: 'A trigger, an approver chain, a sequence, an escalation and a rejection behaviour (PRD 6.2).',
+          aside: h('div', { className: 'row gap-2' },
+            h(V.Button, {
+              variant: 'outline', className: 'vi-btn--sm', iconStart: I.tasks,
+              onClick: function () { router.goAs('hr/approvals'); }
+            }, 'Approval inbox'),
+            h(V.Button, {
+              variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+              onClick: function () { editSt[1](false); }
+            }, 'New approval flow')) },
           h(ui.DataTable, {
             exportName: 'approval-workflows', label: 'Approval workflows', rows: rows, pageSize: 10,
             search: function (w) { return w.name + ' ' + moduleLabel(w.module) + ' ' + w.trigger + ' ' + w.sequence; },
@@ -1485,7 +1591,7 @@
               h(ui.Filter, { label: 'Module', value: moduleSt[0], onChange: moduleSt[1],
                 options: Object.keys(modules).map(function (m) { return { value: m, label: moduleLabel(m) }; }) }),
               h(ui.Filter, { label: 'Sequence', value: seqSt[0], onChange: seqSt[1],
-                options: ['Sequential', 'Parallel', 'Single'] })),
+                options: SEQUENCES })),
             columns: [
               { key: 'name', header: 'Workflow', sortable: true,
                 cell: function (w) {
@@ -1512,20 +1618,33 @@
                 } },
               { key: 'escalate', header: 'Escalates', numeric: true, align: 'right', sortable: true,
                 csv: function (w) { return w.escalate + ' days to ' + w.escalateTo; },
-                cell: function (w) { return w.escalate + 'd → ' + w.escalateTo; } },
-              { key: 'reject', header: 'On rejection' },
-              { key: 'actions', header: '', align: 'right',
                 cell: function (w) {
-                  return h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { openSt[1](w.id); } }, 'Configure');
+                  return w.escalate ? w.escalate + 'd → ' + w.escalateTo : h('span', { className: 'muted' }, 'Never');
+                } },
+              { key: 'status', header: 'Status',
+                csv: function (w) { return w.status || 'Active'; },
+                cell: function (w) { return h(ui.StatusChip, { status: w.status || 'Active' }); } },
+              { key: 'actions', header: 'Action', align: 'right', csv: false,
+                cell: function (w) {
+                  return h('span', { className: 'row gap-1', style: { justifyContent: 'flex-end' } },
+                    h(V.IconButton, { icon: I.pencil, title: 'Edit', 'aria-label': 'Edit ' + w.name,
+                      onClick: function () { editSt[1](w); } }),
+                    h(V.IconButton, { icon: I.trash, title: 'Delete', 'aria-label': 'Delete ' + w.name,
+                      onClick: function () { killSt[1](w.id); } }));
                 } }
             ],
-            emptyIcon: I.relate, emptyTitle: 'No workflows match',
-            emptyBody: 'Clear the filters. Every request type in PRD 6.2 has a workflow.'
+            emptyIcon: I.relate,
+            emptyTitle: moduleSt[0] || seqSt[0] ? 'No workflows match' : 'No approval flows yet',
+            emptyBody: moduleSt[0] || seqSt[0]
+              ? 'Clear the filters to see every flow.'
+              : 'Without a flow a request has nobody to go to.',
+            emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
+              onClick: function () { editSt[1](false); } }, 'New approval flow')
           })),
 
-        h(Card, { span: 6, title: 'Approver types', description: 'Who a level can resolve to (PRD 6.2).' },
+        h(Card, { span: 6, title: 'Approver kinds', description: 'What a level can resolve to (PRD 6.2).' },
           h('div', { className: 'list' }, APPROVER_TYPES.map(function (t) {
-            var uses = WORKFLOWS.filter(function (w) {
+            var uses = all.filter(function (w) {
               return w.stages.some(function (st) { return st.type === t.id; });
             }).length;
             return h('div', { className: 'list__row', key: t.id },
@@ -1565,6 +1684,16 @@
             ? h(ui.Bars, { rows: kindRows })
             : h(ui.Empty, { icon: I.ok, title: 'Nothing waiting', body: 'Every request routed by these workflows has been actioned.' }))),
 
+      editSt[0] !== null ? h(WorkflowModal, {
+        workflow: editSt[0] || null, onClose: function () { editSt[1](null); }
+      }) : null,
+      kill ? h(ui.Confirm, {
+        title: 'Delete ' + kill.name + '?',
+        body: 'Requests already raised keep the decisions they have. Nothing new routes on this flow.',
+        confirmLabel: 'Delete', tone: 'danger',
+        onConfirm: function () { ui.report(act.deleteApprovalWorkflow(kill.id)); },
+        onClose: function () { killSt[1](null); }
+      }) : null,
       open ? h(WorkflowDrawer, { workflow: open, onClose: function () { openSt[1](null); } }) : null);
   }
 

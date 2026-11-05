@@ -82,7 +82,40 @@
       p.actions ? el('div', { className: 'row gap-2 wrap' }, p.actions) : null);
   }
 
+  /* A card whose whole body is one table is a box inside a box: the card draws a
+     head and a border, and the table then draws its own toolbar and its own bordered
+     table inside that. It also strands the controls — the heading sat in the card
+     head while the search, the filters and the Export button sat in a band below it,
+     lined up with nothing.
+
+     So a card like that is not drawn. Its title, description and aside move onto the
+     table's own toolbar row, which is where the search and the filters already are,
+     and only the grid span is kept so the layout around it is unchanged. Doing it
+     here rather than at each call site means every table in the product gets it,
+     including ones added later. A card with anything else in it alongside the table,
+     or a table that was already given its own title, is left alone. */
+  /* The card leads with a table when its first child is one. Anything after it — a
+     footnote, a pair of links — stays where it was, below the table, so unwrapping
+     never reorders a card. A table that is not first keeps its card, because the
+     heading has to sit on the table's own toolbar row and moving it there would put
+     whatever came before the table underneath it. */
+  function leadingTable(children) {
+    var list = kids(children).filter(Boolean);
+    if (!list.length) return null;
+    var first = list[0];
+    if (!React.isValidElement(first) || first.type !== DataTable || first.props.title) return null;
+    return { table: first, rest: list.slice(1) };
+  }
+
   function Card(p) {
+    var led = leadingTable(p.children);
+    if (led) {
+      return el('div', {
+        className: ['tablewrap', p.span ? 'span-' + p.span : '', p.className || ''].filter(Boolean).join(' ')
+      }, [React.cloneElement(led.table, {
+        title: p.title, description: p.description, actions: p.aside
+      })].concat(led.rest));
+    }
     var head = p.title || p.aside
       ? h('div', { className: 'card__head' },
           h('h2', { className: 'card__title' }, p.title),
@@ -528,24 +561,35 @@
     /* A table may own its heading. When it does, the title sits at the left of the
        toolbar row and the search, filters and Export line up with it, rather than the
        title sitting in a card head with a separate band of controls below it. */
-    var hasToolbar = p.search || p.filters || p.onExport !== false || p.toolbar || p.title;
+    var hasToolbar = p.search || p.filters || p.onExport !== false || p.toolbar || p.actions || p.title;
+
+    var controls = [
+      p.search ? h('div', { className: 'filterbar__search', key: 's' },
+        h(V.SearchField, {
+          placeholder: p.searchPlaceholder || 'Search',
+          value: qSt[0], onChange: function (e) { qSt[1](e.target.value); }
+        })) : null,
+      p.filters || null,
+      p.toolbar || null,
+      p.actions || null,
+      p.onExport !== false
+        ? h(V.Button, { key: 'x', variant: 'outline', className: 'vi-btn--sm', iconStart: I.download, onClick: exportCsv }, 'Export')
+        : null
+    ];
+
     return h(React.Fragment, null,
-      hasToolbar ? h('div', { className: 'filterbar' + (p.title ? ' filterbar--titled' : '') },
-        p.title ? h('div', { className: 'filterbar__head' },
-          h('h2', { className: 'card__title' }, p.title),
-          p.description ? h('p', { className: 'muted filterbar__desc' }, p.description) : null) : null,
-        p.title ? h('span', { className: 'filterbar__spacer' }) : null,
-        p.search ? h('div', { className: 'filterbar__search' },
-          h(V.SearchField, {
-            placeholder: p.searchPlaceholder || 'Search',
-            value: qSt[0], onChange: function (e) { qSt[1](e.target.value); }
-          })) : null,
-        p.filters || null,
-        p.title ? null : h('span', { className: 'filterbar__spacer' }),
-        p.toolbar || null,
-        p.onExport !== false
-          ? h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.download, onClick: exportCsv }, 'Export')
-          : null) : null,
+      /* With a heading the controls are grouped, so when the row runs out of width
+         they move under the heading together instead of the search staying put and
+         the buttons dropping away from it one at a time. */
+      hasToolbar ? (p.title
+        ? h('div', { className: 'filterbar filterbar--titled' },
+            h('div', { className: 'filterbar__head' },
+              h('h2', { className: 'card__title' }, p.title),
+              p.description ? h('p', { className: 'muted filterbar__desc' }, p.description) : null),
+            el('div', { className: 'filterbar__tools' }, controls))
+        : el('div', { className: 'filterbar' },
+            [controls[0], controls[1], h('span', { className: 'filterbar__spacer', key: 'g' })]
+              .concat(controls.slice(2)))) : null,
       rows.length
         ? h(React.Fragment, null,
             h(V.Table, {

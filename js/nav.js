@@ -230,14 +230,11 @@
     ]},
 
     { path: 'config', label: 'Configuration', icon: 'sliders', section: '2.2', tabs: [
-      { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments, designations, business units and reporting hierarchy.' },
+      { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments and designations, with the job level each one sits at.' },
       { path: 'employee', label: 'Employee setup', section: '3.3', note: 'Employee types, statuses and the allowed status transitions.' },
-      { path: 'leave', label: 'Leave policies', section: '4.11', note: 'Leave types, entitlement, accrual, carry forward and approval levels.' },
-      { path: 'attendance', label: 'Attendance policies', section: '4.16', note: 'Working hours, grace period, late and overtime rules.' },
       { path: 'payroll', label: 'Payroll configuration', section: '4.34', note: 'Frequency, cut-off, statutory rules and the approval workflow.' },
       { path: 'onboarding', label: 'Onboarding', section: '4.7', note: 'Templates, task categories, assignees and dependencies.' },
       { path: 'offboarding', label: 'Offboarding', section: '4.48', note: 'Exit reasons, notice rules and clearance checklists.' },
-      { path: 'assets', label: 'Assets', section: '4.29', note: 'Asset categories, custom fields and status rules.' },
       { path: 'performance', label: 'Performance', section: '4.43', note: 'Cycles, competencies, rating scales and review hierarchy.' },
       { path: 'surveys', label: 'Surveys', section: '4.40', note: 'Question banks, templates and anonymity defaults.' },
       { path: 'workflows', label: 'Approval workflows', section: '6.2', note: 'The workflow engine: triggers, approver types, sequence and escalation.' }

@@ -578,30 +578,39 @@
         h(Stat, { label: 'Total entitlement', value: balances.reduce(function (n, b) { return n + b.entitled; }, 0), unit: 'days', sub: 'This leave year' }),
         h(Stat, { label: 'Available', value: balances.reduce(function (n, b) { return n + b.available; }, 0), unit: 'days', sub: 'Across all types', tone: 'good' }),
         h(Stat, { label: 'Taken', value: taken, unit: 'days', sub: requests.filter(function (l) { return l.status === 'Approved'; }).length + ' approved requests' })),
+      /* A DataTable rather than a bare V.Table, so this reads like every other table
+         in the product: its heading, search and Export on one row, its own empty
+         state, and no card drawn around it. */
       h(Card, { title: 'Leave balance', description: 'Entitlement, used and available for each leave type.' },
-        balances.length
-          ? h(V.Table, {
-              'aria-label': 'Leave balance',
-              columns: [
-                { key: 'type', header: 'Leave type', cell: function (b) { return store.leaveType(b.type).name; } },
-                { key: 'code', header: 'Code', cell: function (b) { return h('span', { className: 'mono' }, store.leaveType(b.type).code); } },
-                { key: 'entitled', header: 'Entitled', numeric: true, align: 'right' },
-                { key: 'used', header: 'Used', numeric: true, align: 'right' },
-                { key: 'available', header: 'Available', numeric: true, align: 'right',
-                  cell: function (b) { return h('strong', { style: { fontWeight: 500 } }, b.available); } },
-                { key: 'bar', header: 'Used', cell: function (b) {
-                    return h(V.ProgressBar, { value: ui.pct(b.used, b.entitled), size: 'sm', 'aria-label': store.leaveType(b.type).name });
-                  } },
-                { key: 'carry', header: 'Carry forward', csv: function (b) { return store.leaveType(b.type).carry ? 'Yes' : 'No'; },
-                  cell: function (b) {
-                    return store.leaveType(b.type).carry
-                      ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, 'Yes')
-                      : h('span', { className: 'muted' }, 'No');
-                  } }
-              ],
-              rows: balances.map(function (b, i) { return Object.assign({ id: i }, b); })
-            })
-          : h(ui.Empty, { icon: I.calendar, title: 'No leave policy assigned', body: 'Ask HR to assign a leave policy to your record.' })),
+        h(ui.DataTable, {
+          exportName: 'my-leave-balance', label: 'Leave balance', pageSize: 10,
+          rows: balances.map(function (b, i) { return Object.assign({ id: i }, b); }),
+          search: function (b) { return store.leaveType(b.type).name + ' ' + store.leaveType(b.type).code; },
+          searchPlaceholder: 'Search leave types',
+          columns: [
+            { key: 'type', header: 'Leave type', sortable: true,
+              sortValue: function (b) { return store.leaveType(b.type).name; },
+              csv: function (b) { return store.leaveType(b.type).name; },
+              cell: function (b) { return store.leaveType(b.type).name; } },
+            { key: 'code', header: 'Code', csv: function (b) { return store.leaveType(b.type).code; },
+              cell: function (b) { return h('span', { className: 'mono' }, store.leaveType(b.type).code); } },
+            { key: 'entitled', header: 'Entitled', numeric: true, align: 'right', sortable: true },
+            { key: 'used', header: 'Used', numeric: true, align: 'right', sortable: true },
+            { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true,
+              cell: function (b) { return h('strong', { style: { fontWeight: 500 } }, b.available); } },
+            { key: 'bar', header: 'Used', csv: false, cell: function (b) {
+                return h(V.ProgressBar, { value: ui.pct(b.used, b.entitled), size: 'sm', 'aria-label': store.leaveType(b.type).name });
+              } },
+            { key: 'carry', header: 'Carry forward', csv: function (b) { return store.leaveType(b.type).carry ? 'Yes' : 'No'; },
+              cell: function (b) {
+                return store.leaveType(b.type).carry
+                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success' }, 'Yes')
+                  : h('span', { className: 'muted' }, 'No');
+              } }
+          ],
+          emptyIcon: I.calendar, emptyTitle: 'No leave policy assigned',
+          emptyBody: 'Ask HR to assign a leave policy to your record.'
+        })),
       h(Card, { title: 'Upcoming holidays' },
         h('div', { className: 'list' }, store.collection('holidays')
           .filter(function (x) { return x.date >= seed.todayIso; }).slice(0, 5).map(function (hd) {

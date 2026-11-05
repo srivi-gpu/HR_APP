@@ -573,9 +573,7 @@
                   onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); }
                 }),
                 h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-            })),
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.sliders,
-            onClick: function () { router.go('hr/config/attendance'); } }, 'Attendance configuration'))));
+            })))));
   }
 
   /* ============================================================ Leave dashboard
@@ -1403,17 +1401,18 @@
 
       h(Card, {
         title: 'Weekly roster', description: 'Assigning replaces any shift already published for that employee and date (PRD 14.4).',
-        aside: h('div', { className: 'row gap-2' },
-          h(V.IconButton, { icon: I.back, 'aria-label': 'Previous week', onClick: function () { weekSt[1](weekSt[0] - 1); } }),
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', disabled: weekSt[0] === 0, onClick: function () { weekSt[1](0); } }, 'This week'),
-          h(V.IconButton, { icon: I.right, 'aria-label': 'Next week', onClick: function () { weekSt[1](weekSt[0] + 1); } }))
-      },
-        h('div', { className: 'row gap-2 wrap' },
+        /* The week label and this week's holidays belong beside the week controls,
+           not in a band of their own above the table. */
+        aside: h('div', { className: 'row gap-2 wrap' },
           h(V.Chip, { size: 'sm', shape: 'tag', icon: I.calendar }, weekLabel),
           holidaysThisWeek.map(function (d) {
             return h(V.Chip, { key: d, size: 'sm', shape: 'tag', variant: 'soft', tone: 'info', dot: true },
               hol[d].name + ' · ' + ui.shortDate(d));
-          })),
+          }),
+          h(V.IconButton, { icon: I.back, 'aria-label': 'Previous week', onClick: function () { weekSt[1](weekSt[0] - 1); } }),
+          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', disabled: weekSt[0] === 0, onClick: function () { weekSt[1](0); } }, 'This week'),
+          h(V.IconButton, { icon: I.right, 'aria-label': 'Next week', onClick: function () { weekSt[1](weekSt[0] + 1); } }))
+      },
         h(ui.DataTable, {
           exportName: 'shift-roster-' + iso(start), label: 'Weekly roster', rows: rows, pageSize: 10,
           selection: 'multiple', selected: selSt[0], onSelectionChange: selSt[1],
@@ -2044,134 +2043,6 @@
       }) : null);
   }
 
-  /* ====================================================== Leave configuration
-     PRD 4.11: types, entitlement, accrual, carry forward and approval levels. */
-  function ConfigLeave() {
-    var types = store.collection('leaveTypes');
-    var policies = store.collection('leavePolicies');
-
-    return h(Grid, null,
-      h(Card, {
-        span: 12, title: 'Leave types and entitlement',
-        description: 'The rule set each type carries. Create and edit them on the Leave types screen (PRD 4.11).',
-        aside: h('div', { className: 'row gap-2' },
-          h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.sliders, onClick: function () { router.go('hr/leave/policies'); } }, 'Policies'),
-          h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { router.go('hr/leave/types'); } }, 'Leave types'))
-      },
-        h(ui.DataTable, {
-          exportName: 'config-leave-types', label: 'Leave configuration', rows: types, pageSize: 10, onExport: true,
-          search: function (t) { return t.name + ' ' + t.code; }, searchPlaceholder: 'Search leave types',
-          columns: [
-            { key: 'name', header: 'Leave type', sortable: true },
-            { key: 'code', header: 'Code', cell: function (t) { return h('span', { className: 'mono' }, t.code); } },
-            { key: 'annual', header: 'Annual', numeric: true, align: 'right',
-              cell: function (t) { return t.annual ? t.annual + ' days' : h('span', { className: 'muted' }, 'Accrued'); } },
-            { key: 'accrual', header: 'Accrual', csv: function (t) { return t.annual ? 'Monthly' : 'On event'; },
-              cell: function (t) { return t.annual ? 'Monthly, ' + Math.round((t.annual / 12) * 100) / 100 + ' days' : 'On event'; } },
-            { key: 'carry', header: 'Carry forward', csv: function (t) { return t.carry ? 'Yes, up to ' + (t.maxAccrual || 0) : 'No'; },
-              cell: function (t) {
-                return t.carry
-                  ? h('span', null, 'Up to ' + (t.maxAccrual || 0) + ' days')
-                  : h('span', { className: 'muted' }, 'Lapses at year end');
-              } },
-            { key: 'notice', header: 'Notice', numeric: true, align: 'right',
-              cell: function (t) { return t.notice ? t.notice + ' days' : h('span', { className: 'muted' }, 'None'); } },
-            { key: 'approval', header: 'Approval levels',
-              csv: function (t) { return t.annual > 100 ? 'Manager then HR' : 'Manager'; },
-              cell: function (t) {
-                return h(V.Chip, { size: 'sm', shape: 'tag' }, t.annual > 100 ? 'Manager → HR' : 'Manager');
-              } },
-            { key: 'policies', header: 'In policies', numeric: true, align: 'right',
-              csv: function (t) { return policies.filter(function (p) { return p.types.indexOf(t.id) >= 0; }).length; },
-              cell: function (t) { return policies.filter(function (p) { return p.types.indexOf(t.id) >= 0; }).length; } }
-          ],
-          emptyIcon: I.calendar, emptyTitle: 'No leave types configured',
-          emptyBody: 'Create a leave type before assigning it to a policy.'
-        })),
-
-      h(Card, { span: 6, title: 'Leave year and accrual' },
-        h(ui.KeyValue, { rows: [
-          ['Leave year', '1 January – 31 December'],
-          ['Accrual frequency', 'Monthly, credited on the first'],
-          ['Accrual on joining', 'Pro-rated from the joining date'],
-          ['Carry forward cap', 'Per leave type, up to its maximum accrual'],
-          ['Encashment', 'Earned leave only, at exit'],
-          ['Negative balance', 'Not permitted (PRD 14.2)']
-        ]}),
-        h('p', { className: 'muted', style: { fontSize: 12 } },
-          'Days are counted excluding weekly offs and holidays, which is why a five-day range can be three leave days.')),
-
-      h(Card, { span: 6, title: 'Options' },
-        h('div', { className: 'checks' },
-          [['Exclude weekly offs from leave days', true],
-            ['Exclude holidays from leave days', true],
-            ['Allow half-day applications', true],
-            ['Require a reason on every application', true],
-            ['Let managers approve their own team’s leave', true],
-            ['Allow backdated applications', false]].map(function (row) {
-            return h('div', { className: 'checks__row', key: row[0] },
-              h(V.Switch, {
-                defaultChecked: row[1], 'aria-label': row[0],
-                onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); }
-              }),
-              h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-          }))));
-  }
-
-  /* ================================================= Attendance configuration
-     PRD 4.16: working hours, grace period, late and overtime rules. */
-  /* ================================================== Attendance configuration
-     Settings you switch on or off, the way permissions read. What was here before was
-     mostly a read-only recital — working hours, grace periods, late and overtime rules
-     restated as text and a table — none of which could be changed from the screen that
-     claimed to configure them. The rules that are genuinely policy are toggles now; the
-     per-shift timings live with the shift, which is where they are edited. */
-  var ATTENDANCE_SETTINGS = [
-    { group: 'Capturing time', items: [
-      ['Allow web check-in', true, 'Check in and out from the browser'],
-      ['Allow mobile check-in with location', true, 'The punch records where it was made'],
-      ['Capture the punch source', true, 'Biometric, web or mobile, kept on the record'],
-      ['Auto-mark absent with no punch by end of day', true, 'Rather than leaving the day blank']
-    ]},
-    { group: 'Lateness', items: [
-      ['Mark late automatically past the grace period', true, 'Each shift carries its own grace period'],
-      ['Count three lates in a month as a half day', true, 'Deducted from the leave balance'],
-      ['Exempt a late arrival on an approved work-from-home day', false, 'No late mark when the day was agreed'],
-      ['Notify the employee when a late is recorded', true, 'So the first they hear of it is not payroll']
-    ]},
-    { group: 'Overtime', items: [
-      ['Track overtime beyond the daily threshold', true, 'Counted past 9.5 worked hours'],
-      ['Require manager approval before overtime is payable', true, 'Unapproved hours are recorded, not paid'],
-      ['Offer compensatory off instead of payment', true, 'Shift staff are paid; everyone else accrues time']
-    ]},
-    { group: 'Corrections', items: [
-      ['Allow employees to raise a correction', true, 'Within the last 30 days (PRD 14.3)'],
-      ['Require manager approval for a correction', true, 'A correction changes a paid day'],
-      ['Allow HR to correct a day directly', true, 'Without the manager step']
-    ]},
-    { group: 'Visibility', items: [
-      ['Let employees see their own monthly grid', true, 'Their attendance, not the team’s'],
-      ['Let managers see their team’s attendance', true, 'Direct reports only'],
-      ['Notify the manager on a missing punch', true, 'On the day it happens']
-    ]}
-  ];
-
-  function ConfigAttendance() {
-    return h(Grid, null, ATTENDANCE_SETTINGS.map(function (section, i) {
-      return h(Card, { key: section.group, span: i === 0 ? 12 : 6, title: section.group },
-        h('div', { className: 'checks' }, section.items.map(function (row) {
-          return h('div', { className: 'checks__row', key: row[0] },
-            h(V.Switch, {
-              defaultChecked: row[1], 'aria-label': row[0],
-              onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); }
-            }),
-            h('div', { className: 'checks__main' },
-              h('span', { className: 'checks__name' }, row[0]),
-              h('span', { className: 'checks__meta' }, row[2])));
-        })));
-    }));
-  }
-
   HRMS.screens.register({
     'hr/attendance/dashboard': AttendanceDashboard,
     'hr/attendance/daily': AttendanceDaily,
@@ -2192,7 +2063,5 @@
 
     'hr/holidays': Holidays,
 
-    'hr/config/leave': ConfigLeave,
-    'hr/config/attendance': ConfigAttendance
   });
 })();

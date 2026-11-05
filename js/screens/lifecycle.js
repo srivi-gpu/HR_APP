@@ -2666,82 +2666,6 @@
         })));
   }
 
-  function AssetsConfig() {
-    var assets = store.collection('assets');
-    return h(Grid, null,
-      h(Card, { span: 12, title: 'Asset categories',
-        description: 'PRD 4.29: the categories an asset can belong to, with the live inventory position for each.' },
-        h(ui.DataTable, {
-          exportName: 'config-asset-categories', label: 'Asset categories', pageSize: 10, onExport: false,
-          rows: seed.assetCategories.map(function (cat) {
-            var mine = assets.filter(function (a) { return a.category === cat; });
-            return {
-              id: cat, category: cat, count: mine.length,
-              available: mine.filter(function (a) { return a.status === 'Available'; }).length,
-              assigned: mine.filter(function (a) { return a.status === 'Assigned'; }).length,
-              value: mine.reduce(function (n, a) { return n + (a.value || 0); }, 0),
-              serialRequired: true
-            };
-          }),
-          columns: [
-            { key: 'category', header: 'Category', sortable: true },
-            { key: 'count', header: 'Units', numeric: true, align: 'right', sortable: true },
-            { key: 'assigned', header: 'Assigned', numeric: true, align: 'right' },
-            { key: 'available', header: 'Available', numeric: true, align: 'right' },
-            { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
-              csv: function (r) { return r.value; }, cell: function (r) { return ui.inr(r.value, { short: true }); } },
-            { key: 'serialRequired', header: 'Serial required', align: 'center',
-              csv: function () { return 'Yes'; },
-              cell: function () { return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning' }, 'Required'); } }
-          ]
-        })),
-
-      h(Card, { span: 6, title: 'Status rules',
-        description: 'PRD 14.5: which statuses allow allocation, and what a return does.' },
-        h(ui.DataTable, {
-          exportName: 'config-asset-statuses', label: 'Asset status rules', pageSize: 10, onExport: false,
-          rows: [
-            { id: 1, status: 'Available', allocatable: true, note: 'In the store, ready to issue' },
-            { id: 2, status: 'Assigned', allocatable: false, note: 'Out with an employee; must be returned first' },
-            { id: 3, status: 'Under Maintenance', allocatable: false, note: 'Returned needing service' },
-            { id: 4, status: 'Damaged', allocatable: false, note: 'Returned damaged; kept out of the pool' },
-            { id: 5, status: 'Lost', allocatable: false, note: 'Not recovered; recovery may be raised in payroll' },
-            { id: 6, status: 'Retired', allocatable: false, note: 'Written off, kept for the audit trail' }
-          ],
-          columns: [
-            { key: 'status', header: 'Status', cell: function (r) { return h(ui.StatusChip, { status: r.status }); } },
-            { key: 'allocatable', header: 'Can be allocated', align: 'center',
-              csv: function (r) { return r.allocatable ? 'Yes' : 'No'; },
-              cell: function (r) {
-                return r.allocatable
-                  ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Yes')
-                  : h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'neutral' }, 'No');
-              } },
-            { key: 'note', header: 'Meaning' }
-          ]
-        })),
-
-      h(Card, { span: 6, title: 'Custom fields and defaults' },
-        h(ui.KeyValue, { rows: [
-          ['Asset ID format', h('span', { className: 'mono' }, 'AST####')],
-          ['Next asset ID', h('span', { className: 'mono' }, store.nextId('assets', 'AST'))],
-          ['Serial number', 'Required and unique across the inventory (PRD 14.5)'],
-          ['Custom fields', 'Purchase value, warranty until, condition, location'],
-          ['Default warranty', '36 months from the purchase date'],
-          ['Acknowledgement', 'Requested from the holder on allocation (PRD 4.30)']
-        ]}),
-        h('div', { className: 'checks' },
-          [['Require the holder to acknowledge receipt', true],
-            ['Refuse allocation of an asset already assigned', true],
-            ['Auto-raise a return task when an exit is approved', true],
-            ['Allow an employee to request an asset directly', true]].map(function (row) {
-            return h('div', { className: 'checks__row', key: row[0] },
-              h(V.Switch, { defaultChecked: row[1], 'aria-label': row[0],
-                onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); } }),
-              h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-          }))));
-  }
-
   /* ---------------------------------------------------------------- Register */
   HRMS.screens.register({
     'hr/onboarding/dashboard': OnboardingDashboard,
@@ -2769,7 +2693,6 @@
     'admin/assets/maintenance': Maintenance,
 
     'hr/config/onboarding': OnboardingConfig,
-    'hr/config/offboarding': OffboardingConfig,
-    'hr/config/assets': AssetsConfig
+    'hr/config/offboarding': OffboardingConfig
   });
 })();
