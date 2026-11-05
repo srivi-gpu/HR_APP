@@ -604,7 +604,7 @@
             { key: 'dueDay', header: 'Due' },
             { key: 'depends', header: 'Depends on',
               cell: function (r) { return r.depends || h('span', { className: 'muted' }, 'Nothing — starts first'); } },
-            { key: 'mandatory', header: 'Mandatory', align: 'center',
+            { key: 'mandatory', header: 'Mandatory',
               cell: function (r) {
                 return r.mandatory
                   ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning' }, 'Mandatory')
@@ -2222,7 +2222,7 @@
             { key: 'category', header: 'Category', sortable: true },
             { key: 'assignedOn', header: 'Assigned', sortable: true, cell: function (a) { return ui.dateLabel(a.assignedOn); } },
             { key: 'condition', header: 'Condition on issue' },
-            { key: 'acknowledged', header: 'Receipt', align: 'center',
+            { key: 'acknowledged', header: 'Receipt',
               csv: function (a) { return a.acknowledged ? 'Acknowledged' : 'Pending'; },
               cell: function (a) {
                 return a.acknowledged

@@ -698,7 +698,7 @@
             { key: 'shift', header: 'Shift', csv: function (x) { return (store.shift(x.shift) || {}).name; },
               cell: function (x) { var s = store.shift(x.shift) || {}; return s.name + ' (' + s.start + ' – ' + s.end + ')'; } },
             { key: 'source', header: 'Source', cell: function (x) { return h(V.Chip, { size: 'sm', shape: 'tag' }, x.source); } },
-            { key: 'published', header: 'Published', align: 'center', csv: function (x) { return x.published ? 'Yes' : 'No'; },
+            { key: 'published', header: 'Published', csv: function (x) { return x.published ? 'Yes' : 'No'; },
               cell: function (x) { return x.published ? h(ui.StatusChip, { status: 'Published' }) : h('span', { className: 'muted' }, 'Draft'); } }
           ],
           emptyIcon: I.hourglass, emptyTitle: 'No shifts assigned',
@@ -741,7 +741,7 @@
               } },
             { key: 'shifts', header: 'Change', csv: function (x) { return (store.shift(x.from) || {}).name + ' to ' + (store.shift(x.to) || {}).name; },
               cell: function (x) { return (store.shift(x.from) || {}).name + ' → ' + (store.shift(x.to) || {}).name; } },
-            { key: 'counterpartyAgreed', header: 'Colleague agreed', align: 'center',
+            { key: 'counterpartyAgreed', header: 'Colleague agreed',
               csv: function (x) { return x.counterpartyAgreed ? 'Yes' : 'No'; },
               cell: function (x) {
                 return x.counterpartyAgreed
@@ -1271,7 +1271,7 @@
             { key: 'name', header: 'Survey', sortable: true },
             { key: 'type', header: 'Type', cell: function (s) { return h(V.Chip, { size: 'sm', shape: 'tag' }, s.type); } },
             { key: 'questions', header: 'Questions', numeric: true, align: 'right' },
-            { key: 'anonymous', header: 'Anonymous', align: 'center', csv: function (s) { return s.anonymous ? 'Yes' : 'No'; },
+            { key: 'anonymous', header: 'Anonymous', csv: function (s) { return s.anonymous ? 'Yes' : 'No'; },
               cell: function (s) {
                 return s.anonymous
                   ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success', icon: I.lock }, 'Anonymous')
