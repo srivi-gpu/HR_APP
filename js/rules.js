@@ -61,20 +61,20 @@
   }
 
   /* Status transitions. An employee cannot jump from Draft straight to Exited, and an
-     exited record cannot be reopened (PRD 3.3, 14.1). */
-  var TRANSITIONS = {
-    Draft: ['Invited', 'Archived'],
-    Invited: ['Onboarding', 'Draft', 'Archived'],
-    Onboarding: ['Probation', 'Active', 'Archived'],
-    Probation: ['Active', 'Notice Period', 'Suspended', 'Archived'],
-    Active: ['Probation', 'On Leave', 'Notice Period', 'Suspended', 'Archived'],
-    'On Leave': ['Active', 'Notice Period', 'Suspended'],
-    'Notice Period': ['Exited', 'Active'],
-    Suspended: ['Active', 'Notice Period', 'Exited'],
-    Exited: ['Archived'],
-    Archived: []
-  };
-  function allowedStatuses(from) { return TRANSITIONS[from] || []; }
+     exited record cannot be reopened (PRD 3.3, 14.1).
+
+     The machine is a collection rather than a constant here, because employee setup
+     can now edit it: a status added or re-pointed there has to be the one this rule
+     enforces, or the screen would be configuring something nothing reads. Read
+     through the store on every call, so an edit takes effect without a reload. */
+  function transitionMap() {
+    var map = {};
+    store.collection('statusTransitions').forEach(function (row) {
+      map[row.status] = row.to || [];
+    });
+    return map;
+  }
+  function allowedStatuses(from) { return transitionMap()[from] || []; }
   function canTransition(from, to) {
     if (from === to) return 'The employee already has this status';
     return allowedStatuses(from).indexOf(to) >= 0 ? null
@@ -363,7 +363,7 @@
   HRMS.rules = {
     countLeaveDays: countLeaveDays, days: days, isWeekend: isWeekend,
     uniqueEmployeeId: uniqueEmployeeId, uniqueWorkEmail: uniqueWorkEmail, validJoiningDate: validJoiningDate,
-    transitions: TRANSITIONS, allowedStatuses: allowedStatuses, canTransition: canTransition, canActivate: canActivate,
+    transitions: transitionMap, allowedStatuses: allowedStatuses, canTransition: canTransition, canActivate: canActivate,
     validDateRange: validDateRange, overlappingLeave: overlappingLeave, sufficientBalance: sufficientBalance,
     withinMaxConsecutive: withinMaxConsecutive, meetsNotice: meetsNotice, eligibleForType: eligibleForType,
     validateLeave: validateLeave,

@@ -584,6 +584,112 @@
     addReg(e.id, -(10 + n), r() < 0.78 ? 'Approved' : 'Rejected');
   });
 
+  /* ------------------------------------------------- Approval workflows (6.2)
+     The workflow engine's configuration: what triggers a request, who approves it,
+     in what order, what happens if nobody acts, and what a rejection does. These
+     were constants inside the screen; they are records so the screen can build new
+     ones. Modules are the permission matrix's own ids, so the two cannot drift. */
+  var APPROVER_TYPES = [
+    { id: 'manager', label: 'Reporting manager', note: 'The requester’s manager at the time of submission.' },
+    { id: 'head', label: 'Department head', note: 'The head of the requester’s department.' },
+    { id: 'role', label: 'Role based', note: 'Anyone holding a role, e.g. HR Administrator.' },
+    { id: 'user', label: 'Specific user', note: 'One named person, used for finance and IT sign-off.' },
+    { id: 'group', label: 'Any one of a group', note: 'The first member of a group to act decides.' }
+  ];
+
+  var APPROVAL_WORKFLOWS = [
+    { id: 'wf-leave', name: 'Leave request', module: 'leave', trigger: 'An employee submits a leave request',
+      stages: [{ type: 'manager', label: 'Reporting manager' }, { type: 'role', label: 'HR Administrator' }],
+      sequence: 'Sequential', escalate: 2, escalateTo: 'Department head', reject: 'Returned to the requester with a mandatory reason',
+      note: 'A second level applies only where the request is longer than five working days.' },
+    { id: 'wf-reg', name: 'Attendance regularization', module: 'attendance', trigger: 'An employee raises an attendance correction',
+      stages: [{ type: 'manager', label: 'Reporting manager' }, { type: 'role', label: 'HR Administrator' }],
+      sequence: 'Sequential', escalate: 2, escalateTo: 'HR Administrator', reject: 'Returned with a reason; the original punch is kept',
+      note: 'PRD 14.3: approval records the corrected time without overwriting the original.' },
+    { id: 'wf-swap', name: 'Shift swap', module: 'shifts', trigger: 'Two employees agree a swap and submit it',
+      stages: [{ type: 'manager', label: 'Reporting manager' }],
+      sequence: 'Single', escalate: 1, escalateTo: 'Department head', reject: 'Both employees keep their original shifts',
+      note: 'The counterparty must agree before the request reaches an approver.' },
+    { id: 'wf-asset', name: 'Asset request', module: 'assets', trigger: 'An employee requests an asset category',
+      stages: [{ type: 'user', label: 'IT Administrator' }, { type: 'role', label: 'HR Administrator' }],
+      sequence: 'Sequential', escalate: 3, escalateTo: 'Organization Admin', reject: 'Closed with a reason; no inventory is reserved',
+      note: 'Approval fails if no asset of that category is available (PRD 14.5).' },
+    { id: 'wf-profile', name: 'Profile change', module: 'people', trigger: 'An employee edits a restricted profile field',
+      stages: [{ type: 'role', label: 'HR Administrator' }],
+      sequence: 'Single', escalate: 5, escalateTo: 'HR Manager', reject: 'The field reverts and the employee is told why',
+      note: 'Bank, name and statutory fields always route here (PRD 4.5).' },
+    { id: 'wf-doc', name: 'Document verification', module: 'documents', trigger: 'An employee uploads a document',
+      stages: [{ type: 'role', label: 'HR Administrator' }],
+      sequence: 'Single', escalate: 4, escalateTo: 'HR Manager', reject: 'Marked rejected with a reason; a re-upload is allowed',
+      note: 'Mandatory onboarding documents block activation until verified (PRD 14.1).' },
+    { id: 'wf-payroll', name: 'Payroll release', module: 'payroll', trigger: 'A payroll cycle is moved to review',
+      stages: [{ type: 'user', label: 'Finance Controller' }, { type: 'role', label: 'Organization Admin' }],
+      sequence: 'Sequential', escalate: 1, escalateTo: 'Organization Admin', reject: 'The cycle returns to Draft and inputs reopen',
+      note: 'A finalized cycle is locked; corrections go through an adjustment (PRD 14.6).' },
+    { id: 'wf-resign', name: 'Resignation', module: 'offboarding', trigger: 'An employee submits a resignation',
+      stages: [{ type: 'manager', label: 'Reporting manager' }, { type: 'role', label: 'HR Administrator' }],
+      sequence: 'Sequential', escalate: 3, escalateTo: 'Department head', reject: 'The employee stays active and is told why',
+      note: 'Approval starts the notice period and the clearance checklist (PRD 5.1).' },
+    { id: 'wf-review', name: 'Performance review', module: 'performance', trigger: 'A manager submits a review for publication',
+      stages: [{ type: 'head', label: 'Department head' }, { type: 'group', label: 'Calibration panel' }],
+      sequence: 'Parallel', escalate: 5, escalateTo: 'HR Administrator', reject: 'Returned to the reviewer before the employee sees it',
+      note: 'Ratings are calibrated across teams before results are published (PRD 4.45).' },
+    { id: 'wf-action', name: 'Engagement action plan', module: 'engagement', trigger: 'An action plan is raised from a survey finding',
+      stages: [{ type: 'role', label: 'HR Administrator' }],
+      sequence: 'Single', escalate: 7, escalateTo: 'Department head', reject: 'Closed with a note on the finding',
+      note: 'The owner is notified on assignment and again on the due date.' }
+  ];
+
+  /* ------------------------------------------------------- Employee setup (3.3)
+     Employee types and the status machine were both hard-coded — the types as a list
+     in a screen, the transitions as a map in rules.js — so neither could be changed
+     from the product. They are collections now, which is what lets HR add a type or
+     a status and have the rest of the app pick it up: the Add employee dialog, the
+     type filters, and the Change status dialog all read them through the store.
+
+     The six types and the ten statuses are exactly what was there before, so nothing
+     that depends on them changes until somebody edits one. */
+  var EMPLOYEE_TYPES = [
+    { id: 'et-ft', name: 'Full-Time', code: 'FT', probation: 6, leavePolicy: 'lp-standard', status: 'Active',
+      description: 'Permanent staff on the standard leave policy.' },
+    { id: 'et-pt', name: 'Part-Time', code: 'PT', probation: 3, leavePolicy: 'lp-standard', status: 'Active',
+      description: 'Permanent staff on reduced hours; leave accrues pro rata.' },
+    { id: 'et-ct', name: 'Contract', code: 'CT', probation: 3, leavePolicy: 'lp-contract', status: 'Active',
+      description: 'Fixed-term, with an end date on the record.' },
+    { id: 'et-in', name: 'Intern', code: 'IN', probation: 3, leavePolicy: 'lp-intern', status: 'Active',
+      description: 'Time-boxed placement, converted or closed at the end of it.' },
+    { id: 'et-cs', name: 'Consultant', code: 'CS', probation: 0, leavePolicy: 'lp-contract', status: 'Active',
+      description: 'Engaged against a statement of work; no probation.' },
+    { id: 'et-tp', name: 'Temporary', code: 'TP', probation: 0, leavePolicy: 'lp-contract', status: 'Active',
+      description: 'Short cover for a role, usually through an agency.' }
+  ];
+
+  /* PRD 3.3 and 14.1: an employee cannot jump from Draft straight to Exited, and an
+     exited record cannot be reopened. `to` is the set of statuses the Change status
+     dialog will offer; an empty one is a terminal status. */
+  var STATUS_TRANSITIONS = [
+    { id: 'st-draft', status: 'Draft', to: ['Invited', 'Archived'],
+      note: 'A record keyed in but not yet invited.' },
+    { id: 'st-invited', status: 'Invited', to: ['Onboarding', 'Draft', 'Archived'],
+      note: 'The invitation is out and not yet accepted.' },
+    { id: 'st-onboarding', status: 'Onboarding', to: ['Probation', 'Active', 'Archived'],
+      note: 'Joined, with onboarding tasks still open.' },
+    { id: 'st-probation', status: 'Probation', to: ['Active', 'Notice Period', 'Suspended', 'Archived'],
+      note: 'Serving the probation period of their employee type.' },
+    { id: 'st-active', status: 'Active', to: ['Probation', 'On Leave', 'Notice Period', 'Suspended', 'Archived'],
+      note: 'Confirmed and working.' },
+    { id: 'st-onleave', status: 'On Leave', to: ['Active', 'Notice Period', 'Suspended'],
+      note: 'On an extended absence such as maternity or sabbatical.' },
+    { id: 'st-notice', status: 'Notice Period', to: ['Exited', 'Active'],
+      note: 'Resignation accepted; serving notice.' },
+    { id: 'st-suspended', status: 'Suspended', to: ['Active', 'Notice Period', 'Exited'],
+      note: 'Access withdrawn pending an outcome.' },
+    { id: 'st-exited', status: 'Exited', to: ['Archived'],
+      note: 'Left the organization. The record is read-only.' },
+    { id: 'st-archived', status: 'Archived', to: [],
+      note: 'Terminal. Kept for audit and nothing else.' }
+  ];
+
   /* ------------------------------------------------------------------ Holidays */
   /* `locs` is 'all' or a list of location ids, which is what holidaysFor() in the org
      screens already reads. `id` is here so a holiday can be edited and deleted like any
@@ -1692,6 +1798,8 @@
     roles: ROLES,
     employees: employees, byId: byId, byName: byName,
     leaveTypes: LEAVE_TYPES, leavePolicies: LEAVE_POLICIES, leaveRequests: leaveRequests, balances: balances,
+    employeeTypes: EMPLOYEE_TYPES, statusTransitions: STATUS_TRANSITIONS,
+    approverTypes: APPROVER_TYPES, approvalWorkflows: APPROVAL_WORKFLOWS,
     shifts: SHIFTS, shiftAssignments: shiftAssignments, shiftSwaps: shiftSwaps,
     attendanceToday: attendanceToday, regularizations: regularizations, holidays: HOLIDAYS,
     assets: assets, assetRequests: assetRequests, assetCategories: ASSET_CATS.map(function (c) { return c.name; }),

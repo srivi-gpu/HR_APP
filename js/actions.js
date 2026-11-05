@@ -250,6 +250,208 @@
     return done(form.name + ' created');
   }
 
+  /* --------------------------------------- Approval workflows (PRD 6.2)
+     The engine's configuration, built from the screen rather than written into the
+     source: a trigger, an ordered approver chain, a sequence, an escalation and a
+     rejection behaviour. A chain with no levels is refused — a workflow that asks
+     nobody would approve every request the moment it was raised. */
+  function cleanStages(stages) {
+    return (stages || [])
+      .filter(function (st) { return st && st.type && String(st.label || '').trim(); })
+      .map(function (st) { return { type: st.type, label: String(st.label).trim() }; });
+  }
+
+  function validWorkflow(form, stages) {
+    var errors = rules.required([
+      { key: 'name', label: 'Workflow name' },
+      { key: 'module', label: 'Module' },
+      { key: 'trigger', label: 'Trigger' }
+    ], form);
+    if (!stages.length) errors.stages = 'Add at least one approval level';
+    if (form.sequence === 'Single' && stages.length > 1) {
+      errors.sequence = 'A single-level workflow can only have one approver level';
+    }
+    var days = Number(form.escalate);
+    if (form.escalate !== '' && form.escalate !== undefined && (isNaN(days) || days < 0 || days > 60)) {
+      errors.escalate = 'Escalation is a number of days between 0 and 60';
+    }
+    return errors;
+  }
+
+  function workflowFields(form, stages) {
+    return {
+      name: String(form.name).trim(), module: form.module,
+      trigger: String(form.trigger).trim(), stages: stages,
+      sequence: form.sequence || 'Sequential',
+      escalate: Number(form.escalate) || 0,
+      escalateTo: form.escalateTo || 'Department head',
+      reject: form.reject || 'Returned to the requester with a reason',
+      status: form.status || 'Active',
+      note: form.note || ''
+    };
+  }
+
+  function createApprovalWorkflow(form) {
+    var stages = cleanStages(form.stages);
+    var errors = validWorkflow(form, stages);
+    var dup = rules.uniqueIn('approvalWorkflows', 'name', form.name, null, form.name);
+    if (dup && !errors.name) errors.name = dup;
+    if (rules.hasErrors(errors)) return fail(errors);
+    var record = Object.assign({ id: store.nextId('approvalWorkflows', 'wf-') }, workflowFields(form, stages));
+    store.add('approvalWorkflows', record);
+    store.log('created the approval workflow "' + record.name + '"', 'Configuration');
+    return done(record.name + ' created', { id: record.id });
+  }
+
+  function updateApprovalWorkflow(id, form) {
+    var row = store.find('approvalWorkflows', id);
+    if (!row) return fail({ _: 'That workflow no longer exists' });
+    var stages = cleanStages(form.stages);
+    var errors = validWorkflow(form, stages);
+    var dup = rules.uniqueIn('approvalWorkflows', 'name', form.name, id, form.name);
+    if (dup && !errors.name) errors.name = dup;
+    if (rules.hasErrors(errors)) return fail(errors);
+    store.setOverride('approvalWorkflows', id, workflowFields(form, stages));
+    store.log('updated the approval workflow "' + String(form.name).trim() + '"', 'Configuration');
+    return done(String(form.name).trim() + ' updated');
+  }
+
+  function deleteApprovalWorkflow(id) {
+    var row = store.find('approvalWorkflows', id);
+    if (!row) return fail({ _: 'That workflow no longer exists' });
+    store.remove('approvalWorkflows', id);
+    store.log('deleted the approval workflow "' + row.name + '"', 'Configuration');
+    return done(row.name + ' deleted');
+  }
+
+  /* ---------------------------------------------- Employee setup (PRD 3.3)
+     Employee types and the status machine are configuration, so they are created,
+     edited and deleted like any other record rather than being constants in a file.
+     Both guard against pulling the ground out from under live data: a type still on
+     somebody's record cannot be deleted, and neither can a status somebody holds. */
+  function employeeTypeInUse(name) {
+    return store.collection('employees').filter(function (e) { return e.type === name; }).length;
+  }
+
+  function createEmployeeType(form) {
+    var errors = rules.required([{ key: 'name', label: 'Type name' }, { key: 'code', label: 'Code' }], form);
+    var dup = rules.uniqueIn('employeeTypes', 'name', form.name, null, form.name);
+    if (dup && !errors.name) errors.name = dup;
+    var dupCode = rules.uniqueIn('employeeTypes', 'code', String(form.code || '').toUpperCase(), null, 'Code ' + form.code);
+    if (dupCode && !errors.code) errors.code = dupCode;
+    if (rules.hasErrors(errors)) return fail(errors);
+    var name = String(form.name).trim();
+    store.add('employeeTypes', {
+      id: store.nextId('employeeTypes', 'et-'), name: name,
+      code: String(form.code).trim().toUpperCase(),
+      probation: Number(form.probation) || 0,
+      leavePolicy: form.leavePolicy || null,
+      status: form.status || 'Active',
+      description: form.description || ''
+    });
+    store.log('added the employee type "' + name + '"', 'Configuration');
+    return done(name + ' added');
+  }
+
+  function updateEmployeeType(id, form) {
+    var row = store.find('employeeTypes', id);
+    if (!row) return fail({ _: 'That employee type no longer exists' });
+    var errors = rules.required([{ key: 'name', label: 'Type name' }, { key: 'code', label: 'Code' }], form);
+    var dup = rules.uniqueIn('employeeTypes', 'name', form.name, id, form.name);
+    if (dup && !errors.name) errors.name = dup;
+    var dupCode = rules.uniqueIn('employeeTypes', 'code', String(form.code || '').toUpperCase(), id, 'Code ' + form.code);
+    if (dupCode && !errors.code) errors.code = dupCode;
+    if (rules.hasErrors(errors)) return fail(errors);
+    var name = String(form.name).trim();
+    /* Employees carry the type by name, so a rename has to move them with it or they
+       would be left pointing at a type that no longer exists. */
+    if (name !== row.name) {
+      store.collection('employees').filter(function (e) { return e.type === row.name; })
+        .forEach(function (e) { store.setOverride('employees', e.id, { type: name }); });
+    }
+    store.setOverride('employeeTypes', id, {
+      name: name, code: String(form.code).trim().toUpperCase(),
+      probation: Number(form.probation) || 0,
+      leavePolicy: form.leavePolicy || null,
+      status: form.status || 'Active',
+      description: form.description || ''
+    });
+    store.log('updated the employee type "' + name + '"', 'Configuration');
+    return done(name + ' updated');
+  }
+
+  function deleteEmployeeType(id) {
+    var row = store.find('employeeTypes', id);
+    if (!row) return fail({ _: 'That employee type no longer exists' });
+    var used = employeeTypeInUse(row.name);
+    if (used) return fail({ _: row.name + ' is on ' + used + ' employee record' + (used === 1 ? '' : 's') + ', so it cannot be deleted' });
+    store.remove('employeeTypes', id);
+    store.log('deleted the employee type "' + row.name + '"', 'Configuration');
+    return done(row.name + ' deleted');
+  }
+
+  function statusInUse(name) {
+    return store.collection('employees').filter(function (e) { return e.status === name; }).length;
+  }
+
+  function createEmployeeStatus(form) {
+    var errors = rules.required([{ key: 'status', label: 'Status name' }], form);
+    var dup = rules.uniqueIn('statusTransitions', 'status', form.status, null, form.status);
+    if (dup && !errors.status) errors.status = dup;
+    if (rules.hasErrors(errors)) return fail(errors);
+    var name = String(form.status).trim();
+    store.add('statusTransitions', {
+      id: store.nextId('statusTransitions', 'st-'), status: name,
+      to: form.to || [], note: form.note || ''
+    });
+    store.log('added the employee status "' + name + '"', 'Configuration');
+    return done(name + ' added');
+  }
+
+  function updateEmployeeStatus(id, form) {
+    var row = store.find('statusTransitions', id);
+    if (!row) return fail({ _: 'That status no longer exists' });
+    var errors = rules.required([{ key: 'status', label: 'Status name' }], form);
+    var dup = rules.uniqueIn('statusTransitions', 'status', form.status, id, form.status);
+    if (dup && !errors.status) errors.status = dup;
+    if (rules.hasErrors(errors)) return fail(errors);
+    var name = String(form.status).trim();
+    var to = (form.to || []).filter(function (t) { return t !== name; });
+    if (name !== row.status) {
+      /* Rename the status everywhere it is referenced: on employee records, and in
+         every other row's target list, or those targets would dangle. */
+      store.collection('employees').filter(function (e) { return e.status === row.status; })
+        .forEach(function (e) { store.setOverride('employees', e.id, { status: name }); });
+      store.collection('statusTransitions').forEach(function (other) {
+        if (other.id === id || (other.to || []).indexOf(row.status) < 0) return;
+        store.setOverride('statusTransitions', other.id, {
+          to: other.to.map(function (t) { return t === row.status ? name : t; })
+        });
+      });
+    }
+    store.setOverride('statusTransitions', id, { status: name, to: to, note: form.note || '' });
+    store.log('updated the employee status "' + name + '"', 'Configuration');
+    return done(name + ' updated');
+  }
+
+  function deleteEmployeeStatus(id) {
+    var row = store.find('statusTransitions', id);
+    if (!row) return fail({ _: 'That status no longer exists' });
+    var used = statusInUse(row.status);
+    if (used) return fail({ _: row.status + ' is on ' + used + ' employee record' + (used === 1 ? '' : 's') + ', so it cannot be deleted' });
+    /* Nothing may still point at it, or the Change status dialog would offer a
+       status that has no row of its own. */
+    store.collection('statusTransitions').forEach(function (other) {
+      if (other.id === id || (other.to || []).indexOf(row.status) < 0) return;
+      store.setOverride('statusTransitions', other.id, {
+        to: other.to.filter(function (t) { return t !== row.status; })
+      });
+    });
+    store.remove('statusTransitions', id);
+    store.log('deleted the employee status "' + row.status + '"', 'Configuration');
+    return done(row.status + ' deleted');
+  }
+
   function createDesignation(form) {
     var errors = rules.required([{ key: 'name', label: 'Designation name' }, { key: 'code', label: 'Designation code' }], form);
     var dup = rules.uniqueIn('designations', 'code', form.code, null, 'Designation code ' + form.code);
@@ -1468,6 +1670,12 @@
     saveEducationEntry: saveEducationEntry, deleteEducationEntry: deleteEducationEntry,
     /* Organization */
     createDepartment: createDepartment, createDesignation: createDesignation,
+    createEmployeeType: createEmployeeType, updateEmployeeType: updateEmployeeType,
+    deleteEmployeeType: deleteEmployeeType,
+    createApprovalWorkflow: createApprovalWorkflow, updateApprovalWorkflow: updateApprovalWorkflow,
+    deleteApprovalWorkflow: deleteApprovalWorkflow,
+    createEmployeeStatus: createEmployeeStatus, updateEmployeeStatus: updateEmployeeStatus,
+    deleteEmployeeStatus: deleteEmployeeStatus,
     createLocation: createLocation, updateOrganization: updateOrganization,
     /* Users & roles */
     inviteUser: inviteUser, setUserStatus: setUserStatus, setUserRole: setUserRole, createRole: createRole,

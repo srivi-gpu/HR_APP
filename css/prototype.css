@@ -99,10 +99,24 @@
 .filterbar__head { flex: 1 1 200px; align-self: flex-end; min-width: 0; margin-right: auto; }
 .filterbar__head .card__title { margin: 0; }
 .filterbar__desc { margin: 2px 0 0; font-size: 13px; }
-.filterbar--titled .filterbar__search { flex: 0 1 250px; }
-.filterbar--titled .filterbar__item { min-width: 128px; }
-@media (max-width: 1100px) {
+/* What is left of a card whose body was only a table: no border, no padding, no
+   background — just the grid span it had, so the layout around it is unchanged. */
+.tablewrap { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.filterbar--titled { align-items: flex-end; }
+/* Capped, so a long description wraps under the title instead of pushing the
+   controls onto a line of their own. */
+.filterbar--titled .filterbar__head { flex: 0 1 auto; max-width: 340px; }
+/* The controls are one block, so they move under the heading together rather than
+   shedding a button at a time as the row narrows. */
+.filterbar__tools {
+  display: flex; align-items: flex-end; justify-content: flex-end; gap: 10px;
+  flex: 1 1 auto; flex-wrap: wrap; margin-left: auto; min-width: 0;
+}
+.filterbar--titled .filterbar__search { flex: 0 1 240px; min-width: 170px; }
+.filterbar--titled .filterbar__item { min-width: 124px; }
+@media (max-width: 980px) {
   .filterbar--titled .filterbar__head { flex: 1 1 100%; }
+  .filterbar__tools { justify-content: flex-start; margin-left: 0; }
 }
 
 /* ---------- Empty state ---------- */
@@ -385,6 +399,27 @@
 .checks > .checks__row:first-child { border-top: 0; }
 .checks__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .checks__name { font-size: 14px; }
+.checks__note { font-size: 12px; color: var(--text-secondary); }
+
+/* ---------- Approval chain builder (the workflow dialog) ---------- */
+.chain { display: flex; flex-direction: column; gap: 8px; }
+.chain__row {
+  display: flex; align-items: flex-end; gap: 8px;
+  padding: 10px 12px; border: 1px solid var(--border-subtle); border-radius: 14px; background: var(--bg-subtle);
+}
+.chain__n {
+  flex: none; width: 24px; height: 24px; margin-bottom: 9px; border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--brand-soft); color: var(--text-brand);
+  font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums;
+}
+.chain__f { flex: 1 1 150px; min-width: 0; }
+.chain__f .vi-field { margin: 0; }
+.chain__kill { flex: none; margin-bottom: 4px; }
+.chain__empty {
+  padding: 14px; border: 1px dashed var(--border-default); border-radius: 14px;
+  font-size: 13px; color: var(--text-secondary); text-align: center;
+}
 .checks__row.is-done .checks__name { color: var(--text-secondary); text-decoration: line-through; text-decoration-color: var(--border-strong); }
 .checks__meta { font-size: 12px; color: var(--text-secondary); }
 
