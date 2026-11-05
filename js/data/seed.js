@@ -812,9 +812,17 @@
       tasksTotal: total, tasksDone: done, pending: remaining,
       overdue: n < 2 ? 1 : 0,
       stage: e.status === 'Invited' ? 'Yet to Start' : remaining > 6 ? 'In Progress' : 'Pending Verification',
+      /* Someone still Invited has not had an account made for them, so their IT setup
+         task is open and their work email is blank — they are what the admin's joiner
+         queue is for. The same number of tasks is done either way, so the open-task
+         figure PRD 15 fixes at 16 does not move; which ones are done is what changes.
+         Marking IT setup complete for somebody who cannot yet sign in was the sort of
+         detail that makes a checklist stop meaning anything. */
       tasks: ONB_TASKS.map(function (t, ti) {
+        var waiting = e.status === 'Invited';
         return {
-          name: t, done: ti < done,
+          name: t,
+          done: waiting ? (t !== 'IT setup' && ti <= done) : ti < done,
           assignee: /IT|Asset/.test(t) ? id('Sandeep Rao') : /Manager|Department/.test(t) ? byId[e.id].manager : id('Priya Sharma'),
           due: iso(addDays(new Date(e.joined + 'T00:00'), ti + 1)),
           mandatory: ti < 8
@@ -822,6 +830,13 @@
       })
     });
   });
+  /* A joiner who is only Invited has no mailbox yet: IT has not made one. Clearing it
+     here is what puts them in the admin's joiner queue, and it is the honest state —
+     the address does not exist until somebody creates it. */
+  onbPeople.forEach(function (e) {
+    if (e.status === 'Invited') { byId[e.id].workEmail = ''; }
+  });
+
   /* Scenario 3: Pranav Hegde is awaiting document verification. */
   var pranav = onboarding.filter(function (o) { return o.employee === id('Pranav Hegde'); })[0];
   if (pranav) { pranav.stage = 'Pending Verification'; pranav.docsPending = 3; }
@@ -1436,8 +1451,11 @@
     { id: 'AP3', survey: 'sv-3', title: 'Review meeting load in Engineering', owner: id('Karthik Menon'), due: '2026-11-20', status: 'Completed', finding: 'Workload sustainability scored lowest in Engineering' }
   ];
 
-  /* ------------------------------------------------- Users & invitations (2.1) */
-  var users = live.map(function (e) {
+  /* ------------------------------------------------- Users & invitations (2.1)
+     An account exists where there is a mailbox to sign in with. A joiner still waiting
+     on IT has neither, which is why they are in the admin's joiner queue rather than
+     in this list showing a blank address. */
+  var users = live.filter(function (e) { return e.workEmail; }).map(function (e) {
     var role = e.id === id('Rohit Khanna') ? 'admin'
       : e.department === 'dep-hr' && e.level >= 4 ? 'hr'
         : e.level >= 5 ? 'manager' : 'me';

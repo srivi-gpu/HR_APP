@@ -129,7 +129,7 @@
   function TeamAction(p) {
     var cfg = ACTIONS[p.kind]; if (!cfg) return null;
     var vSt = useState({});
-    return h('div', { className: 'modal__scrim', onClick: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
+    return ui.portal(h('div', { className: 'modal__scrim', onClick: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
       h('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': cfg.t, style: { width: 'min(520px, 100%)' } },
         h('div', { className: 'modal__head' },
           h('h2', { style: { fontFamily: 'var(--font-flex)', fontSize: 20, fontWeight: 600 } }, cfg.t),
@@ -148,7 +148,7 @@
           h(V.Button, { onClick: function () {
             var first = Object.keys(vSt[0]).map(function (k) { return vSt[0][k]; }).filter(Boolean)[0];
             p.onDone(cfg.t + (first ? ' · ' + first : '') + ' — saved in the prototype.');
-          } }, cfg.ok))));
+          } }, cfg.ok)))));
   }
 
   /* ---------- Org tree + teams ----------
@@ -776,10 +776,12 @@
     var loadedSt = useState(1), teamRowsSt = useState({ loading: true, rows: [] }), panelSt = useState('team');
     var lifeSt = useState(LIFE_SEED.map(function (r) { return Object.assign({}, r); }));
     var moveKeySt = useState(0), actSt = useState(null), bigSt = useState(false), sheetSt = useState(false);
-    /* cards | vertical | network. A stored 'horizontal' is from before the tree turned
-       upright, and reads as the vertical view rather than as nothing. */
+    /* tree | vertical | network | cards. The tree is the default reading now; cards
+       is the original and is kept because it is the only one people can be dragged
+       around in. A stored 'horizontal' is from before the tree turned upright and
+       reads as the vertical view rather than as nothing. */
     var savedView = store.pref('orgView');
-    var viewSt = useState(savedView === 'horizontal' ? 'vertical' : (savedView || 'cards'));
+    var viewSt = useState(savedView === 'horizontal' ? 'vertical' : (savedView || 'tree'));
 
     /* The chart holds only what was expanded, so the team always comes from the directory. */
     React.useEffect(function () {
@@ -845,7 +847,8 @@
                   /* Three readings of one reporting line: cards to change it, a vertical
                      tree to follow it, network to see its shape. */
                   h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'Chart view' },
-                    [['cards', 'Cards'], ['vertical', 'Vertical'], ['network', 'Network']].map(function (v) {
+                    [['tree', 'Tree'], ['vertical', 'Vertical'], ['network', 'Network'], ['cards', 'Cards']]
+                      .map(function (v) {
                       return h('button', {
                         key: v[0], type: 'button', role: 'tab',
                         'aria-selected': viewSt[0] === v[0] ? 'true' : 'false',
@@ -854,12 +857,25 @@
                       }, v[1]);
                     })),
                   h('span', { className: 'anote' }, viewSt[0] === 'cards'
-                    ? 'Drag to pan \u00b7 click a person to load their team'
+                    ? 'The original card chart \u00b7 drag a person onto a manager to move them'
+                    : viewSt[0] === 'tree' ? 'Opens three levels deep \u00b7 a handle under a card opens the rest'
                     : viewSt[0] === 'vertical' ? 'Click a card to open their team'
                     : 'Scroll to zoom \u00b7 drag to pan \u00b7 click to open a branch'),
                   h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: bigSt[0] ? I.shrink : I.expand,
                     onClick: function () { bigSt[1](!bigSt[0]); } }, bigSt[0] ? 'Exit full screen' : 'Full screen'))),
               bigSt[0] ? h('div', { className: 'oc__scrim', onClick: function () { bigSt[1](false); } }) : null,
+
+              /* The tree is the default reading of the reporting line. The card
+                 chart below it is the original and is kept because it is the only
+                 one you can rearrange people in. */
+              viewSt[0] === 'tree' && HRMS.orgcharts && HRMS.orgcharts.apexReady()
+                ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
+                    h(HRMS.orgcharts.ApexOrgTree, {
+                      key: 'tree:' + moveKeySt[0] + ':' + (bigSt[0] ? 'full' : 'inline'),
+                      staff: all, rootId: root.id, big: bigSt[0], epoch: moveKeySt[0],
+                      onSelect: function (id) { focusSt[1](id); sheetSt[1](true); }
+                    }))
+                : null,
 
               viewSt[0] === 'vertical' && HRMS.orgcharts
                 ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },

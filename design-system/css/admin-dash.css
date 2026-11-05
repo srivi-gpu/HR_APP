@@ -12,7 +12,7 @@
 .adm__glow { position: absolute; inset: -40px -10px auto; height: 460px; pointer-events: none; z-index: 0; overflow: hidden; }
 .adm__glow i { position: absolute; display: block; width: 520px; height: 472px; border-radius: 50%; filter: blur(100px); opacity: .25; }
 .adm__glow i:first-child { right: -40px; top: -140px; background: var(--brand-solid); opacity: .16; }
-.adm__glow i:last-child  { left: 28%;   top: -90px;  background: var(--priority-high); opacity: .13; }
+.adm__glow i:last-child  { left: 28%;   top: -90px;  background: var(--chart-4); opacity: .13; }
 .adm > *:not(.adm__glow) { position: relative; z-index: 1; }
 
 .adm__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
@@ -327,15 +327,23 @@ html[data-theme="dark"] .adm-kpi { border-color: var(--border-subtle); }
 .adm-tip__x:hover { background: var(--bg-hover); color: var(--text-primary); }
 .adm-tip__x svg { width: 14px; height: 14px; }
 
-/* Alerts as a timeline: the time, a dot on the line, what happened. */
-.adm-tl { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
-.adm-tl__r { position: relative; display: grid; grid-template-columns: 44px 12px minmax(0, 1fr); align-items: start;
-  gap: 10px; padding-bottom: 16px; }
+/* Alerts as a timeline: the time, a dot on the line, what happened.
+
+   The three measurements are tokens because they have to agree: the connector line has
+   to pass through the centre of the dot, and when the line was a hard-coded 49px while
+   the dot column put the dot's centre at 59px, it ran past every one of them. Changing
+   the time column now moves the line with it. */
+.adm-tl { --tl-time: 44px; --tl-gap: 10px; --tl-dot: 12px;
+  list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
+.adm-tl__r { position: relative; display: grid;
+  grid-template-columns: var(--tl-time) var(--tl-dot) minmax(0, 1fr); align-items: start;
+  gap: var(--tl-gap); padding-bottom: 16px; }
 .adm-tl__r:last-child { padding-bottom: 0; }
-.adm-tl__r:not(:last-child)::before { content: ''; position: absolute; left: 49px; top: 16px; bottom: -2px;
-  width: 1.5px; background: var(--border-subtle); }
-.adm-tl__time { font-size: 11.5px; line-height: 18px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right; }
-.adm-tl__dot { width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: var(--brand-solid);
+.adm-tl__r:not(:last-child)::before { content: ''; position: absolute;
+  left: calc(var(--tl-time) + var(--tl-gap) + (var(--tl-dot) - 1.5px) / 2);
+  top: 17px; bottom: -1px; width: 1.5px; background: var(--border-subtle); }
+.adm-tl__time { font-size: 11.5px; line-height: 20px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right; }
+.adm-tl__dot { width: 10px; height: 10px; justify-self: center; margin-top: 5px; border-radius: 50%; background: var(--brand-solid);
   box-shadow: 0 0 0 3px var(--brand-soft); }
 .adm-tl__r.is-good .adm-tl__dot { background: var(--success-fg); box-shadow: 0 0 0 3px var(--success-bg); }
 .adm-tl__r.is-warn .adm-tl__dot { background: var(--warning-fg); box-shadow: 0 0 0 3px var(--warning-bg); }
@@ -347,6 +355,19 @@ html[data-theme="dark"] .adm-kpi { border-color: var(--border-subtle); }
 .adm-tl__m strong { font-size: 13.5px; font-weight: 600; line-height: 1.35; color: var(--text-primary); }
 .adm-tl__m span { font-size: 12px; line-height: 1.45; color: var(--text-secondary);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* The same timeline, at full length in the dialog: nothing is clamped, because the
+   reason to open it was to read the part the card cut off. */
+.adm-tl--full .adm-tl__m span { -webkit-line-clamp: none; display: block; overflow: visible; }
+.adm-tl--full .adm-tl__m { padding: 8px 10px; margin: -6px -10px 0; gap: 3px; }
+.adm-tl--full .adm-tl__r { padding-bottom: 20px; }
+.adm-tl__go { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+  font-size: 12px; font-weight: 600; color: var(--text-brand); }
+.adm-tl__go svg { width: 14px; height: 14px; }
+.adm-tl__more { all: unset; box-sizing: border-box; cursor: pointer; font-size: 12.5px; font-weight: 600;
+  color: var(--text-brand); padding: 4px 2px; border-radius: 8px; }
+.adm-tl__more:hover { text-decoration: underline; text-underline-offset: 3px; }
+.adm-tl__more:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
 
 /* Cards in a row end level with each other, and whatever closes a card sits at its foot. */
 .adm-mid > .adm-card, .adm-low > .adm-card, .admb-three > .adm-card, .admb-two > .adm-card { height: 100%; }

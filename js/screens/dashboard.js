@@ -274,7 +274,7 @@
         },
         done: function (n) { return plural(n, 'owner') + ' told what is theirs, with the joiners it is holding up.'; },
         log: function (n) { return 'nudged ' + plural(n, 'onboarding task owner'); }, cat: 'User activity',
-        a: 'Open onboarding', to: 'hr/onboarding/dashboard'
+        a: 'Open onboarding', to: 'hr/onboarding/cases'
       });
     }
     if (quiet.length) {
@@ -434,6 +434,43 @@
   }
 
   /* All of them at once, in the order they matter, each a step from being done. */
+  /* ---------------------------------------------------------------- Alerts
+
+     One timeline, drawn in two places: five rows on the card and all of them in the
+     modal. Writing it once is the point — a card that shows a shortened version of a
+     list in a dialog has to be the same list, or the count on the card is a lie. */
+  function Timeline(p) {
+    return h('ol', { className: 'adm-tl' + (p.full ? ' adm-tl--full' : '') }, p.rows.map(function (a, i) {
+      return h('li', { className: 'adm-tl__r is-' + (a.tone || 'info'), key: a.t + i },
+        h('span', { className: 'adm-tl__time' }, a.at),
+        h('span', { className: 'adm-tl__dot', 'aria-hidden': 'true' }),
+        h('button', { type: 'button', className: 'adm-tl__m', onClick: function () { p.onGo(a); } },
+          h('strong', { title: a.t }, a.t),
+          h('span', { title: a.s }, a.s),
+          p.full ? h('span', { className: 'adm-tl__go' }, 'Open ', I.right) : null));
+    }));
+  }
+
+  function AlertsModal(p) {
+    var rows = p.rows;
+    var bad = rows.filter(function (a) { return a.sev === 2; }).length;
+    var warn = rows.filter(function (a) { return a.sev === 1; }).length;
+    return h(ui.Modal, {
+      wide: true,
+      title: 'Alerts \u00b7 ' + rows.length + ' raised today',
+      description: bad || warn
+        ? plural(bad, 'thing') + ' to put right and ' + warn + ' to attend to. Every one of them '
+          + 'opens where it can be dealt with.'
+        : 'Nothing is broken. These are notes rather than alerts.',
+      onClose: p.onClose,
+      footer: h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Close')
+    },
+      h(Timeline, {
+        rows: rows, full: true,
+        onGo: function (a) { p.onClose(); router.go(a.to); }
+      }));
+  }
+
   function AllSuggestions(p) {
     return h(ui.Modal, {
       title: 'Ara · ' + plural(p.items.length, 'suggestion') + ' about accounts',
@@ -497,10 +534,14 @@
      The same twelve items the queue holds, grouped by the kind of work, so the card says
      at a glance what the admin owes and each slice's row opens where it is done. */
   var QUEUE_KINDS = [
+    /* These four are a queue broken down by kind, not four levels of severity, so
+       they take the chart ramp. Revoking access keeps the danger colour because it is
+       the one of the four that is genuinely urgent — somebody who has left can still
+       sign in — and the other three are work, not alarms. */
     { k: 'revoke', t: 'Revoke access', c: 'var(--danger-fg)', to: 'admin/roles/review' },
-    { k: 'mfa', t: 'Require MFA', c: 'var(--info-fg)', to: 'admin/settings' },
-    { k: 'invite', t: 'Resend invite', c: 'var(--warning-fg)', to: 'admin/users/all' },
-    { k: 'suspend', t: 'Decide suspension', c: 'var(--text-muted)', to: 'admin/users/all' }
+    { k: 'mfa', t: 'Require MFA', c: 'var(--chart-1)', to: 'admin/settings' },
+    { k: 'invite', t: 'Resend invite', c: 'var(--chart-4)', to: 'admin/users/all' },
+    { k: 'suspend', t: 'Decide suspension', c: 'var(--chart-6)', to: 'admin/users/all' }
   ];
 
   function Donut(p) {
@@ -523,9 +564,11 @@
      the request and where Tracklivo has got to with it. Stacked by that status, per
      category, so "what are people asking for, and what is cleared to issue" is one read. */
   var TL_STATUS = [
+    /* Ready, waiting and refused really are an outcome, so these three keep their
+       semantic colours. */
     { s: 'Approved', t: 'Ready to issue', c: 'var(--success-fg)' },
-    { s: 'Pending Approval', t: 'In Tracklivo', c: 'var(--brand-solid)' },
-    { s: 'Rejected', t: 'Declined', c: 'var(--border-strong)' }
+    { s: 'Pending Approval', t: 'In Tracklivo', c: 'var(--chart-1)' },
+    { s: 'Rejected', t: 'Declined', c: 'var(--chart-6)' }
   ];
   function tracklivoRows() {
     var by = {};
@@ -573,6 +616,7 @@
     function pickTab(k) { tabSt[1](k); store.setPref('adminDashTab', k); }
     var openSt = React.useState(null);
     var allSt = React.useState(false);
+    var alertsSt = React.useState(false);
     var s = store.stats();
     var users = store.collection('users');
     var me = store.employeeByName(HRMS.nav.role('admin').persona);
@@ -600,36 +644,114 @@
     var top = sugg[0] || null;
     var active7 = buckets[0].n + buckets[1].n;
 
-    /* Read through the store, so a provider disconnected in this session shows up here
-       rather than on the next reload. */
-    var integrations = store.collection('integrations');
-    var offline = integrations.filter(function (x) { return x.status !== 'Connected'; });
-    /* A provider nobody ever connected is not an alert — the catalogue is a shelf, and
-       most of it is things this organisation does not run. What is an alert is one that
-       was connected and is not any more, which the Integrations screen can now do; and,
-       once, the size of the gap. Before this, every unconnected provider raised its own
-       line, so widening the catalogue from three providers to thirty-four turned the
-       alert timeline into a list of software we have never used. */
-    var dropped = offline.filter(function (x) { return x.droppedOn; });
-    /* Newest first, each with the tone its dot takes on the timeline. */
-    var alerts = dropped.map(function (x) {
-      return { tone: 'bad', t: x.name + ' disconnected', s: 'It was connected and is not any more. '
-        + (x.kind || '') + '.', at: 'Today', to: 'admin/integrations' };
-    }).concat(offline.length > dropped.length ? [
-      { tone: 'warn',
-        t: (integrations.length - offline.length) + ' of ' + integrations.length + ' providers connected',
-        s: 'The rest of the catalogue is waiting, including '
-          + offline.filter(function (x) { return !x.droppedOn; }).slice(0, 3)
-              .map(function (x) { return x.name; }).join(', ') + '.',
-        at: 'Today', to: 'admin/integrations' }
-    ] : []).concat([
-      { tone: 'warn', t: plural(s.invited, 'invitation') + ' unaccepted', s: 'Past the start date and never signed in.',
-        at: '11:04', to: 'admin/users/all' },
-      { tone: 'bad', t: 'Single sign-on not configured', s: 'Everyone signs in with an email and a password only.',
-        at: '09:51', to: 'admin/settings' },
-      { tone: 'good', t: 'Nightly backup completed', s: 'No errors reported \u00b7 core platform to object store.',
-        at: '04:00', to: 'admin/settings' }
-    ]);
+    /* ---------------------------------------------------------------- Alerts
+
+       Every line here is derived from the data, never written down (PRD 15), and every
+       one carries where to go about it. The list used to be three hand-written lines
+       plus one per unconnected provider, which is how widening the integration
+       catalogue from three to thirty-four turned it into a list of software this
+       organisation has never used.
+
+       `sev` ranks them so the card can show the few that matter and the modal the rest:
+       2 is something broken, 1 is something to attend to, 0 is a note. */
+    function alertList() {
+      var out = [];
+      function add(sev, tone, t, s, at, to) { out.push({ sev: sev, tone: tone, t: t, s: s, at: at, to: to }); }
+
+      /* Read through the store, so a provider disconnected in this session shows up
+         here rather than on the next reload. */
+      var integrations = store.collection('integrations');
+      var offline = integrations.filter(function (x) { return x.status !== 'Connected'; });
+      /* A provider nobody ever connected is not an alert — the catalogue is a shelf,
+         and most of it is things this organisation does not run. What is an alert is
+         one that was connected and is not any more. */
+      var dropped = offline.filter(function (x) { return x.droppedOn; });
+      dropped.forEach(function (x) {
+        add(2, 'bad', x.name + ' disconnected',
+          'It was connected and is not any more · ' + (x.kind || 'integration') + '.',
+          'Today', 'admin/integrations');
+      });
+
+      /* Privileged accounts with no second step. The one that protects the most. */
+      var priv = users.filter(function (u) {
+        return (u.role === 'admin' || u.role === 'hr') && !u.mfa && u.status !== 'Deactivated';
+      });
+      if (priv.length) {
+        add(2, 'bad', plural(priv.length, 'privileged account') + ' without a second step',
+          'An admin or HR account that signs in on a password alone can change everyone else’s.',
+          'Today', 'admin/roles/review');
+      }
+
+      /* Someone who has left and can still sign in. */
+      var leavers = queue.filter(function (r) { return r.kind === 'revoke'; });
+      if (leavers.length) {
+        add(2, 'bad', plural(leavers.length, 'leaver') + ' with access still open',
+          'The earliest last working day is ' + ui.dateLabel(firstLeave) + '.',
+          'Today', 'admin/roles/review');
+      }
+
+      /* Single sign-on. It is an Integrations question now, not a Security one: the
+         identity provider is Entra ID, Okta or Google Workspace, and none is connected. */
+      var idp = integrations.filter(function (x) {
+        return x.category === 'Identity and access' && x.status === 'Connected';
+      });
+      if (!idp.length) {
+        add(2, 'bad', 'Single sign-on not configured',
+          'Everyone signs in with an email and a password. Connect an identity provider.',
+          '09:51', 'admin/integrations');
+      }
+
+      if (s.invited) {
+        add(1, 'warn', plural(s.invited, 'invitation') + ' unaccepted',
+          'Past the start date and never signed in.', '11:04', 'admin/users/all');
+      }
+
+      /* Seats. The plan is a number you can run out of. */
+      if (sub && sub.seats) {
+        var left = sub.seats - s.active;
+        if (left <= 10) {
+          add(left < 0 ? 2 : 1, left < 0 ? 'bad' : 'warn',
+            left < 0 ? Math.abs(left) + ' accounts over the seat count' : plural(left, 'seat') + ' left on the plan',
+            s.active + ' active accounts against ' + sub.seats + ' seats.', 'Today', 'admin/billing/billing');
+        }
+      }
+
+      /* Assets still out after an exit. The admin issues them, so the admin chases. */
+      var outstanding = store.collection('offboarding').filter(function (c) {
+        return c.status !== 'Completed' && (c.assetsOutstanding || 0) > 0;
+      }).reduce(function (n, c) { return n + c.assetsOutstanding; }, 0);
+      if (outstanding) {
+        add(1, 'warn', plural(outstanding, 'asset') + ' not returned from an exit',
+          'Each one is still assigned to somebody who has left or is leaving.',
+          'Today', 'admin/assets/returns');
+      }
+
+      /* Erasure requests run on somebody else's clock. */
+      var dueSoon = store.collection('erasure').filter(function (e) {
+        return e.status !== 'Completed' && e.dueOn
+          && (new Date(e.dueOn) - seed.today) / 86400000 <= 14;
+      });
+      if (dueSoon.length) {
+        add(1, 'warn', plural(dueSoon.length, 'erasure request') + ' due within a fortnight',
+          'The clock on these is set outside the organisation.', 'Today', 'admin/data/retention');
+      }
+
+      /* The shape of the integration estate, once, rather than once per provider. */
+      if (offline.length > dropped.length) {
+        add(0, 'info', (integrations.length - offline.length) + ' of ' + integrations.length + ' providers connected',
+          'The rest of the catalogue is waiting, including '
+            + offline.filter(function (x) { return !x.droppedOn; }).slice(0, 3)
+                .map(function (x) { return x.name; }).join(', ') + '.',
+          'Today', 'admin/integrations');
+      }
+
+      add(0, 'good', 'Nightly backup completed',
+        'No errors reported · core platform to object store.', '04:00', 'admin/settings');
+
+      return out.sort(function (a, b) { return b.sev - a.sev; });
+    }
+    var alerts = alertList();
+    var alertsBad = alerts.filter(function (a) { return a.sev === 2; }).length;
 
     return h('div', { className: 'adm' },
       h('div', { className: 'adm__glow', 'aria-hidden': 'true' }, h('i', null), h('i', null)),
@@ -711,13 +833,13 @@
           h('div', { className: 'adm-gauges' },
             h(Gauge, { pct: sub.seatsUsed / sub.seats * 100, color: 'var(--brand-solid)', t: 'Seats',
               s: num(sub.seatsUsed) + ' of ' + num(sub.seats) }),
-            h(Gauge, { pct: ai.used / ai.credits * 100, color: 'var(--priority-high)', t: 'AI credits',
+            h(Gauge, { pct: ai.used / ai.credits * 100, color: 'var(--chart-4)', t: 'AI credits',
               s: num(ai.used) + ' of ' + num(ai.credits) })),
           h('span', { className: 'adm-sub' }, 'Where the credits went this month'),
           h('div', { className: 'adm-stack adm-stack--wide' }, ai.byModule.map(function (m) {
             return h('div', { className: 'adm-stack__r adm-stack__r--static', key: m.module },
               h('span', { className: 'adm-stack__l', title: m.module }, m.module),
-              h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (m.credits / aiMax * 100) + '%', background: 'var(--priority-high)' } })),
+              h('span', { className: 'adm-stack__bar' }, h('i', { style: { width: (m.credits / aiMax * 100) + '%', background: 'var(--chart-4)' } })),
               h('b', null, (m.credits / 1000).toFixed(1) + 'k'));
           })))),
 
@@ -790,26 +912,30 @@
           h('p', { className: 'adm-card__foot' }, plural(tlReady, 'request') + ' ready to issue · synced from Tracklivo, connected ' +
             ui.dateLabel(tlConn))),
 
-        /* The alerts column, with the reference's source and target lines. */
+        /* The alerts column. The card carries the ones that matter and "All" opens
+           the rest, rather than sending you to the audit log, which is a different
+           question asked of different data. */
         h('section', { className: 'adm-card' },
           h('div', { className: 'adm-card__head' },
             h('div', null,
               h('h2', null, 'Alerts'),
-              h('p', null, 'Raised by the platform today')),
-            h('button', { type: 'button', className: 'dash__link', onClick: function () { router.go('admin/audit/security'); } }, 'All', I.right)),
-          /* A minimal timeline: the time, a dot on the line, and what happened. */
-          h('ol', { className: 'adm-tl' }, alerts.map(function (a) {
-            return h('li', { className: 'adm-tl__r is-' + (a.tone || 'info'), key: a.t },
-              h('span', { className: 'adm-tl__time' }, a.at),
-              h('span', { className: 'adm-tl__dot', 'aria-hidden': 'true' }),
-              h('button', { type: 'button', className: 'adm-tl__m', onClick: function () { router.go(a.to); } },
-                h('strong', { title: a.t }, a.t),
-                h('span', { title: a.s }, a.s)));
-          })))),
+              h('p', null, alertsBad
+                ? plural(alertsBad, 'thing') + ' to put right'
+                : 'Nothing is broken right now')),
+            h('button', { type: 'button', className: 'dash__link', onClick: function () { alertsSt[1](true); } },
+              'All ' + alerts.length, I.right)),
+          h(Timeline, { rows: alerts.slice(0, 5), onGo: function (a) { router.go(a.to); } }),
+          alerts.length > 5
+            ? h('div', { className: 'adm-card__foot' },
+                h('button', { type: 'button', className: 'adm-tl__more',
+                  onClick: function () { alertsSt[1](true); } },
+                  'Show the other ' + (alerts.length - 5)))
+            : null)),
 
       openSt[0] ? h(SuggestionModal, { key: openSt[0].k, item: openSt[0], onClose: function () { openSt[1](null); } }) : null,
       allSt[0] && !openSt[0] ? h(AllSuggestions, { items: sugg, onClose: function () { allSt[1](false); },
-        onOpen: function (c) { openSt[1](c); } }) : null);
+        onOpen: function (c) { openSt[1](c); } }) : null,
+      alertsSt[0] ? h(AlertsModal, { rows: alerts, onClose: function () { alertsSt[1](false); } }) : null);
   }
 
   /* ====================================================== A or B

@@ -28,7 +28,11 @@
   function pct(a, b) { return b ? Math.round(a / b * 100) : 0; }
   function daysBetween(a, b) { return Math.round((new Date(b) - new Date(a)) / 864e5); }
   var MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var RAMP = ['var(--brand-solid)', '#8f73df', '#c3b3f1', 'var(--priority-high)'];
+  /* Categorical series take the chart ramp, not the status colours: a slice of a
+     headcount donut is not a warning, and painting one orange means the dashboard has
+     nothing left to say when something actually needs attention. */
+  var RAMP = ['var(--chart-1)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)',
+    'var(--chart-5)', 'var(--chart-6)'];
 
   function greeting() {
     var hr = new Date().getHours();

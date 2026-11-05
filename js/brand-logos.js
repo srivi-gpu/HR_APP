@@ -187,6 +187,17 @@
         p('M11 19.4a5.6 5.6 0 0 0 10 0', 'none', { stroke: '#fff', strokeWidth: 2.2, fill: 'none', strokeLinecap: 'round' })
       ]);
     },
+    /* Tracklivo is the product this HRMS reports into, so it is the one provider whose
+       mark has to be recognisable at a glance in a shelf of thirty-four: a square
+       bracket around a tracked path, in its own violet. */
+    tracklivo: function (s) {
+      return svg(s, '0 0 32 32', [
+        r(1.5, 1.5, 29, 29, 8, '#5733c1'),
+        p('M8.5 20.5l4.6-5.6 3.6 3.1 6.8-7.4', 'none',
+          { stroke: '#fff', strokeWidth: 2.3, strokeLinecap: 'round', strokeLinejoin: 'round' }),
+        c(23.5, 10.6, 2.6, '#c9b6ff')
+      ]);
+    },
     greenhouse: function (s) {
       return svg(s, '0 0 32 32', [
         r(1.5, 1.5, 29, 29, 7, '#24a47f'),
@@ -202,7 +213,7 @@
   var TONES = {
     darwinbox: '#0b2d71', keka: '#f05a28', bamboo: '#8dc63f', workday: '#f68c1e',
     greythr: '#e4002b', tally: '#005ca9', jamf: '#1f2a44', device: '#0f7b53',
-    tracklivo: '#5733c1', intune: '#0f6cbd', ldap: '#4a5568', zendesk: '#03363d',
+    intune: '#0f6cbd', ldap: '#4a5568', zendesk: '#03363d',
     generic: '#5b6472'
   };
 
