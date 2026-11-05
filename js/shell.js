@@ -63,7 +63,22 @@
     var counts = p.counts;
 
     function badgeFor(item) {
-      if (item.path === 'approvals') return counts.pendingApprovals || null;
+      if (item.path === 'approvals') {
+        /* The badge has to count what the inbox will show. HR and the administrator
+           carry the organisation's queue; a team member carries their own, so the
+           org-wide figure on their rail promised twenty-six requests and opened on
+           one. */
+        if (p.role === 'hr' || p.role === 'admin') return counts.pendingApprovals || null;
+        var me = HRMS.store.persona(p.role);
+        if (!me) return null;
+        var mine = HRMS.store.collection('approvals').filter(function (a) {
+          if (a.status !== 'Pending Approval') return false;
+          if (a.approver === me.id) return true;
+          var subject = HRMS.store.employee(a.employee);
+          return !!(subject && subject.manager === me.id);
+        }).length;
+        return mine || null;
+      }
       if (item.path === 'leave' && p.role === 'hr') return counts.pendingLeave || null;
       return null;
     }
@@ -74,10 +89,18 @@
           h('span', { className: 'brand__mark' }, 'A'),
           h('span', { className: 'brand__name' }, 'Aptagrim HR'))),
 
+      /* The rail shows what this person can open, not what the role could. A module
+         grant narrows an individual (js/permissions.js), and a row that lands on
+         Access denied is worse than no row: it tells somebody the thing exists and
+         then refuses them. A group with nothing left in it goes too. */
       h('div', { className: 'sidenav__items' }, role.groups.map(function (group, gi) {
+        var items = group.items.filter(function (item) {
+          return item.href || HRMS.permissions.allows(role.id, role.id + '/' + item.path);
+        });
+        if (!items.length) return null;
         return h(React.Fragment, { key: group.label || gi },
           group.label ? h('div', { className: 'sidenav__group' }, group.label) : null,
-          group.items.map(function (item) {
+          items.map(function (item) {
             /* A linked item leaves the single-page prototype, so it renders as a real anchor and
                never takes the selected state — no route of ours is current while it is open. */
             if (item.href) {

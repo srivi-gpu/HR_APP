@@ -591,7 +591,7 @@
            being a table. Eight or more is wide: tighter padding, smaller type, and it
            stacks below 880px. Six or seven stacks below 700. Five or fewer can hold out
            to 560, which is about where two columns stop being readable side by side. */
-        h('table', { className: cx('vi-table', 'vi-table--' + density, cols.length >= 8 && 'vi-table--wide', cols.length >= 6 && cols.length < 8 && 'vi-table--mid', props.hover !== false && 'vi-table--hover'), 'aria-label': props['aria-label'] },
+        h('table', { className: cx('vi-table', 'vi-table--' + density, cols.length >= 8 && 'vi-table--wide', cols.length >= 6 && cols.length < 8 && 'vi-table--mid', cols.length <= 4 && 'vi-table--slim', props.hover !== false && 'vi-table--hover'), 'aria-label': props['aria-label'] },
           h('thead', null, head), h('tbody', null, body))));
   }
 

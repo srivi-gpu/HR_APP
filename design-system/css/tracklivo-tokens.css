@@ -16,26 +16,30 @@
   --danger-fg:#ff2d55;  --danger-bg:#ffeef1;  --danger-hover:#ff2d55;
   --warning-fg:#d97706; --warning-bg:#fff6e5; --warning-hover:#d97706;
   --info-fg:#0075f5;    --info-bg:#eaf3ff;    --info-hover:#0075f5;
+
+  /* ---------- Chart series ----------
+     A chart's colours are not the product's status colours. A slice is not a warning
+     and a bar is not a danger, so a categorical series takes this ramp and a status
+     takes --success-fg, --warning-fg or --danger-fg — and only where the thing really
+     is a success, a warning or a danger.
+
+     Six steps: three of the brand violet, then steel blue, teal and slate. They are
+     ordered by lightness as well as by hue, so the ramp still reads as a sequence in
+     greyscale and to anyone who cannot separate the hues. There is no orange and no
+     amber in it: a dashboard that paints a quarter of every chart orange has nothing
+     left to say when something actually needs attention, and the one thing this set
+     is for is being used without meaning anything. */
+  --chart-1:#5733c1; --chart-2:#7a5ad2; --chart-3:#a690e4;
+  --chart-4:#2f7ae5; --chart-5:#1f7a6e; --chart-6:#5b6472;
+  --chart-grid:#e9e7f0;
+
   --priority-high:#f97316;
 
-  /* ---------- Chart colours ----------
-     Every chart in the product draws from these and nothing else, so a graph cannot
-     arrive in a hue the design system does not own. Two sets, because charts ask two
-     different questions:
-
-     --chart-1..6 is categorical: six Tracklivo hues, for series that are different
-     kinds of thing (statuses, modules, locations). Ordered so the first three are the
-     furthest apart, which is what most charts use.
-
-     --chart-ramp-1..4 is sequential: one violet, light to dark, for series that are
-     the same kind of thing in an order (roles by seniority, a share of a whole). A
-     monochrome ramp says "more of the same" where six hues would say "six things".
-
-     Both carry a dark value, so a chart is readable on either background. */
-  --chart-1:#5733c1; --chart-2:#1f5fd1; --chart-3:#1f7a36;
-  --chart-4:#d97706; --chart-5:#c02848; --chart-6:#3b3a40;
+  /* The sequential companion to --chart-1..6 above. Those are for series that are
+     different kinds of thing; this one violet, light to dark, is for series that are
+     the same kind of thing in an order — roles by seniority, a share of a whole. A
+     monochrome ramp says "more of the same" where six hues would say "six things". */
   --chart-ramp-1:#3d2496; --chart-ramp-2:#5733c1; --chart-ramp-3:#7a5ad2; --chart-ramp-4:#a690e4;
-  --chart-grid:#eeeeee;
 
   /* Tracklivo shadows, radii and sizes (prefixed: names clash with Violet) */
   --tl-elevation-1: 0 2px 4px #0000000a, 0 8px 16px #0000000a;
@@ -64,12 +68,12 @@
     --danger-fg:#ff6b87;  --danger-bg:#2e1620;  --danger-hover:#ff6b87;
     --warning-fg:#f0b45a; --warning-bg:#2e2414; --warning-hover:#f0b45a;
     --info-fg:#5aa9ff;    --info-bg:#12243a;    --info-hover:#5aa9ff;
+  --chart-1:#a993f0; --chart-2:#8f73df; --chart-3:#6f55bb;
+    --chart-4:#5aa9ff; --chart-5:#4cb8a6; --chart-6:#8c8996;
+    --chart-grid:#2b2a31;
     --priority-high:#f59e6b;
 
-    --chart-1:#a993f0; --chart-2:#8dbaff; --chart-3:#7fd99a;
-    --chart-4:#f0b45a; --chart-5:#ff6b87; --chart-6:#b9b6c2;
     --chart-ramp-1:#c4b2ff; --chart-ramp-2:#a993f0; --chart-ramp-3:#8872d8; --chart-ramp-4:#6b56b0;
-    --chart-grid:#2b2a31;
     color-scheme: dark;
   }
 }
@@ -84,12 +88,12 @@
   --danger-fg:#ff6b87;  --danger-bg:#2e1620;  --danger-hover:#ff6b87;
   --warning-fg:#f0b45a; --warning-bg:#2e2414; --warning-hover:#f0b45a;
   --info-fg:#5aa9ff;    --info-bg:#12243a;    --info-hover:#5aa9ff;
+  --chart-1:#a993f0; --chart-2:#8f73df; --chart-3:#6f55bb;
+  --chart-4:#5aa9ff; --chart-5:#4cb8a6; --chart-6:#8c8996;
+  --chart-grid:#2b2a31;
   --priority-high:#f59e6b;
 
-  --chart-1:#a993f0; --chart-2:#8dbaff; --chart-3:#7fd99a;
-  --chart-4:#f0b45a; --chart-5:#ff6b87; --chart-6:#b9b6c2;
   --chart-ramp-1:#c4b2ff; --chart-ramp-2:#a993f0; --chart-ramp-3:#8872d8; --chart-ramp-4:#6b56b0;
-  --chart-grid:#2b2a31;
   color-scheme: dark;
 }
 

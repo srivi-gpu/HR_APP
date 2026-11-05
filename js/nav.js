@@ -55,7 +55,13 @@
 
     { path: 'users', label: 'Users', icon: 'users', section: '2.1', tabs: [
       { path: 'all', label: 'Users', section: '2.1', note: 'Every user account with role, status and last sign-in, filtered by status.' },
-      { path: 'access', label: 'Access requests', section: '10', note: 'One inbox for new-user, role-change, team and system access requests.' }
+      { path: 'access', label: 'Access requests', section: '10', note: 'One inbox for new-user, role-change, team and system access requests.' },
+      /* The IT half of a joiner. Starting an onboarding raises work here: an employee
+         ID from the series, a mailbox, and both sent to the joiner's personal address
+         so they can sign in for the first time. It sits under Users because what it
+         produces is an account. */
+      { path: 'joiners', label: 'Joiner setup', section: '5.1',
+        note: 'Joiners waiting on an account: issue the employee ID and work email, and send them to the personal address.' }
     ]},
 
     /* Permissions, in Tracklivo's two tabs. Access review is the standing question —
@@ -64,7 +70,12 @@
        groups and data scopes were four readings of one thing: what a role may do. */
     { path: 'roles', label: 'Permissions', icon: 'shield', section: '10', tabs: [
       { path: 'review', label: 'Access review', section: '10', note: 'Access that looks wrong: people who have left, temporary grants about to lapse, and accounts that can still sign in.' },
-      { path: 'modules', label: 'Roles', section: '10', note: 'Pick a role, then set what it may do in each module.' }
+      { path: 'modules', label: 'Roles', section: '10', note: 'Pick a role, then set what it may do in each module.' },
+      /* A role says what a job can do; it does not say what this person does. Four
+         people hold the HR role and run four different halves of it, so the modules
+         each of them reaches is a per-user question and gets a tab of its own. */
+      { path: 'people', label: 'Module access', section: '10',
+        note: 'Narrow an individual to the modules they actually run. A grant only ever takes away from the role.' }
     ]},
 
     /* Two tabs, not eleven. Billing used to carry six (plan, seats, history, invoices,
@@ -103,7 +114,17 @@
     /* Security, as one page rather than seven tabs. Sign-in rules, who is blocked and
        who has a second step are one question asked three ways, and splitting them meant
        reading a policy on one tab to understand a lockout on another. */
-    { path: 'settings', label: 'Security', icon: 'lock', section: '2.1' },
+    /* Security was one page carrying three long lists — the rules, everyone who is
+       blocked, and everyone who has or has not set up a second step. They are three
+       questions, so they are three tabs, each opening on the figure that answers it. */
+    { path: 'settings', label: 'Security', icon: 'lock', section: '2.1', tabs: [
+      { path: 'rules', label: 'Sign-in rules', section: '2.1',
+        note: 'How people get in, what the second step is, and what happens when they get it wrong.' },
+      { path: 'twostep', label: 'Second step', section: '2.1',
+        note: 'Which privileged accounts have a second factor, and a nudge for the ones that do not.' },
+      { path: 'blocked', label: 'Blocked accounts', section: '2.1',
+        note: 'Accounts that locked themselves out or were suspended, and the way back in.' }
+    ]},
 
     { path: 'audit', label: 'Audit logs', icon: 'history', section: '2.1', tabs: [
       { path: 'activity', label: 'User activity', section: '2.1', note: 'Who did what, where and when, across every module.' },
@@ -134,15 +155,16 @@
       { path: 'notice', label: 'Notice period', section: '3.3', note: 'Employees serving notice, with last working day and clearance progress.' },
       { path: 'exited', label: 'Exited', section: '14.1', note: 'Archived records, excluded from active headcount.' }
     ]},
+    /* No dashboard tab on either of these. A dashboard counts the work on the tabs
+       beside it, which is one more click before you can do any of it; In progress
+       already opens on the people who are joining and what is blocking them. */
     { path: 'onboarding', label: 'Onboarding', icon: 'person', section: '4.6', tabs: [
-      { path: 'dashboard', label: 'Dashboard', section: '4.6', note: 'Yet to start, in progress, pending verification, completed and overdue tasks.' },
       { path: 'cases', label: 'In progress', section: '4.9', note: 'Each new joiner with task progress and the current blocker.' },
       { path: 'verification', label: 'Document verification', section: '4.8', note: 'Review uploaded documents and accept or reject each one.' },
       { path: 'completed', label: 'Completed', section: '4.9', note: 'Finished onboardings, with the full record of tasks, owners and documents.' },
       { path: 'templates', label: 'Templates', section: '4.7', note: 'Onboarding templates per employee type, department and location.' }
     ]},
     { path: 'offboarding', label: 'Offboarding', icon: 'logout', section: '4.48', tabs: [
-      { path: 'dashboard', label: 'Dashboard', section: '4.51', note: 'Open exits, notice periods ending and pending clearances.' },
       { path: 'resignations', label: 'Resignations', section: '4.49', note: 'Submitted resignations awaiting manager and HR decision.' },
       { path: 'notice', label: 'Notice period', section: '4.50', note: 'Notice period tracker with last working day per employee.' },
       { path: 'clearance', label: 'Clearance', section: '4.50', note: 'Knowledge transfer, asset return and access revocation checklists.' },
@@ -374,6 +396,22 @@
     ]}
   ];
 
+  /* --------------------------------------------------------- TEAM MEMBER
+
+     A team member is an employee who also approves. Everything in the employee
+     workspace is theirs unchanged — their own leave, their own payslips, their own
+     record — and the approval inbox is added to it, because somebody reports to them.
+
+     It is the employee list plus one item rather than a list of its own, so a screen
+     added to the employee workspace reaches a manager too and the two cannot drift
+     apart. Whether the inbox actually appears is not decided here: js/permissions.js
+     asks the reporting tree, and somebody with nobody under them does not get it
+     however their account is labelled. */
+  var TEAM_ITEMS = ME_ITEMS.concat([
+    { path: 'approvals', label: 'Approval inbox', icon: 'checklist', section: '6.5',
+      note: 'Leave, regularizations, swaps and claims from the people who report to you.' }
+  ]);
+
   /* ------------------------------------------------- Global, outside a role */
   var GLOBAL = [
     { path: 'global/login', label: 'Login', section: '11.1', note: 'Email and password sign-in, with SSO where enabled.' },
@@ -382,6 +420,7 @@
     { path: 'global/activate', label: 'Account activation', section: '11.1', note: 'Activate an account from an invitation link.' },
     { path: 'global/invite', label: 'Invitation acceptance', section: '11.1', note: 'Accept an invitation and create credentials.' },
     { path: 'global/setup', label: 'First-run setup', section: '3.2', note: 'The organisation wizard an Admin lands on after signing up: documents, entity, offices, structure and HR access.' },
+    { path: 'global/joiner', label: 'Joiner onboarding', section: '5.1', note: 'What a new joiner does with the credentials IT issued them: their details, their documents, their bank account and the policies.' },
     { path: 'global/notifications', label: 'Notification centre', section: '7', note: 'Every notification addressed to you, with read state and deep links.' },
     { path: 'global/map', label: 'Screen map', section: '11', note: 'Every route in the information architecture on one page.' },
     { path: 'global/help', label: 'Help & support', section: '11.1', note: 'Guides and a way to raise a support request.' },
@@ -433,7 +472,7 @@
       { label: 'Payroll', icon: 'card', path: 'payroll' },
       /* An employee's own assets, and HR's requests for joiners. Admin's register is
          under Administration. */
-      { label: 'Assets', icon: 'package', as: { me: 'assets', hr: 'assets' } }
+      { label: 'Assets', icon: 'package', as: { me: 'assets', team: 'assets', hr: 'assets' } }
     ]},
     { label: 'Organization', slots: [
       { label: 'Organization', icon: 'building', path: 'org' },
@@ -463,7 +502,7 @@
       { label: 'Configuration', icon: 'sliders', as: { hr: 'config' } }
     ]},
     { label: 'Leaving', slots: [
-      { label: 'Offboarding', icon: 'logout', as: { me: 'exit' } }
+      { label: 'Offboarding', icon: 'logout', as: { me: 'exit', team: 'exit' } }
     ]}
   ];
 
@@ -473,11 +512,11 @@
      Employees slot, which is a roster everywhere else. The routes stay; only the row
      goes. Listed here so the orphan check below still means something. */
   var OFF_PLAN = {
-    'me/profile': true,
+    'me/profile': true, 'team/profile': true,
     /* Search keeps its route and its place in the command palette, but not a sidebar
        row: the header's search field is the way in, and a rail row for it was a second
        door onto the same screen. */
-    'admin/search': true, 'hr/search': true, 'me/search': true
+    'admin/search': true, 'hr/search': true, 'me/search': true, 'team/search': true
   };
 
   /* A role's sidebar: the plan, carrying that role's items. The slot owns the label
@@ -518,7 +557,13 @@
     { id: 'hr', label: 'HR', icon: 'users', items: HR_ITEMS, groups: build('hr', HR_ITEMS), home: 'hr/dashboard',
       persona: 'Priya Sharma', blurb: 'People operations, policies, workflows and the employee lifecycle.' },
     { id: 'me', label: 'Employee', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
-      persona: 'Ananya Rao', blurb: 'Self-service: attendance, leave, payslips, documents and reviews.' }
+      persona: 'Ananya Rao', blurb: 'Self-service: attendance, leave, payslips, documents and reviews.' },
+    /* The persona has to be somebody with reports, or the workspace would open on an
+       approval inbox its own rule hides — and with enough waiting on them that the
+       inbox has something in it. Venkat Wadhwa leads sixteen people and has the most
+       requests pending of anyone who is not HR. */
+    { id: 'team', label: 'Team member', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
+      persona: 'Venkat Wadhwa', blurb: 'Everything an employee has, plus the requests from the people who report to you.' }
   ];
 
   /* Flattened route table: 'role/item[/tab]' -> metadata.

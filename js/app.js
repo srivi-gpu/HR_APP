@@ -5,7 +5,12 @@
   var React = window.React, h = React.createElement, V = window.Violet, I = window.Icons;
   var store = HRMS.store, router = HRMS.router, ui = HRMS.ui;
 
-  var CHROMELESS = ['global/login', 'global/forgot', 'global/reset', 'global/activate', 'global/invite', 'global/setup'];
+  /* Screens that draw themselves, without the rail and top bar, and that a person who
+     has not signed in may reach: the way in, and the two wizards that sit on it — the
+     organisation setup an admin meets after signing up, and the joiner's own
+     onboarding. Both open over the sign-in screen and sign you in by finishing. */
+  var CHROMELESS = ['global/login', 'global/forgot', 'global/reset', 'global/activate', 'global/invite',
+    'global/setup', 'global/joiner'];
 
   /* Re-render whenever the store changes, so a write anywhere updates every screen. */
   function useStore() {
@@ -130,6 +135,22 @@
       h(HRMS.shell.ProtoSwitch, { role: activeRole, path: route.path }),
       palette, h(ui.ToastHost));
   }
+
+  /* The team workspace is the employee workspace plus an approval inbox, so it is the
+     employee's screens that have to answer under it. Aliasing them here, once every
+     screen module has registered, is what makes "plus one item" true: a screen added
+     to the employee workspace tomorrow reaches a manager with no second registration
+     to remember, and the two cannot drift apart.
+
+     Anything already registered under team/ — the inbox — is left alone. */
+  (function aliasEmployeeScreens() {
+    var reg = HRMS.screens.registry;
+    Object.keys(reg).forEach(function (path) {
+      if (path.indexOf('me/') !== 0) return;
+      var mirrored = 'team/' + path.slice(3);
+      if (!reg[mirrored]) reg[mirrored] = reg[path];
+    });
+  })();
 
   HRMS.App = App;   // exported so the smoke test can render routes outside a browser
   ReactDOM.createRoot(document.getElementById('root')).render(h(App));

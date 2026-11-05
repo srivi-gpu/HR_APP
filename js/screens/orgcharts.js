@@ -35,19 +35,16 @@
       return v || fallback;
     } catch (e) { return fallback; }
   }
-  /* amCharts paints to a canvas and cannot read a CSS variable, so the tokens are
-     resolved here at draw time. The violet ramp first, because the tree is one kind
-     of thing nested in itself, then the categorical hues for the branches that need
-     telling apart. Every value comes from the stylesheet, so a change of accent or a
-     switch to dark carries into the charts on the next draw. */
-  var CHART_TOKENS = [
-    ['--chart-ramp-1', '#3d2496'], ['--chart-ramp-2', '#5733c1'],
-    ['--chart-ramp-3', '#7a5ad2'], ['--chart-ramp-4', '#a690e4'],
-    ['--chart-2', '#1f5fd1'], ['--chart-3', '#1f7a36'],
-    ['--chart-4', '#d97706'], ['--chart-5', '#c02848'], ['--chart-6', '#3b3a40']
-  ];
   function palette() {
-    return CHART_TOKENS.map(function (t) { return window.am5.color(cssVar(t[0], t[1])); });
+    var brand = cssVar('--brand-solid', '#5733c1');
+    /* The chart ramp from the stylesheet, so the network picture matches every other
+       chart in the product and carries no orange: a branch of an org chart is a
+       department, not a warning. */
+    return [cssVar('--chart-1', brand), brand, cssVar('--chart-2', '#7a5ad2'),
+      cssVar('--chart-3', '#a690e4'), cssVar('--chart-4', '#2f7ae5'),
+      cssVar('--chart-5', '#1f7a6e'), cssVar('--chart-6', '#5b6472'),
+      cssVar('--chart-ramp-1', '#3d2496')]
+      .map(function (c) { return window.am5.color(c); });
   }
 
   function initials(name) {
@@ -322,10 +319,230 @@
     };
   }
 
+
+  /* ====================================================== ApexTree
+
+     The reporting chart, as a real tree rather than a pannable field of cards. The
+     card chart is still here — it is the one you drag people around in — but it
+     answers "who reports to whom" one branch at a time, and the first thing anybody
+     wants from an org chart is the shape of the top levels at once.
+
+     ApexTree is vendored (vendor/apextree.js) for the same reason amCharts is: the CDN
+     is not reachable from this container. It is pinned at 1.0.0, the last MIT release —
+     every version from 1.6.2 on is under a proprietary licence and stamps an APEXCHARTS
+     watermark across the chart unless a licence key is set. 1.0.0 has no expand and
+     collapse, which is why this drills instead: three levels at a time from whoever is
+     at the top of the view, and clicking a manager makes them the top.
+
+     Every colour comes from the stylesheet rather than from the library's options, so
+     the chart follows the accent set on Branding and reads in dark mode. That is also
+     why the node template emits classes rather than inline styles.
+
+     amCharts' rule applies here too: the library owns the DOM under a node React
+     renders once and never touches, and the instance is destroyed on unmount. */
+
+  /* A name can carry anything; it is written into an HTML string, so it is escaped. */
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  /* How many cards can be on screen before the tree stops being a picture. Two levels
+     under a 13-report manager is 93 cards, and 93 cards scaled to fit a card is a grey
+     smear — so the depth is chosen from the branch rather than fixed: three levels
+     where the branch is small enough to read, two where it is not. */
+  var APEX_BUDGET = 34;
+
+  /* The directory as ApexTree's nested shape, cut at the depth the branch can carry.
+     `data` carries what the node template draws; a node with reports below the cut
+     says how many, because a leaf that is not a leaf is the one thing a tree must not
+     imply. */
+  function apexData(staff, rootId) {
+    var byManager = {};
+    staff.forEach(function (n) { (byManager[n.k || '\u0000root'] = byManager[n.k || '\u0000root'] || []).push(n); });
+    Object.keys(byManager).forEach(function (k) {
+      byManager[k].sort(function (a, b) { return a.id < b.id ? -1 : 1; });
+    });
+    var root = staff.filter(function (n) { return n.id === rootId; })[0] || staff[0];
+
+    /* Everyone under this person, however deep, so a cut-off card can say how many. */
+    function below(id) {
+      var kids = byManager[id] || [];
+      return kids.reduce(function (n, k) { return n + 1 + below(k.id); }, 0);
+    }
+
+    /* How many cards three levels would draw, so the choice is made once, up front,
+       rather than discovered halfway down the tree. */
+    var direct = byManager[root.id] || [];
+    var three = 1 + direct.length + direct.reduce(function (n, k) {
+      return n + (byManager[k.id] || []).length;
+    }, 0);
+    var maxDepth = three <= APEX_BUDGET ? 3 : 2;
+
+    function build(node, depth) {
+      var kids = byManager[node.id] || [];
+      var cut = depth >= maxDepth - 1 && kids.length;
+      var out = {
+        id: node.id,
+        data: {
+          name: node.id,
+          title: node.r || '',
+          subtitle: node.d || '',
+          mark: initials(node.id),
+          /* The tone is picked by department name, so a branch reads as one colour
+             without anybody choosing colours by hand. */
+          tone: depth === 0 ? 'root' : 't' + (Math.abs(hashOf(node.d || '')) % 5),
+          /* Only the top two levels carry a badge; below that it is noise. */
+          badge: depth <= 1 && node.r ? shortTitle(node.r) : null,
+          reports: kids.length,
+          more: cut ? below(node.id) : 0
+        }
+      };
+      if (kids.length && !cut) out.children = kids.map(function (k) { return build(k, depth + 1); });
+      return out;
+    }
+    return build(root, 0);
+  }
+  function hashOf(s) {
+    var n = 0;
+    for (var i = 0; i < s.length; i++) { n = (n * 31 + s.charCodeAt(i)) | 0; }
+    return n;
+  }
+  /* "Chief Technology Officer" reads as CTO on a badge; anything that is not a title
+     of that shape keeps its first word. */
+  function shortTitle(t) {
+    var words = String(t).split(/\s+/).filter(Boolean);
+    if (words.length >= 3 && /^(chief|head|vice|senior)$/i.test(words[0])) {
+      return words.map(function (w) { return w[0]; }).join('').toUpperCase().slice(0, 4);
+    }
+    return words[0] || '';
+  }
+  /* The line from the organisation's head down to whoever is at the top of the view. */
+  function chainTo(staff, topId, id) {
+    var by = {};
+    staff.forEach(function (n) { by[n.id] = n; });
+    var out = [], cur = by[id], guard = 0;
+    while (cur && guard++ < 50) { out.unshift(cur.id); if (cur.id === topId) break; cur = by[cur.k]; }
+    return out;
+  }
+
+  function ApexOrgTree(p) {
+    var hostRef = React.useRef(null);
+    var topSt = React.useState(p.rootId);
+    var top = topSt[0];
+    var onSelect = p.onSelect;
+    var staff = p.staff;
+
+    /* Whoever is at the top of the view comes from the props when they change — moving
+       somebody rebuilds the chart — and from a click the rest of the time. */
+    React.useEffect(function () { topSt[1](p.rootId); }, [p.rootId, p.epoch]);
+
+    var trail = React.useMemo(function () {
+      return chainTo(staff, p.rootId, top);
+    }, [staff, p.rootId, top]);
+
+    React.useEffect(function () {
+      var el = hostRef.current;
+      if (!el || !window.ApexTree) return;
+      el.innerHTML = '';
+
+      /* Left to right rather than top down. The sample in ApexTree's own docs has
+         three people at the top level; a real organisation has thirteen, and thirteen
+         cards side by side is 3,000px of tree squeezed into a 1,000px card. Laid on
+         its side the siblings run down the page, which is the direction a page
+         already scrolls. */
+      var data = apexData(staff, top);
+      var widest = 1;
+      (function measure(n, d, counts) {
+        counts[d] = (counts[d] || 0) + 1;
+        widest = Math.max(widest, counts[d]);
+        (n.children || []).forEach(function (k) { measure(k, d + 1, counts); });
+      })(data, 0, {});
+
+      var tree = new window.ApexTree(el, {
+        contentKey: 'data',
+        width: el.clientWidth || 1000,
+        height: Math.max(p.big ? Math.max(480, window.innerHeight - 250) : 460,
+          widest * 104 + 40),
+        nodeWidth: 254,
+        nodeHeight: 80,
+        childrenSpacing: 72,
+        siblingSpacing: 26,
+        direction: 'left',
+        enableToolbar: true,
+        highlightOnHover: false,
+        containerClassName: 'axroot',
+        /* The card is ours, so the library draws no box of its own behind it. */
+        nodeBGColor: 'transparent', nodeBGColorHover: 'transparent',
+        borderWidth: 0, borderColor: 'transparent', borderColorHover: 'transparent',
+        borderRadius: '16px',
+        edgeColor: cssVar('--border-default', '#d8d8e0'),
+        edgeColorHover: cssVar('--brand-solid', '#5733c1'),
+        canvasStyle: 'background: transparent;',
+        fontFamily: 'inherit',
+        nodeTemplate: function (c) {
+          c = c || {};
+          return '<div class="axn axn--' + esc(c.tone || 't0') + (c.more ? ' has-more' : '') + '">'
+            + '<span class="axn__a">' + esc(c.mark || '') + '</span>'
+            + '<span class="axn__m">'
+            + '<strong>' + esc(c.name) + '</strong>'
+            + '<span>' + esc(c.title) + '</span>'
+            + '<em>' + esc(c.subtitle)
+            + (c.reports ? ' · ' + c.reports + ' direct' : '') + '</em>'
+            + '</span>'
+            + (c.badge ? '<span class="axn__b">' + esc(c.badge) + '</span>' : '')
+            + (c.more ? '<span class="axn__more">+' + c.more + '</span>' : '')
+            + '</div>';
+        }
+      });
+
+      try { tree.render(data); } catch (e) { /* drawn or not, the page stands */ }
+
+      /* The node is an HTML string, so the click is caught once on the host: a card
+         with people hidden below it opens that branch, any other card opens the
+         person. */
+      function click(ev) {
+        var card = ev.target && ev.target.closest ? ev.target.closest('.axn') : null;
+        if (!card) return;
+        var name = card.querySelector('strong');
+        if (!name) return;
+        if (card.classList.contains('has-more')) topSt[1](name.textContent);
+        else if (onSelect) onSelect(name.textContent);
+      }
+      el.addEventListener('click', click);
+
+      return function () {
+        el.removeEventListener('click', click);
+        try { tree.destroy && tree.destroy(); } catch (e) {}
+        el.innerHTML = '';
+      };
+    }, [staff, top, p.big]);
+
+    if (!window.ApexTree) {
+      return h('div', { className: 'amc__miss' }, 'The tree library did not load.');
+    }
+    return h('div', { className: 'axwrap' + (p.big ? ' is-full' : '') },
+      trail.length > 1
+        ? h('nav', { className: 'axcrumb', 'aria-label': 'Reporting line' }, trail.map(function (id, i) {
+            var last = i === trail.length - 1;
+            return h(React.Fragment, { key: id },
+              i ? h('span', { className: 'axcrumb__s', 'aria-hidden': 'true' }, '›') : null,
+              last
+                ? h('span', { className: 'axcrumb__c is-on', 'aria-current': 'true' }, id)
+                : h('button', { type: 'button', className: 'axcrumb__c',
+                    onClick: function () { topSt[1](id); } }, id));
+          }))
+        : null,
+      h('div', { className: 'apextree', ref: hostRef }));
+  }
+
   HRMS.orgcharts = {
     AmChart: AmChart,
     treeData: treeData,
     VerticalTree: VerticalTree,
+    ApexOrgTree: ApexOrgTree,
+    apexReady: function () { return !!window.ApexTree; },
     drawNetwork: drawNetwork,
     ready: function () { return !!(window.am5 && window.am5hierarchy); }
   };

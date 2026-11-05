@@ -231,7 +231,20 @@
     var tabSt = React.useState('pending');
     var rejectSt = React.useState(null);
     var reasonSt = React.useState('');
-    var rows = store.collection('approvals');
+    var role = store.pref('role');
+    var me = store.persona(role);
+
+    /* HR and the administrator carry the organisation's queue; a team member carries
+       their own. Scoping it by the reporting line rather than by the role means a
+       manager sees exactly the requests they are answerable for, and nobody has to
+       keep a second list of who approves what. */
+    var orgWide = role === 'hr' || role === 'admin';
+    var rows = store.collection('approvals').filter(function (a) {
+      if (orgWide || !me) return true;
+      if (a.approver === me.id) return true;
+      var subject = store.employee(a.employee);
+      return !!(subject && subject.manager === me.id);
+    });
     var pending = rows.filter(function (a) { return a.status === 'Pending Approval'; });
     var filtered = tabSt[0] === 'pending' ? pending
       : tabSt[0] === 'actioned' ? rows.filter(function (a) { return a.status !== 'Pending Approval'; })
@@ -622,10 +635,24 @@
 
           h('div', { className: 'auth-or' }, h('span', null, 'or continue with')),
           h('div', { className: 'auth-sso' },
-            [['Google', GOOGLE], ['Microsoft', MICROSOFT], ['Company SSO', h('span', { className: 'auth-sso__mark' }, I.building)]].map(function (p) {
+            /* Google opens the joiner's own onboarding rather than signing in: it is
+               the one way into that flow while the product has no mail transport to
+               send somebody a link, and a new joiner arriving with the credentials IT
+               issued is the case it demonstrates. The other two sign in normally. */
+            [['Google', GOOGLE, 'joiner'], ['Microsoft', MICROSOFT, 'sso'],
+             ['Company SSO', h('span', { className: 'auth-sso__mark' }, I.building), 'sso']].map(function (p) {
               return h('button', {
-                key: p[0], type: 'button', className: 'auth-sso__btn', title: p[0], 'aria-label': 'Continue with ' + p[0],
-                disabled: !!busySt[0], onClick: function () { enter('sso'); }
+                key: p[0], type: 'button', className: 'auth-sso__btn', title: p[0],
+                'aria-label': p[2] === 'joiner' ? 'Continue as a new joiner' : 'Continue with ' + p[0],
+                disabled: !!busySt[0],
+                onClick: function () {
+                  if (p[2] !== 'joiner') return enter('sso');
+                  /* Not signed in yet. The wizard draws the sign-in screen behind
+                     itself, the way the organisation wizard does, and signing in is
+                     what finishing it does — setting the flag here put an HR sidebar
+                     behind a joiner's first five minutes. */
+                  router.go('global/joiner');
+                }
               }, p[1]);
             }),
             h('button', {
@@ -642,8 +669,17 @@
                setup as outstanding and the console sends you to the wizard. */
             h('p', { className: 'auth-switch' }, 'Setting up a new organisation? ',
               h('button', { type: 'button', className: 'link', onClick: function () {
+                /* Signing up is the admin path by definition — it is the person
+                   standing the organisation up — so it opens the Admin workspace and
+                   goes straight to onboarding.
+
+                   It also has to sign you in. Without that the wizard rendered over a
+                   sign-in page that was still the live screen underneath it: closing
+                   the wizard put you back on the front door, having apparently signed
+                   up for nothing. */
                 store.setPref('role', 'admin');
                 store.setPref('setupComplete', false);   /* in case setup was finished before */
+                store.setPref('signedIn', true);
                 router.go('global/setup');
               } }, 'Sign up')))))
       ,
@@ -798,7 +834,13 @@
        is kept below only as the source of the alert list the setup wizard still reads;
        it is no longer routed to. */
     'hr/dashboard': HrDashboard,
+    /* One inbox, three ways in. An approval is the same object whether a manager, HR
+       or the IT administrator is looking at it; what differs is whose requests reach
+       them, and the screen decides that from the reporting line rather than from the
+       route. */
     'hr/approvals': ApprovalInbox,
+    'team/approvals': ApprovalInbox,
+    'admin/approvals': ApprovalInbox,
     'global/notifications': Notifications,
     'admin/roles/predefined': RolesPredefined,
     'admin/roles/modules': RolesModules,

@@ -56,17 +56,55 @@
   }
 
   /* ===================================================== Employee records (4) */
+  /* ------------------------------------------------- Employee numbering (PRD 3.2)
+
+     The employee ID was a field somebody typed, with a uniqueness rule to catch them
+     when they got it wrong. It is a series — the organisation's numbering record holds
+     the prefix, the width and the next number — so it is generated, and the rule is
+     left in place for the imports and the seeded records that still carry their own.
+
+     Generated from the records rather than only from `next`, so a number can never be
+     handed out twice: a prototype that has created employees in this browser has moved
+     past whatever the seed said was next. */
+  function nextEmployeeId() {
+    var series = store.collection('numbering')[0]
+      || { prefix: 'NEX', width: 4, next: 1 };
+    var used = store.collection('employees').reduce(function (max, e) {
+      var m = String(e.id || '').match(new RegExp('^' + series.prefix + '(\\d+)$'));
+      return m ? Math.max(max, Number(m[1])) : max;
+    }, 0);
+    var n = Math.max(used + 1, series.next || 1);
+    return series.prefix + String(n).padStart(series.width || 4, '0');
+  }
+
+  /* The work email a joiner would get, from their name and the organisation's domain.
+     IT can change it before issuing — this is a proposal, not a decision. */
+  function proposeWorkEmail(name) {
+    var domain = (seed.org && seed.org.domain)
+      || ((store.collection('employees')[0] || {}).workEmail || '@nexoratech.com').split('@')[1];
+    var local = String(name || '').toLowerCase()
+      .normalize ? String(name || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+      : String(name || '').toLowerCase();
+    local = local.replace(/[^a-z\s]/g, '').trim().split(/\s+/).slice(0, 2).join('.');
+    return local ? local + '@' + domain : '';
+  }
+
   function createEmployee(form) {
+    /* The ID comes from the series, not from the form. A work email is not asked for
+       either: IT issues it, with the ID, once onboarding opens — so a joiner being
+       added here has no account and no mailbox yet, which is the true state. */
+    form = Object.assign({}, form, { id: form.id || nextEmployeeId() });
     var errors = rules.required([
       { key: 'firstName', label: 'First name' }, { key: 'lastName', label: 'Last name' },
-      { key: 'id', label: 'Employee ID' }, { key: 'workEmail', label: 'Work email' },
       { key: 'department', label: 'Department' }, { key: 'designation', label: 'Designation' },
       { key: 'type', label: 'Employment type' }, { key: 'location', label: 'Work location' }
     ], form);
     var dup = rules.uniqueEmployeeId(form.id);
     if (dup && !errors.id) errors.id = dup;
-    var mail = rules.uniqueWorkEmail(form.workEmail);
-    if (mail && !errors.workEmail) errors.workEmail = mail;
+    if (form.workEmail) {
+      var mail = rules.uniqueWorkEmail(form.workEmail);
+      if (mail && !errors.workEmail) errors.workEmail = mail;
+    }
     var joined = rules.validJoiningDate(form.joined);
     if (joined) errors.joined = joined;
     if (rules.hasErrors(errors)) return fail(errors);
@@ -79,7 +117,7 @@
       designation: des ? des.name : '', designationId: form.designation, level: des ? des.level : 1,
       type: form.type, status: form.status || 'Invited', location: form.location,
       joined: form.joined, joinedLabel: pretty(new Date(form.joined + 'T00:00')),
-      workEmail: form.workEmail, personalEmail: form.personalEmail || '', phone: form.phone || '',
+      workEmail: form.workEmail || '', personalEmail: form.personalEmail || '', phone: form.phone || '',
       ctc: ctc, dob: form.dob || '', gender: form.gender || '',
       probationMonths: form.type === 'Full-Time' ? 6 : 3,
       shift: form.shift || 'sh-gen',
@@ -1605,6 +1643,89 @@
       { id: id, mailedTo: to });
   }
 
+  /* ----------------------------------------------- The IT half of a joiner
+
+     Starting an onboarding raises work for IT, and until this existed that work was a
+     checkbox on HR's list called "IT setup" with nothing behind it. A joiner cannot
+     sign in until somebody creates their account, and nobody could.
+
+     `joinerQueue` is derived rather than stored: an onboarding case whose IT setup task
+     is still open is waiting on IT, and that is the only fact involved. A second
+     collection would have been a second place for it to be wrong.
+
+     Issuing does the four things that were only ever described: it gives the joiner
+     their work email, creates the account they will sign in with, closes the IT task on
+     HR's checklist, and sends the credentials to the personal address — because the
+     work address is the thing being created and cannot carry its own announcement. */
+  function joinerQueue() {
+    return store.collection('onboarding').filter(function (c) {
+      if (c.stage === 'Completed') return false;
+      var it = (c.tasks || []).filter(function (t) { return t.name === 'IT setup'; })[0];
+      return it && !it.done;
+    }).map(function (c) {
+      var e = store.employee(c.employee) || {};
+      return {
+        id: c.id, employee: c.employee, name: e.name || c.employee,
+        personalEmail: e.personalEmail || '',
+        department: e.department, designation: e.designation,
+        startDate: c.startDate, startDateLabel: c.startDateLabel,
+        workEmail: e.workEmail || '',
+        proposed: e.workEmail || proposeWorkEmail(e.name),
+        hasAccount: store.collection('users').some(function (u) { return u.employee === c.employee; })
+      };
+    });
+  }
+
+  function issueJoinerCredentials(caseId, form) {
+    var c = store.find('onboarding', caseId);
+    if (!c) return fail({ _: 'That onboarding case no longer exists' });
+    var e = store.employee(c.employee);
+    if (!e) return fail({ _: 'That employee record no longer exists' });
+
+    var email = String(form && form.workEmail || '').trim();
+    var errors = {};
+    if (!email) errors.workEmail = 'Required';
+    else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errors.workEmail = 'That is not an email address';
+    else {
+      var clash = rules.uniqueWorkEmail(email, e.id);
+      if (clash) errors.workEmail = clash;
+    }
+    if (!e.personalEmail) {
+      errors._ = 'There is no personal address on ' + e.name + "'s record to send the credentials to";
+    }
+    if (rules.hasErrors(errors)) return fail(errors);
+
+    store.setOverride('employees', e.id, { workEmail: email, credentialsIssuedOn: today() });
+
+    /* The account they sign in with. If one already exists — a record imported with
+       its user — it is pointed at the new address rather than duplicated. */
+    var existing = store.collection('users').filter(function (u) { return u.employee === e.id; })[0];
+    if (existing) store.setOverride('users', existing.id, { email: email, status: 'Pending Invitation' });
+    else {
+      store.add('users', {
+        id: store.nextId('users', 'USR'), employee: e.id, email: email,
+        role: form && form.role ? form.role : 'me',
+        status: 'Pending Invitation', lastSignIn: null, mfa: false, invitedOn: today()
+      });
+    }
+
+    completeOnboardingTask(caseId, 'IT setup', true);
+
+    /* To the personal address, because the work one is what is being handed over. */
+    notify({
+      kind: 'Onboarding Invitation',
+      title: 'Your sign-in details are ready',
+      body: 'Employee ID ' + e.id + ' · ' + email + '. Sign in and finish your onboarding before '
+        + (c.startDateLabel || 'your first day') + '.',
+      route: 'me/onboarding', roles: ['me'], to: e.id
+    });
+    store.log('issued ' + email + ' and ' + e.id + ' to ' + e.name
+      + ' and sent them to ' + e.personalEmail, 'User activity');
+
+    return done(e.id + ' and ' + email + ' sent to ' + e.personalEmail,
+      { employeeId: e.id, workEmail: email });
+  }
+
   function completeOnboardingTask(caseId, taskName, doneFlag) {
     var c = store.find('onboarding', caseId);
     if (!c) return fail({ _: 'That onboarding case no longer exists' });
@@ -1879,6 +2000,8 @@
   HRMS.actions = {
     /* Notifications */
     notify: notify, notifyEach: notifyEach,
+    nextEmployeeId: nextEmployeeId, proposeWorkEmail: proposeWorkEmail,
+    joinerQueue: joinerQueue, issueJoinerCredentials: issueJoinerCredentials,
     /* Employee records */
     createEmployee: createEmployee, editEmployee: editEmployee,
     changeEmployeeStatus: changeEmployeeStatus, importEmployees: importEmployees,

@@ -135,7 +135,7 @@
         })),
 
       h(Grid, null,
-        h(Card, { span: 7, title: 'Monthly cost by department', description: 'Derived from each employee’s salary breakdown, not entered on this screen.' },
+        h(Card, { span: 12, title: 'Monthly cost by department', description: 'Derived from each employee’s salary breakdown, not entered on this screen.' },
           h(ui.DataTable, {
             exportName: 'payroll-cost-by-department', label: 'Cost by department', rows: deptRows, pageSize: 10,
             search: function (r) { return deptName(r.department); }, searchPlaceholder: 'Search departments',
@@ -182,7 +182,7 @@
                 }, 'Open processing'))
             : h(ui.Empty, { icon: I.card, title: 'No payroll cycle yet', body: 'Start a run from the cycles screen.' })),
 
-        h(Card, { span: 5, title: 'Statutory & employer contributions', description: 'Per month, across the payroll. Rules are configurable per jurisdiction (PRD 4.34).' },
+        h(Card, { span: 6, title: 'Statutory & employer contributions', description: 'Per month, across the payroll. Rules are configurable per jurisdiction (PRD 4.34).' },
           h(ui.KeyValue, { rows: [
             ['Provident fund — employee', ui.inr(t.lines['Provident Fund'] || 0)],
             ['Provident fund — employer', ui.inr(t.employerPf)],
@@ -194,7 +194,7 @@
           h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.sliders,
             onClick: function () { router.goAs('hr/config/payroll'); } }, 'Payroll configuration')),
 
-        h(Card, { span: 7, title: 'Payroll history' },
+        h(Card, { span: 12, title: 'Payroll history' },
           h(ui.DataTable, {
             exportName: 'payroll-history', label: 'Payroll history', rows: history, pageSize: 10,
             search: function (c) { return c.period + ' ' + c.status; }, searchPlaceholder: 'Search by period or status',
@@ -547,7 +547,7 @@
     return h(React.Fragment, null,
       h(Grid, null,
         h(Card, {
-          span: 8, title: 'Salary structures', description: 'CTC to net breakdowns, assignable to employees by level or type.',
+          span: 12, title: 'Salary structures', description: 'CTC to net breakdowns, assignable to employees by level or type.',
           aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
             onClick: function () { openSt[1](true); } }, 'Create structure')
         },
@@ -741,7 +741,7 @@
         h(Stat, { label: 'Awaiting verification', value: pending, sub: 'Proofs to check before the next run', tone: pending ? 'warn' : null })),
 
       h(Grid, null,
-        h(Card, { span: 8, title: 'Tax declarations', description: 'Regime, declared amount, proofs and verification state for FY 2026-27 (PRD 4.37).' },
+        h(Card, { span: 12, title: 'Tax declarations', description: 'Regime, declared amount, proofs and verification state for FY 2026-27 (PRD 4.37).' },
           h(ui.DataTable, {
             exportName: 'tax-declarations', label: 'Tax declarations', rows: rows, pageSize: 10,
             search: function (x) { return (emp(x.employee) ? emp(x.employee).name + ' ' + x.employee : '') + ' ' + x.regime; },
@@ -1410,7 +1410,7 @@
                       'Every review is in. Publishing closes the cycle and shows each employee their rating.'))
             : h(ui.Empty, { icon: I.target, title: 'No cycle to publish', body: 'Create and launch an appraisal cycle first.' })),
 
-        h(Card, { span: 7, title: 'Final results', description: 'Approved ratings and reviewers for the selected cycle.' },
+        h(Card, { span: 12, title: 'Final results', description: 'Approved ratings and reviewers for the selected cycle.' },
           h(ui.DataTable, {
             exportName: 'performance-results', label: 'Final results', rows: asm, pageSize: 10,
             search: function (a) { return (emp(a.employee) ? emp(a.employee).name : '') + ' ' + a.status; },

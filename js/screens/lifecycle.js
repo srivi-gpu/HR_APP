@@ -162,75 +162,6 @@
         })));
   }
 
-  function OnboardingDashboard() {
-    /* Stage counts cover every case; the in-flight list and open-task roll-up below
-       read from the open ones, so a finished case does not show as work outstanding. */
-    var cases = onboardingCases();
-    var open = openOnboardingCases();
-    var s = store.stats();
-    var docs = pendingDocuments();
-
-    function stage(name) { return cases.filter(function (c) { return c.stage === name; }).length; }
-    var overdue = open.reduce(function (n, c) { return n + overdueTasks(c).length; }, 0);
-
-    /* Which task is holding the most cases up, counted across open cases only. */
-    var byTask = seed.onboardingTaskNames.map(function (name) {
-      return [name, open.filter(function (c) {
-        return (c.tasks || []).some(function (t) { return t.name === name && !t.done; });
-      }).length];
-    }).filter(function (r) { return r[1] > 0; }).sort(function (a, b) { return b[1] - a[1]; });
-
-    return h(React.Fragment, null,
-      /* store.stats().pendingOnboardingTasks is the authoritative open-task figure
-         PRD 15 fixes at 16, so it is read rather than recomputed here. */
-      h(Stats, { cols: 5 },
-        h(Stat, { key: 1, label: 'Yet to start', value: stage('Yet to Start'), sub: 'Invited, checklist not begun' }),
-        h(Stat, { key: 2, label: 'In progress', value: stage('In Progress'), sub: s.pendingOnboardingTasks + ' tasks open in total' }),
-        h(Stat, { key: 3, label: 'Pending verification', value: stage('Pending Verification'),
-          sub: docs.length + ' documents awaiting review', tone: docs.length ? 'warn' : null }),
-        h(Stat, { key: 4, label: 'Completed', value: stage('Completed'), sub: 'Checklists closed in full', tone: 'good' }),
-        h(Stat, { key: 5, label: 'Overdue tasks', value: overdue, sub: 'Past their due date', tone: overdue ? 'warn' : 'good' })),
-
-      h(Grid, null,
-        h(Card, { span: 7, title: 'Onboarding in flight',
-          description: 'Every open case with its checklist progress (PRD 4.6).',
-          aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.right,
-            onClick: function () { router.goAs('hr/onboarding/cases'); } }, 'All cases') },
-          open.length
-            ? h('div', { className: 'list scroll-320' }, open.map(function (c) {
-                var e = emp(c.employee);
-                return h('div', { className: 'list__row', key: c.id },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' }, e ? e.name : c.employee),
-                    h('span', { className: 'list__meta' }, (e ? deptName(e.department) + ' · ' : '')
-                      + 'joins ' + c.startDateLabel + ' · ' + c.pending + ' task' + (c.pending === 1 ? '' : 's') + ' open')),
-                  h('span', { style: { width: 96 } },
-                    h(V.ProgressBar, { value: ui.pct(c.tasksDone, c.tasksTotal), size: 'sm', 'aria-label': 'Progress' })),
-                  h(ui.StatusChip, { status: c.stage }));
-              }))
-            : h(ui.Empty, { icon: I.person, title: 'No onboarding in progress', body: 'A new employee record creates a checklist automatically (PRD 5.1).' })),
-
-        h(Card, { span: 5, title: 'Cases by stage' },
-          h(ui.Bars, { rows: ['Yet to Start', 'In Progress', 'Pending Verification', 'Completed'].map(function (k) {
-            return [k, stage(k), k === 'Completed' ? 'success' : k === 'Pending Verification' ? 'warning' : null];
-          }).filter(function (r) { return r[1] > 0; }), emptyTitle: 'No cases to chart' })),
-
-        h(Card, { span: 7, title: 'Tasks still open, by task',
-          description: 'Where the checklists are stalling across all open cases.' },
-          h(ui.Bars, { rows: byTask, emptyTitle: 'Every checklist is complete' })),
-
-        h(Card, { span: 5, title: 'Document verification queue',
-          description: 'PRD 4.8: uploaded documents waiting on HR.',
-          aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.file,
-            onClick: function () { router.goAs('hr/onboarding/verification'); } }, 'Review') },
-          h(ui.KeyValue, { rows: [
-            ['Awaiting verification', docs.length],
-            ['From new joiners', docs.filter(function (d) { var e = emp(d.employee); return e && e.status === 'Onboarding'; }).length],
-            ['Oldest upload', docs.length ? ui.dateLabel(docs.map(function (d) { return d.uploaded; }).sort()[0]) : null],
-            ['Categories affected', Object.keys(docs.reduce(function (m, d) { m[d.category] = 1; return m; }, {})).length]
-          ]}))));
-  }
-
   /* The start flow: who is joining, on what template, and when. The joining date is the
      pivot — every task is due before it, so it is asked for here rather than inherited. */
   function StartOnboardingModal(p) {
@@ -691,61 +622,6 @@
     if (!e) return 0;
     var b = e.breakdown || seed.util.breakdown(e.ctc);
     return Math.round(b.gross);
-  }
-
-  function OffboardingDashboard() {
-    var cases = offboardingCases();
-    var live = liveExits();
-    var endingSoon = live.filter(function (c) { var d = daysAway(c.lastWorkingDay); return d != null && d <= 30; });
-    var clearanceOpen = live.reduce(function (n, c) { return n + (c.tasksTotal - c.tasksDone); }, 0);
-    var settlements = live.filter(function (c) { return c.settlement !== 'Paid'; });
-
-    return h(React.Fragment, null,
-      h(Stats, { cols: 5 },
-        h(Stat, { key: 1, label: 'Open exits', value: live.length, sub: 'Serving notice or awaiting a decision' }),
-        h(Stat, { key: 2, label: 'Notice ending in 30 days', value: endingSoon.length,
-          sub: 'Last working day approaching', tone: endingSoon.length ? 'warn' : null }),
-        h(Stat, { key: 3, label: 'Clearance tasks open', value: clearanceOpen, sub: 'Across every live case' }),
-        h(Stat, { key: 4, label: 'Settlements pending', value: settlements.length,
-          sub: 'Blocked until clearance is complete (PRD 14.8)', tone: settlements.length ? 'warn' : null }),
-        h(Stat, { key: 5, label: 'Exits completed', value: cases.filter(function (c) { return c.stage === 'Completed'; }).length,
-          sub: 'Records archived', tone: 'good' })),
-
-      h(Grid, null,
-        h(Card, { span: 7, title: 'Live exits',
-          description: 'PRD 4.51: open cases with clearance progress and the last working day.',
-          aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.right,
-            onClick: function () { router.goAs('hr/offboarding/clearance'); } }, 'Clearance') },
-          live.length
-            ? h('div', { className: 'list scroll-320' }, live.map(function (c) {
-                var e = emp(c.employee);
-                return h('div', { className: 'list__row', key: c.id },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' }, e ? e.name : c.employee),
-                    h('span', { className: 'list__meta' }, 'Last working day ' + c.lastWorkingDayLabel
-                      + ' · ' + (c.tasksTotal - c.tasksDone) + ' clearance task(s) open')),
-                  h('span', { style: { width: 96 } },
-                    h(V.ProgressBar, { value: c.clearance, size: 'sm', 'aria-label': 'Clearance' })),
-                  h(ui.StatusChip, { status: c.status }));
-              }))
-            : h(ui.Empty, { icon: I.logout, title: 'No exits in progress', body: 'An approved resignation starts a clearance checklist (PRD 5.1).' })),
-
-        h(Card, { span: 5, title: 'Exit reasons', description: 'Across every recorded exit.' },
-          h(ui.Bars, { rows: distribution(cases, function (c) { return c.reason; }), emptyTitle: 'No exits recorded' })),
-
-        h(Card, { span: 7, title: 'Clearance by case' },
-          h(ui.Bars, {
-            rows: live.map(function (c) {
-              return [empName(c.employee), c.clearance, c.clearance === 100 ? 'success' : c.clearance < 50 ? 'warning' : null];
-            }),
-            emptyTitle: 'No clearance in progress'
-          })),
-
-        h(Card, { span: 5, title: 'Attrition by department', description: 'Exits recorded per department.' },
-          h(ui.Bars, {
-            rows: distribution(cases, function (c) { var e = emp(c.employee); return e ? deptName(e.department) : null; }),
-            emptyTitle: 'No exits recorded'
-          }))));
   }
 
   function Resignations() {
@@ -1797,6 +1673,30 @@
   }
   var UPA = gA('M7 14l5-5 5 5', 13);
   var SYNCA = gA('M4 10a8 8 0 0 1 13.7-5.6L20 7M20 14a8 8 0 0 1-13.7 5.6L4 17M20 4v3h-3M4 20v-3h3');
+  var CHECKA = gA('M5 13l4 4L19 7', 14);
+  /* A glyph per asset category. The register held eight kinds of thing and drew a
+     cardboard box beside every one of them, so a laptop, an access card and a pair of
+     headphones were the same picture — which is the same as no picture at all. These
+     are drawn to the icon set's own grid (24px, 1.5 stroke, currentColor) so they sit
+     beside the imported ones without looking borrowed.
+
+     `assetIcon` falls back to the box for a category someone adds later: an unfamiliar
+     thing drawn as a box is honest, an unfamiliar thing drawn as a laptop is not. */
+  var ASSET_ICONS = {
+    'Laptop': 'M4 6.5A1.5 1.5 0 0 1 5.5 5h13A1.5 1.5 0 0 1 20 6.5V16H4V6.5ZM2 16h20l-1 2.2a1.4 1.4 0 0 1-1.3.8H4.3A1.4 1.4 0 0 1 3 18.2L2 16Z',
+    'Monitor': 'M3 5.5A1.5 1.5 0 0 1 4.5 4h15A1.5 1.5 0 0 1 21 5.5v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 14.5v-9ZM12 16v4M8.5 20h7',
+    'Mobile Phone': 'M7 4.5A1.5 1.5 0 0 1 8.5 3h7A1.5 1.5 0 0 1 17 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 7 19.5v-15ZM10.5 18h3',
+    'Headset': 'M4 15v-3a8 8 0 0 1 16 0v3M4 14h1.8A1.2 1.2 0 0 1 7 15.2v3.6A1.2 1.2 0 0 1 5.8 20H5a1 1 0 0 1-1-1v-5ZM20 14h-1.8a1.2 1.2 0 0 0-1.2 1.2v3.6a1.2 1.2 0 0 0 1.2 1.2h.8a1 1 0 0 0 1-1v-5Z',
+    'Keyboard': 'M2.5 7.5A1.5 1.5 0 0 1 4 6h16a1.5 1.5 0 0 1 1.5 1.5v9A1.5 1.5 0 0 1 20 18H4a1.5 1.5 0 0 1-1.5-1.5v-9ZM6 9.5h.01M9.5 9.5h.01M13 9.5h.01M16.5 9.5h.01M6 12.75h.01M9.5 12.75h.01M13 12.75h.01M16.5 12.75h.01M8 15.5h8',
+    'Access Card': 'M2.5 6.5A1.5 1.5 0 0 1 4 5h16a1.5 1.5 0 0 1 1.5 1.5v11A1.5 1.5 0 0 1 20 19H4a1.5 1.5 0 0 1-1.5-1.5v-11ZM6 9.5h5v4H6v-4ZM14 10h4M14 13.5h4',
+    'Tablet': 'M5 4.5A1.5 1.5 0 0 1 6.5 3h11A1.5 1.5 0 0 1 19 4.5v15a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19.5v-15ZM10.5 18.2h3',
+    'Docking Station': 'M3 11.5A1.5 1.5 0 0 1 4.5 10h15a1.5 1.5 0 0 1 1.5 1.5v4a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 15.5v-4ZM7 13h3M14 13h3M8 10V7.5A1.5 1.5 0 0 1 9.5 6h5A1.5 1.5 0 0 1 16 7.5V10'
+  };
+  function assetIcon(category, size) {
+    var d = ASSET_ICONS[category];
+    return d ? gA(d, size || 18) : I.package;
+  }
+
   function num(n) { return Number(n || 0).toLocaleString('en-IN'); }
 
   function assetRing(pct) {
@@ -1921,7 +1821,95 @@
       h('circle', { className: 'ast-iso__dot', cx: -116, cy: -48, r: 4 }));
   }
 
+  /* What "Needs attention" opens. The row already knows which records it counted, so
+     the dialog lists exactly those and offers the one thing to do with them, rather
+     than dropping you on a tab to find them again.
+
+     The actions are the ones the register already owns: a request becomes an issued
+     unit, a return is recorded against the asset, and a unit in service comes back to
+     the pool. Nothing here invents a decision — approving a request is still
+     Tracklivo's. */
+  function AttentionModal(p) {
+    var it = p.item;
+    var doneSt = React.useState({});
+
+    /* The list is read once, when the dialog opens, and kept. Reading it live would
+       make a row disappear the moment you settled it, which is the one thing you did
+       not want to happen — you want to see that it is done. */
+    var rowsSt = React.useState(function () {
+      if (it.k === 'requests') {
+        return store.collection('assetRequests')
+          .filter(function (r) { return r.status === 'Pending Approval'; })
+          .map(function (r) {
+            return { id: r.id, t: r.category || 'Asset request',
+              s: empName(r.employee) + ' \u00b7 ' + (r.kind || 'New asset')
+                + (r.reason ? ' \u00b7 ' + r.reason : ''),
+              cat: r.category, rec: r };
+          });
+      }
+      if (it.k === 'returns') {
+        return liveExits().reduce(function (out, c) {
+          return out.concat(assetsHeldBy(c.employee).map(function (a) {
+            return { id: a.id, t: a.name, s: empName(c.employee) + ' \u00b7 last day '
+              + ui.dateLabel(c.lastWorkingDay), cat: a.category, rec: a };
+          }));
+        }, []);
+      }
+      return store.collection('assets')
+        .filter(function (a) { return a.status === 'Under Maintenance'; })
+        .map(function (a) {
+          return { id: a.id, t: a.name, s: a.category + ' \u00b7 ' + locName(a.location)
+            + ' \u00b7 ' + a.condition, cat: a.category, rec: a };
+        });
+    });
+    var rows = rowsSt[0];
+
+    var VERB = {
+      requests: { label: 'Issue a unit', done: 'issued', empty: 'Every request has been settled.' },
+      returns: { label: 'Record the return', done: 'returned', empty: 'Nothing is outstanding from an exit.' },
+      service: { label: 'Back to the pool', done: 'returned to the pool', empty: 'Nothing is out of circulation.' }
+    }[it.k];
+
+    function run(row) {
+      if (it.k === 'requests') {
+        store.setOverride('assetRequests', row.id, { status: 'Approved' });
+        store.log('issued a unit for ' + row.id, 'User activity');
+      } else {
+        store.setOverride('assets', row.id, { status: 'Available', assignedTo: null });
+        store.log((it.k === 'returns' ? 'recorded the return of ' : 'returned to the pool: ') + row.id, 'User activity');
+      }
+      var next = Object.assign({}, doneSt[0]); next[row.id] = true; doneSt[1](next);
+      ui.toast(row.t + ' ' + VERB.done, 'success');
+    }
+
+    return h(ui.Modal, {
+      wide: true,
+      title: it.t + ' \u00b7 ' + num(rows.length),
+      description: it.s + '. Settle them here, or open the tab for the full record.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: function () { p.onClose(); router.go(it.to); } },
+          'Open the full tab'),
+        h(V.Button, { variant: 'primary', onClick: p.onClose }, 'Done'))
+    },
+      rows.length
+        ? h('div', { className: 'attn' }, rows.map(function (row) {
+            var gone = !!doneSt[0][row.id];
+            return h('div', { className: 'attn__r' + (gone ? ' is-done' : ''), key: row.id },
+              h('span', { className: 'attn__i' }, assetIcon((row.rec && row.rec.category) || it.t, 17)),
+              h('span', { className: 'attn__m' },
+                h('strong', null, row.t),
+                h('span', null, row.s)),
+              gone
+                ? h('span', { className: 'attn__ok' }, CHECKA, VERB.done)
+                : h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
+                    onClick: function () { run(row); } }, VERB.label));
+          }))
+        : h(ui.Done, { title: 'Nothing waiting', body: VERB.empty }));
+  }
+
   function AssetsDashboard() {
+    var attnSt = React.useState(null);
     var assets = store.collection('assets');
     var requests = store.collection('assetRequests');
     var exits = liveExits();
@@ -1951,11 +1939,24 @@
     var byValue = cats.slice().sort(function (a, b) { return b.value - a.value; });
     var topValue = byValue.reduce(function (m, c) { return Math.max(m, c.value); }, 1);
 
+    /* What needs an admin. Each row opens a dialog that does the thing, rather than
+       navigating to the tab and leaving you to find it again: the row already knows
+       which records it is counting, so making you look them up a second time is work
+       the screen could have done. */
     var ATTENTION = [
-      { t: 'Open requests', n: openReq.length, icon: I.warn, tone: 'warning', to: 'admin/assets/requests' },
-      { t: 'Pending returns', n: dueBack, icon: SYNCA, tone: 'info', to: 'admin/assets/returns' },
-      { t: 'Under maintenance', n: service.length, icon: SYNCA, tone: 'neutral', to: 'admin/assets/maintenance' }
+      { k: 'requests', t: 'Open requests', s: 'Waiting on a unit from the register',
+        n: openReq.length, icon: I.warn, tone: 'warning', to: 'admin/assets/requests' },
+      { k: 'returns', t: 'Pending returns', s: 'Still held by someone who is leaving',
+        n: dueBack, icon: SYNCA, tone: 'info', to: 'admin/assets/returns' },
+      { k: 'service', t: 'Under maintenance', s: 'Out of circulation until it comes back',
+        n: service.length, icon: SYNCA, tone: 'neutral', to: 'admin/assets/maintenance' }
     ];
+
+    /* The value split. One category holds three quarters of the money, so five bars
+       scaled to the largest drew one bar and four stubs — a chart that said nothing
+       except "laptops are expensive", which the number above it already said. A share
+       bar says the thing the split is actually about: where the money is. */
+    var valueTotal = byValue.reduce(function (n, c) { return n + c.value; }, 0) || 1;
 
     return h(React.Fragment, null,
       /* The headline position, before any number is broken down. */
@@ -1967,7 +1968,7 @@
           h('div', { className: 'ast-hero__n' },
             h('b', null, num(total)),
             h('span', null, h('strong', null, 'assets on the register'),
-              h('small', null, num(assigned.length) + ' in use \u00b7 ' + ui.inr(value, { short: true }) + ' in value')))),
+              h('small', null, num(assigned.length) + ' in use · ' + ui.inr(value, { short: true }) + ' in value')))),
         h('div', { className: 'ast-hero__art', 'aria-hidden': 'true' }, h(AssetIso)),
         h('div', { className: 'ast-hero__pills' },
           [['In use', assigned.length, 'is-on'], ['Available', available.length, 'is-free'], ['Service', service.length, 'is-svc']]
@@ -1976,14 +1977,65 @@
                 h('i', null), h('span', { className: 'grow' }, x[0]), h('b', null, num(x[1])));
             }))),
 
-      /* Count, share, breakdown and worth, on one line. */
-      h('section', { className: 'ast-top' },
-        h('div', { className: 'ast-top__c ast-total' },
-          h('span', { className: 'ast-total__n' }, num(total)),
-          h('span', { className: 'ast-total__l' }, 'Total assets'),
-          h('span', { className: 'delta delta--up' }, UPA, '+12.4%'),
-          h('span', { className: 'muted' }, 'vs. last quarter')),
+      /* What the money is in, and what is waiting on somebody — the two things an
+         admin opens this page to act on, so they come first. The breakdown below is
+         reference: true, useful, and not urgent. */
+      h(Grid, null,
+        h(Card, { span: 7, title: 'Value by category',
+          description: 'Where the ' + ui.inr(value, { short: true }) + ' on the register actually sits.' },
+          h('div', { className: 'ast-share' },
+            h('span', { className: 'ast-share__bar', 'aria-hidden': 'true' },
+              byValue.map(function (c, i) {
+                return h('i', { key: c.name, className: 'is-t' + Math.min(i, 4),
+                  style: { flex: Math.max(c.value, valueTotal * 0.004) },
+                  title: c.name + ' · ' + ui.inr(c.value, { short: true }) });
+              })),
+            h('div', { className: 'ast-share__key' }, byValue.slice(0, 4).map(function (c, i) {
+              return h('span', { key: c.name, className: 'ast-share__k is-t' + i },
+                h('i', null),
+                h('strong', null, c.name),
+                h('span', null, Math.round(c.value / valueTotal * 100) + '%'));
+            }))),
+          h(ui.DataTable, {
+            exportName: 'asset-value-by-category', label: 'Value by category', rows: byValue.map(function (c, i) {
+              return Object.assign({ id: 'cat-' + i }, c);
+            }), pageSize: 8,
+            search: function (c) { return c.name; }, searchPlaceholder: 'Search categories',
+            columns: [
+              { key: 'name', header: 'Category', sortable: true,
+                cell: function (c) {
+                  return h('span', { className: 'ast-cell' },
+                    h('span', { className: 'ast-cell__i' }, assetIcon(c.name, 16)), c.name);
+                } },
+              { key: 'units', header: 'Units', numeric: true, align: 'right', sortable: true },
+              { key: 'assigned', header: 'Assigned', numeric: true, align: 'right', sortable: true },
+              { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true },
+              { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
+                csv: function (c) { return c.value; },
+                cell: function (c) { return ui.inr(c.value, { short: true }); } }
+            ],
+            emptyIcon: I.package, emptyTitle: 'Nothing in the register yet'
+          })),
 
+        h(Card, { span: 5, title: 'Needs attention',
+          description: 'Each one opens where it can be settled.' },
+          h('div', { className: 'lrows' }, ATTENTION.map(function (a) {
+            return h('button', { type: 'button', className: 'lrow lrow--go', key: a.t,
+              onClick: function () { attnSt[1](a); } },
+              h('span', { className: 'lrow__ico' }, a.icon),
+              h('span', { className: 'lrow__m' }, h('strong', null, a.t), h('span', null, a.s)),
+              h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: a.n ? a.tone : 'neutral' }, num(a.n)),
+              h('span', { className: 'lrow__go', 'aria-hidden': 'true' }, I.right));
+          })),
+          /* When nothing is waiting, say so rather than showing three zeroes. */
+          ATTENTION.every(function (a) { return !a.n; })
+            ? h(ui.Done, { title: 'Nothing is waiting', body: 'Every request is settled and every asset is where it should be.' })
+            : null)),
+
+      /* The breakdown. The count that used to open this row has gone: the hero says
+         786 four inches above it, and saying it twice made the page look like two
+         dashboards stacked. */
+      h('section', { className: 'ast-top ast-top--3' },
         h('div', { className: 'ast-top__c' }, assetRing(pct)),
 
         h('div', { className: 'ast-top__c ast-brk' },
@@ -2000,16 +2052,12 @@
           h('span', { className: 'muted' }, 'Total asset value'),
           h('span', { className: 'ast-val__n' }, ui.inr(value, { short: true })),
           h('span', { className: 'delta delta--up' }, UPA, '+12.4%'),
-          h('span', { className: 'muted' }, 'vs. last quarter'),
-          h('span', { className: 'ast-val__bars', 'aria-hidden': 'true' },
-            byValue.slice(0, 5).reverse().map(function (c) {
-              return h('i', { key: c.name, style: { height: Math.max(12, Math.round(c.value / topValue * 100)) + '%' } });
-            })))),
+          h('span', { className: 'muted' }, 'vs. last quarter'))),
 
       h(Card, { title: 'Inventory by category' },
         h('div', { className: 'ast-cats' }, cats.map(function (c) {
           return h('div', { className: 'ast-cat', key: c.name },
-            h('span', { className: 'ast-cat__i' }, I.package),
+            h('span', { className: 'ast-cat__i' }, assetIcon(c.name)),
             h('div', { className: 'ast-cat__b' },
               h('div', { className: 'ast-cat__top' },
                 h('span', { className: 'grow' }, c.name),
@@ -2018,34 +2066,7 @@
                 h('i', { style: { width: Math.round(c.units / widest * 100) + '%' } }))));
         }))),
 
-      h(Grid, null,
-        h(Card, { span: 7, title: 'Value by category' },
-          h(ui.DataTable, {
-            exportName: 'asset-value-by-category', label: 'Value by category', rows: byValue.map(function (c, i) {
-              return Object.assign({ id: 'cat-' + i }, c);
-            }), pageSize: 8,
-            search: function (c) { return c.name; }, searchPlaceholder: 'Search categories',
-            columns: [
-              { key: 'name', header: 'Category', sortable: true },
-              { key: 'units', header: 'Units', numeric: true, align: 'right', sortable: true },
-              { key: 'assigned', header: 'Assigned', numeric: true, align: 'right', sortable: true },
-              { key: 'available', header: 'Available', numeric: true, align: 'right', sortable: true },
-              { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
-                csv: function (c) { return c.value; },
-                cell: function (c) { return ui.inr(c.value, { short: true }); } }
-            ],
-            emptyIcon: I.package, emptyTitle: 'Nothing in the register yet'
-          })),
-
-        h(Card, { span: 5, title: 'Needs attention' },
-          h('div', { className: 'lrows' }, ATTENTION.map(function (a) {
-            return h('div', { className: 'lrow', key: a.t },
-              h('span', { className: 'lrow__ico' }, a.icon),
-              h('span', { className: 'lrow__m' }, h('strong', null, a.t)),
-              h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: a.n ? a.tone : 'neutral' }, num(a.n)),
-              h('button', { type: 'button', className: 'lrow__go', 'aria-label': 'Open ' + a.t,
-                onClick: function () { router.go(a.to); } }, I.right));
-          })))));
+      attnSt[0] ? h(AttentionModal, { item: attnSt[0], onClose: function () { attnSt[1](null); } }) : null);
   }
 
 
@@ -2395,7 +2416,7 @@
           sub: 'Purchase value of the units below' })),
 
       h(Grid, null,
-        h(Card, { span: 7, title: 'Out of circulation',
+        h(Card, { span: 12, title: 'Out of circulation',
           description: 'PRD 4.33: assets that cannot be allocated. A unit returns to the pool through the return flow, with its condition recorded.' },
           h(ui.DataTable, {
             exportName: 'asset-maintenance', label: 'Out of circulation', rows: rows, pageSize: 10,
@@ -2424,10 +2445,10 @@
             emptyBody: 'No asset is under maintenance, damaged, lost or retired.'
           })),
 
-        h(Card, { span: 5, title: 'Out of circulation by category' },
+        h(Card, { span: 6, title: 'Out of circulation by category' },
           h(ui.Bars, { rows: distribution(out, function (a) { return a.category; }), emptyTitle: 'Nothing out of circulation' })),
 
-        h(Card, { span: 5, title: 'Service rules' },
+        h(Card, { span: 6, title: 'Service rules' },
           h(ui.KeyValue, { rows: [
             ['Condition on return', 'Excellent, Good, Fair, Needs service, Damaged'],
             ['"Needs service"', 'Moves the asset to Under Maintenance'],
@@ -3139,13 +3160,11 @@
 
   HRMS.screens.register({
     'hr/assets': HrAssetRequests,
-    'hr/onboarding/dashboard': OnboardingDashboard,
     'hr/onboarding/cases': OnboardingCases,
     'hr/onboarding/verification': DocumentVerification,
     'hr/onboarding/completed': OnboardingCompleted,
     'hr/onboarding/templates': OnboardingTemplates,
 
-    'hr/offboarding/dashboard': OffboardingDashboard,
     'hr/offboarding/resignations': Resignations,
     'hr/offboarding/notice': NoticePeriod,
     'hr/offboarding/clearance': Clearance,

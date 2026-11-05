@@ -656,7 +656,7 @@
           h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
             onClick: function () { router.go('hr/payroll/cycles'); } }, 'Open payroll cycles')) : null,
 
-        h(Card, { span: 7, title: 'History across cycles' },
+        h(Card, { span: 12, title: 'History across cycles' },
           h(ui.DataTable, Object.assign({
             exportName: 'report-payroll-cycles', label: 'Payroll history', rows: cycles, pageSize: 10, onExport: true,
             columns: [

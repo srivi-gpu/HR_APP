@@ -234,7 +234,7 @@
       { t: 'Employees', s: 'The roster, filtered and exportable', to: 'hr/people/all', icon: 'users' },
       { t: 'Approval inbox', s: 'Everything waiting on you', to: 'hr/approvals', icon: 'checklist' },
       { t: 'Payroll', s: 'The current run and its cut-off', to: 'hr/payroll/dashboard', icon: 'card' },
-      { t: 'Onboarding', s: 'Who is joining, and what is blocking them', to: 'hr/onboarding/dashboard', icon: 'person' },
+      { t: 'Onboarding', s: 'Who is joining, and what is blocking them', to: 'hr/onboarding/cases', icon: 'person' },
       { t: 'Documents & policies', s: 'What people have to read and sign', to: 'hr/documents/policies', icon: 'file' },
       { t: 'Configuration', s: 'Departments, policies and workflows', to: 'hr/config/structure', icon: 'sliders' }
     ],
@@ -516,7 +516,7 @@
       } else if (e.key === 'Escape') { e.preventDefault(); p.onClose(); }
     }
 
-    return h('div', { className: 'modal__scrim', onMouseDown: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
+    return ui.portal(h('div', { className: 'modal__scrim', onMouseDown: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
       h('div', { className: 'modal palette', role: 'dialog', 'aria-label': 'Search', onKeyDown: onKey },
         h('div', { className: 'palette__field', ref: boxRef },
           h(V.SearchField, {
@@ -606,7 +606,7 @@
 
         h('div', { className: 'palette__foot muted' },
           h('span', null, q ? total + ' result' + (total === 1 ? '' : 's') : HRMS.nav.count + ' screens'),
-          h('span', null, 'Enter to open · ask a question for Ara · Esc to close'))));
+          h('span', null, 'Enter to open · ask a question for Ara · Esc to close')))));
   }
 
   HRMS.screens.register({
