@@ -257,6 +257,58 @@
       p.actions ? el('div', { className: 'row gap-2 wrap', style: { justifyContent: 'center' } }, p.actions) : null);
   }
 
+  /* ---------- Done: the illustration for a queue that is clear ----------
+
+     A clipboard with its lines ticked off and a seal over the corner. It is the
+     supplied artwork, redrawn against the product's own tokens rather than its stock
+     green and lime: the paper takes the surface and border colours, the ticked lines
+     take the brand, and the seal takes the success colour, so it reads the same in
+     light and dark and follows the accent when the accent is changed on the Branding
+     screen. A fixed-palette illustration would have been the one thing on the page
+     that ignored the theme.
+
+     It is decoration — the words beside it carry the meaning — so it is hidden from
+     the reading order. */
+  function DoneArt(p) {
+    var size = p.size || 150;
+    return h('svg', {
+      width: size, height: Math.round(size * 125 / 168), viewBox: '0 0 168 125',
+      fill: 'none', 'aria-hidden': 'true', className: 'doneart'
+    },
+      /* the soft shadow the sheet casts */
+      h('ellipse', { cx: 83.8, cy: 100.2, rx: 68.9, ry: 9.7, className: 'doneart__shadow' }),
+      /* the sheet, and the fold that lifts off its right edge */
+      h('path', { className: 'doneart__paper',
+        d: 'M127.6 25.3c2.2-7.8 5.7-16.5 12.2-21.8 1.3-1 3.1-2.4 4.2-3.5-3 .1-6.6.4-9.7.6-7.4.5-38.3 2.4-46.4 2.9-5.2.3-10.4.7-15.7 1-6.1.4-11 7.2-13.7 12.1-3.1 5.5-4.8 11.7-6 17.9-1.6 8.4-3.4 49.1-3.8 52.9-.7 6.7-3.3 17.4-11.7 17.4 3.4 0 66.9.5 71.8.5 5.8 0 9.2-4.6 11.1-9.6 2.4-6.1 3-32.4 3.3-39.2.3-6.8 3.4-27.7 4.4-31.2Z' }),
+      h('path', { className: 'doneart__fold',
+        d: 'M107.1 110c-3.3-.8-5.5-2.8-7.3-5.6-1.3-2.1-2.5-4.3-2.9-6.8-.4-2.5.2-4.3 2.5-5.6-2.4 0-70.8.6-71.9.6-2.1 0-3.2 2.1-3.2 4 0 1.9.5 3.8 1.2 5.5 1 2.4 2.6 4.7 4.7 6.3 1.9 1.4 4.3 2.2 6.7 2.3 0 0 72.3.2 72.3.2-.9-.2-1.4-.6-2.2-.8Z' }),
+      h('path', { className: 'doneart__curl',
+        d: 'M147.1 1.9c-.6-1.4-2.2-2.4-3.7-1.7-2.7 1.2-5 3.2-7.1 5.7-4.8 5.7-7.6 13.2-9.5 20.4-1.7 6.3-2.7 13-3.3 19.5-.4 4.8-.7 9.6-.8 14.4-.2 6.7-.3 13.5-.7 20.2-.3 5.2-.7 10.8-2.7 15.6-2.3 5.7-11.2 13.6-15.6 5-1.2-2.2-1.1-4.7-1.9-7-.3-.7-.7-1.5-1.4-1.8-1.9-.9-3.7 1.3-4 3-.6 3.8 1.7 8.7 4.2 11.6 1.7 1.9 4.2 3.4 6.7 3.9 2.2.4 4.7.1 6.7-.7 4.8-1.9 8.2-6.3 10.2-10.9 1.6-3.8 2.5-8 2.9-12 1-8.8.9-17.7 1.2-26.5.2-4.7.4-9.4.8-14 .5-6.1 1.4-12.2 2.8-18.1 1.4-6.1 3.6-12.7 7.6-17.6 1.8-2.2 3.8-3.8 6.3-4.9 1.6-.7 1.8-2.5 1.2-4Z' }),
+      /* three lines, each with its bullet ticked */
+      [0, 1, 2].map(function (i) {
+        var y = 19.8 + i * 16.7;
+        return h('g', { key: i },
+          h('circle', { className: 'doneart__tick', cx: 74.5, cy: y, r: 4.8 }),
+          h('path', { className: 'doneart__tickmark', d: 'M72.2 ' + y + 'l1.7 1.8 3.1-3.6' }),
+          h('rect', { className: 'doneart__line', x: 83.8, y: y - 3.5, width: i === 2 ? 17 : 25, height: 7, rx: 3.5 }));
+      }),
+      /* the seal */
+      h('circle', { className: 'doneart__seal', cx: 123.1, cy: 66.7, r: 28 }),
+      h('circle', { className: 'doneart__sealring', cx: 123.1, cy: 66.7, r: 28 }),
+      h('path', { className: 'doneart__sealtick', d: 'M109.6 66.4l9.2 9.6 18.7-18.2' }));
+  }
+
+  /* An empty state for a queue that is clear, as opposed to one that was never
+     filled: `Empty` says "there is nothing here", this says "there is nothing left". */
+  function Done(p) {
+    return h('div', { className: 'done' },
+      h(DoneArt, { size: p.size }),
+      h('div', { className: 'stack gap-2' },
+        h('h3', { className: 'done__title' }, p.title || 'All done'),
+        p.body ? h('p', { className: 'done__body' }, p.body) : null),
+      p.actions ? el('div', { className: 'row gap-2 wrap', style: { justifyContent: 'center' } }, p.actions) : null);
+  }
+
   /* The screen shown where the IA has a route but the module is not built. */
   function Stub(p) {
     var meta = p.meta;
@@ -731,7 +783,7 @@
   HRMS.ui = {
     inr: inr, pct: pct, tones: TONES, dateLabel: dateLabel, shortDate: shortDate, relTime: relTime,
     PageHead: PageHead, Card: Card, Grid: Grid, Stat: Stat, Stats: Stats, KeyValue: KeyValue,
-    Person: Person, StatusChip: StatusChip, Empty: Empty, Stub: Stub, ModuleTabs: ModuleTabs,
+    Person: Person, StatusChip: StatusChip, Empty: Empty, Done: Done, DoneArt: DoneArt, Stub: Stub, ModuleTabs: ModuleTabs,
     DataTable: DataTable, Bars: Bars, Timeline: Timeline,
     Modal: Modal, Drawer: Drawer, Confirm: Confirm, portal: portal,
     useForm: useForm, FieldRow: FieldRow, FormSection: FormSection,

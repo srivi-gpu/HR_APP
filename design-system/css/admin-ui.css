@@ -1303,3 +1303,75 @@ html.lenis, html.lenis body { height: auto; }
 .djob__what { display: grid; gap: 2px; min-width: 0; }
 .djob__what strong { font-size: 13px; font-weight: 600; color: var(--text-primary); }
 .djob__what span { font-size: 12px; line-height: 1.4; color: var(--text-secondary); }
+
+/* ---------- Done: the queue-is-clear illustration ----------
+   Every colour is a token, so the artwork follows the accent set on the Branding
+   screen and reads in both themes. The supplied drawing was fixed green and lime,
+   which would have made it the one thing on the page that ignored the theme. */
+.done { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; padding: 26px 20px; }
+.doneart { display: block; }
+.doneart__shadow { fill: var(--text-primary); opacity: .05; }
+.doneart__paper { fill: var(--bg-surface); stroke: var(--border-default); stroke-width: 1.2; }
+.doneart__fold { fill: var(--bg-subtle, rgba(127,127,127,.08)); stroke: var(--border-subtle); stroke-width: 1; }
+.doneart__curl { fill: var(--brand-softer); stroke: var(--brand-border); stroke-width: 1; }
+.doneart__tick { fill: var(--brand-solid); }
+.doneart__tickmark { fill: none; stroke: var(--brand-on-solid, #fff); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.doneart__line { fill: var(--bg-muted); }
+.doneart__seal { fill: var(--success-fg, #1a7f4b); }
+.doneart__sealring { fill: none; stroke: var(--bg-surface); stroke-width: 5; }
+.doneart__sealtick { fill: none; stroke: #fff; stroke-width: 5.2; stroke-linecap: round; stroke-linejoin: round; }
+.done__title { margin: 0; font-family: var(--font-flex); font-size: 16px; font-weight: 600; color: var(--text-primary); }
+.done__body { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-secondary); max-width: 44ch; }
+
+/* ---------- Assets: the value share bar, the category cell, the attention list ---------- */
+/* One category holds three quarters of the money, so bars scaled to the largest drew
+   one bar and four stubs. A share bar answers the question the split is about. */
+.ast-share { display: grid; gap: 10px; margin-bottom: 16px; }
+.ast-share__bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; background: var(--bg-muted); gap: 2px; }
+.ast-share__bar i { display: block; min-width: 3px; }
+.ast-share__bar i.is-t0, .ast-share__k.is-t0 i { background: var(--brand-solid); }
+.ast-share__bar i.is-t1, .ast-share__k.is-t1 i { background: color-mix(in srgb, var(--brand-solid) 68%, var(--bg-surface)); }
+.ast-share__bar i.is-t2, .ast-share__k.is-t2 i { background: color-mix(in srgb, var(--brand-solid) 44%, var(--bg-surface)); }
+.ast-share__bar i.is-t3, .ast-share__k.is-t3 i { background: color-mix(in srgb, var(--brand-solid) 26%, var(--bg-surface)); }
+.ast-share__bar i.is-t4 { background: var(--border-default); }
+.ast-share__key { display: flex; flex-wrap: wrap; gap: 6px 18px; }
+.ast-share__k { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--text-secondary); }
+.ast-share__k i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+.ast-share__k strong { font-weight: 500; color: var(--text-primary); }
+.ast-share__k span { font-variant-numeric: tabular-nums; }
+
+.ast-cell { display: inline-flex; align-items: center; gap: 9px; min-width: 0; }
+.ast-cell__i { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px;
+  background: var(--bg-subtle, rgba(127,127,127,.07)); color: var(--text-secondary); }
+
+/* A "needs attention" row is a button now, because clicking it does something. */
+.lrow--go { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border-subtle); background: var(--bg-surface); }
+.lrow--go:hover { border-color: var(--brand-border); background: var(--brand-softer); }
+.lrow--go:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.lrow--go .lrow__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; text-align: left; }
+.lrow--go .lrow__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.lrow--go .lrow__m span { font-size: 12px; color: var(--text-secondary); }
+.lrow--go .lrow__go { flex: none; display: grid; place-items: center; color: var(--text-muted); }
+.lrow--go:hover .lrow__go { color: var(--text-brand); }
+
+.attn { display: grid; gap: 8px; }
+.attn__r { display: flex; align-items: center; gap: 12px; padding: 11px 13px; border-radius: 14px;
+  border: 1px solid var(--border-subtle); background: var(--bg-surface); }
+.attn__r.is-done { border-color: var(--success-border, var(--border-subtle)); background: var(--success-bg); }
+.attn__i { flex: none; display: grid; place-items: center; width: 30px; height: 30px; border-radius: 9px;
+  background: var(--bg-subtle, rgba(127,127,127,.07)); color: var(--text-secondary); }
+.attn__m { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.attn__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.attn__m span { font-size: 12.5px; color: var(--text-secondary); }
+.attn__ok { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--success-fg); }
+
+/* The breakdown row lost its first cell, so it is three columns now, and with it the
+   accent bar that used to mark the headline total — it was marking the ring. */
+.ast-top--3 .ast-top__c:first-child::before { display: none; }
+/* The breakdown row lost its first cell, so it is three columns now. */
+.ast-top--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .ast-top--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 720px) { .ast-top--3 { grid-template-columns: minmax(0, 1fr); } }
+/* The value cell no longer reserves space for the stub bars that used to float in it. */
+.ast-top--3 .ast-val { padding-right: 24px; }
