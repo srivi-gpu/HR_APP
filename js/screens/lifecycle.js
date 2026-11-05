@@ -1804,9 +1804,9 @@
     var on = Math.max(0, Math.min(100, pct)) / 100 * C;
     return h('div', { className: 'ast-ring' },
       h('svg', { viewBox: '0 0 140 140', 'aria-hidden': 'true' },
-        h('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 16 }),
+        h('circle', { cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 9 }),
         h('circle', {
-          cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 16,
+          cx: 70, cy: 70, r: R, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 9,
           strokeLinecap: 'round', strokeDasharray: on + ' ' + (C - on),
           transform: 'rotate(-90 70 70)'
         })),
@@ -1876,6 +1876,11 @@
 
       h('ellipse', { cx: 0, cy: 86, rx: 132, ry: 22, className: 'ast-iso__shadow', filter: 'url(#isoBlur)' }),
 
+      /* From here down the scene is grouped by what moves together, so the drawing can
+         assemble itself: the base unfolds, then each object settles onto it, and then
+         everything breathes. The grouping is the only reason these are nested — the
+         geometry is unchanged. */
+      h('g', { className: 'isoG isoG--base' },
       /* the plinth */
       face('pl', [[P.x, P.y + P.s, 0], [P.x + P.s, P.y + P.s, 0], [P.x + P.s, P.y + P.s, P.h], [P.x, P.y + P.s, P.h]], 'url(#isoPL)'),
       face('pr', [[P.x + P.s, P.y, 0], [P.x + P.s, P.y + P.s, 0], [P.x + P.s, P.y + P.s, P.h], [P.x + P.s, P.y, P.h]], 'url(#isoPR)'),
@@ -1887,27 +1892,30 @@
       face('tl', [[T.x, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, Z], [T.x, T.y + T.s, Z]], null, 'ast-iso__tl'),
       face('tr', [[T.x + T.s, T.y, P.h], [T.x + T.s, T.y + T.s, P.h], [T.x + T.s, T.y + T.s, Z], [T.x + T.s, T.y, Z]], null, 'ast-iso__tr'),
       face('tt', [[T.x, T.y, Z], [T.x + T.s, T.y, Z], [T.x + T.s, T.y + T.s, Z], [T.x, T.y + T.s, Z]], 'url(#isoTT)', 'ast-iso__top'),
-      isoGrid(T.x, T.y, T.s, Z, 22),
+      isoGrid(T.x, T.y, T.s, Z, 22)),
 
       /* boxes, back right */
-      cuboid('b1', 22, -56, Z, 34, 34, 30, 'warm'),
-      cuboid('b2', 22, -20, Z, 34, 30, 22, 'warm'),
-      cuboid('b3', 26, -52, Z + 30, 26, 26, 22, 'warm'),
-      h('polyline', { className: 'ast-iso__tape', points: isoPoly([[39, -56, Z + 30], [39, -56, Z]]) }),
+      h('g', { className: 'isoG isoG--boxes' },
+        cuboid('b1', 22, -56, Z, 34, 34, 30, 'warm'),
+        cuboid('b2', 22, -20, Z, 34, 30, 22, 'warm'),
+        cuboid('b3', 26, -52, Z + 30, 26, 26, 22, 'warm'),
+        h('polyline', { className: 'ast-iso__tape', points: isoPoly([[39, -56, Z + 30], [39, -56, Z]]) })),
       /* monitor, back left */
-      cuboid('mstand', -50, -50, Z, 16, 12, 4, 'grey'),
-      cuboid('mneck', -45, -46, Z + 4, 5, 4, 20, 'grey'),
-      panel('mon', -62, -40, Z + 20, 40, 30, 'dark'),
+      h('g', { className: 'isoG isoG--mon' },
+        cuboid('mstand', -50, -50, Z, 16, 12, 4, 'grey'),
+        cuboid('mneck', -45, -46, Z + 4, 5, 4, 20, 'grey'),
+        panel('mon', -62, -40, Z + 20, 40, 30, 'dark')),
       /* laptop, front */
-      cuboid('lbase', -36, 4, Z, 52, 36, 3, 'grey'),
-      panel('lscr', -36, 4, Z + 3, 52, 32, 'dark'),
-      bars.map(function (bh, i) {
-        var x0 = -30 + i * 11;
-        return h('polygon', { key: 'bar' + i, className: 'ast-iso__bar' + (i === 3 ? ' is-hi' : ''),
-          points: isoPoly([[x0, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7 + bh * 0.8], [x0, 3.6, Z + 7 + bh * 0.8]]) });
-      }),
+      h('g', { className: 'isoG isoG--lap' },
+        cuboid('lbase', -36, 4, Z, 52, 36, 3, 'grey'),
+        panel('lscr', -36, 4, Z + 3, 52, 32, 'dark'),
+        bars.map(function (bh, i) {
+          var x0 = -30 + i * 11;
+          return h('polygon', { key: 'bar' + i, className: 'ast-iso__bar' + (i === 3 ? ' is-hi' : ''),
+            points: isoPoly([[x0, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7], [x0 + 6, 3.6, Z + 7 + bh * 0.8], [x0, 3.6, Z + 7 + bh * 0.8]]) });
+        })),
       /* phone, front right */
-      cuboid('phone', 28, 30, Z, 14, 24, 2, 'dark'),
+      h('g', { className: 'isoG isoG--phone' }, cuboid('phone', 28, 30, Z, 14, 24, 2, 'dark')),
       /* a sparkle and a mote, floating */
       h('path', { className: 'ast-iso__spark', d: 'M104 -104l4 9.5 9.5 3.5-9.5 3.5-4 9.5-4-9.5-9.5-3.5 9.5-3.5 4-9.5Z' }),
       h('circle', { className: 'ast-iso__dot', cx: -116, cy: -48, r: 4 }));
@@ -2077,10 +2085,18 @@
             h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1], options: ASSET_STATUSES }),
             h(ui.Filter, { label: 'Location', value: locSt[0], onChange: locSt[1], options: locOptions() })),
           columns: [
-            { key: 'id', header: 'Asset ID', sortable: true, cell: function (a) { return h('span', { className: 'mono' }, a.id); } },
-            { key: 'name', header: 'Asset', sortable: true },
+            /* The asset ID and the serial used to be columns of their own. Eleven
+               columns is more than this table has room for, and neither of those two
+               is read on its own — they are how you identify the thing in the row
+               beside them. So they sit under the name, and the table fits. */
+            { key: 'name', header: 'Asset', sortable: true,
+              /* The export still carries all three, because a spreadsheet has no
+                 subtext line to put them on. */
+              csv: function (a) { return a.name + ' (' + a.id + ' · ' + a.serial + ')'; },
+              cell: function (a) {
+                return { children: a.name, subtext: a.id + ' · ' + a.serial };
+              } },
             { key: 'category', header: 'Category', sortable: true },
-            { key: 'serial', header: 'Serial', cell: function (a) { return h('span', { className: 'mono' }, a.serial); } },
             { key: 'location', header: 'Location', csv: function (a) { return locName(a.location); },
               cell: function (a) { return locName(a.location); } },
             { key: 'value', header: 'Value', numeric: true, align: 'right', sortable: true,
@@ -2234,8 +2250,10 @@
 
       h(Card, {
         title: 'Asset requests',
-        description: 'Raised and decided in Tracklivo. This list is what the register has to issue against.',
-        aside: h('span', { className: 'atl__src' }, 'From Tracklivo')
+        description: 'From Tracklivo and from the portal. Decided in Tracklivo either way; this list is what the ' +
+          'register has to issue against.',
+        aside: h(HRMS.assetRequest.Button, { role: 'admin', employee: (store.persona('admin') || {}).id,
+          variant: 'outline', label: 'Raise a request' })
       },
         h(ui.DataTable, {
           exportName: 'asset-requests', label: 'Asset requests', rows: rows, pageSize: 10,
@@ -2249,8 +2267,16 @@
               sortValue: function (r) { return empName(r.employee); },
               csv: function (r) { return empName(r.employee); },
               cell: function (r) { return person(r.employee); } },
+            { key: 'kind', header: 'Kind', sortable: true,
+              sortValue: function (r) { return r.kind || 'New asset'; },
+              csv: function (r) { return r.kind || 'New asset'; },
+              cell: function (r) { return r.kind || 'New asset'; } },
             { key: 'category', header: 'Category', sortable: true },
             { key: 'reason', header: 'Reason' },
+            { key: 'source', header: 'Raised in', sortable: true,
+              sortValue: function (r) { return r.source || 'Tracklivo'; },
+              csv: function (r) { return r.source || 'Tracklivo'; },
+              cell: function (r) { return h('span', { className: 'atl__src' }, r.source || 'Tracklivo'); } },
             { key: 'requestedOn', header: 'Requested', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
             { key: 'status', header: 'Status', csv: function (r) { return REQ_WORD[r.status] || r.status; },
               cell: function (r) { return reqChip(r.status); } },
@@ -2263,7 +2289,7 @@
               } }
           ],
           emptyIcon: I.checklist, emptyTitle: 'No asset requests',
-          emptyBody: 'Requests raised in Tracklivo arrive here once they exist.'
+          emptyBody: 'Requests raised in Tracklivo, or in the portal, arrive here once they exist.'
         })));
   }
 
@@ -2817,7 +2843,61 @@
   }
 
   /* ---------------------------------------------------------------- Register */
+  /* ====================================================== HR's asset requests
+     HR does not hold the register, so this is not a second copy of it: it is the
+     asking. What HR raises — most of it a joiner's kit before day one — and where
+     Tracklivo has got to with each one. Issuing stays with admin. */
+  function HrAssetRequests() {
+    var mePersona = store.persona('hr') || {};
+    var chip = HRMS.assetRequestChip;
+    var all = store.collection('assetRequests');
+    /* Raised by HR, or for somebody whose onboarding is still open: both are HR's to
+       follow, however they got here. */
+    var joining = {};
+    store.collection('onboarding').forEach(function (o) { if (o.stage !== 'Completed') joining[o.employee] = o; });
+    var rows = all.filter(function (r) { return r.raisedBy === mePersona.id || joining[r.employee]; });
+    var ready = rows.filter(function (r) { return r.status === 'Approved'; }).length;
+    var waiting = rows.filter(function (r) { return r.status === 'Pending Approval'; }).length;
+
+    return h(React.Fragment, null,
+      h(Stats, null,
+        h(Stat, { key: 1, label: 'Waiting on Tracklivo', value: waiting, sub: 'Raised, not yet decided' }),
+        h(Stat, { key: 2, label: 'Ready to issue', value: ready, sub: 'Cleared · admin issues the unit', tone: ready ? 'warn' : 'good' }),
+        h(Stat, { key: 3, label: 'Joiners onboarding', value: Object.keys(joining).length, sub: 'Each needs a kit for day one' }),
+        h(Stat, { key: 4, label: 'Raised by you', value: rows.filter(function (r) { return r.raisedBy === mePersona.id; }).length,
+          sub: 'Across joiners and replacements' })),
+
+      h(Card, {
+        title: 'Asset requests',
+        description: 'Ask for a joiner’s kit before their first day, or for anyone who needs something. ' +
+          'Decided in Tracklivo; issued by admin from the register.',
+        aside: h(HRMS.assetRequest.Button, { role: 'hr', employee: mePersona.id, kind: 'Onboarding',
+          label: 'Raise a request' })
+      },
+        h(ui.DataTable, {
+          exportName: 'hr-asset-requests', label: 'Asset requests', rows: rows, pageSize: 10,
+          search: function (r) { return empName(r.employee) + ' ' + r.id + ' ' + r.category + ' ' + r.reason; },
+          searchPlaceholder: 'Search by employee, category or reason',
+          columns: [
+            { key: 'id', header: 'Request', cell: function (r) { return h('span', { className: 'mono' }, r.id); } },
+            { key: 'employee', header: 'For', sortable: true,
+              sortValue: function (r) { return empName(r.employee); },
+              csv: function (r) { return empName(r.employee); },
+              cell: function (r) { return person(r.employee); } },
+            { key: 'kind', header: 'Kind', cell: function (r) { return r.kind || 'New asset'; } },
+            { key: 'category', header: 'Category', sortable: true },
+            { key: 'reason', header: 'Reason' },
+            { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (r) { return ui.dateLabel(r.requestedOn); } },
+            { key: 'status', header: 'Status', csv: function (r) { return r.status; },
+              cell: function (r) { return chip ? chip(r.status) : r.status; } }
+          ],
+          emptyIcon: I.package, emptyTitle: 'Nothing raised yet',
+          emptyBody: 'Raise a joiner’s kit before their first day and it shows up here, with whatever Tracklivo decides.'
+        })));
+  }
+
   HRMS.screens.register({
+    'hr/assets': HrAssetRequests,
     'hr/onboarding/dashboard': OnboardingDashboard,
     'hr/onboarding/cases': OnboardingCases,
     'hr/onboarding/verification': DocumentVerification,

@@ -24,7 +24,7 @@
 .ring__bar.is-done { stroke: var(--success-fg); }
 .ring__mid { position: absolute; inset: 0; display: grid; place-items: center; }
 .ring__wrap { position: relative; width: 92px; height: 92px; flex: none; }
-.ring__pct { font-family: var(--font-flex); font-size: 22px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ring__pct { font-family: var(--font-flex); font-size: 22px; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ring__t { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ring__t strong { font-size: 15px; font-weight: 600; color: var(--text-primary); }
 .ring__t span { font-size: 13px; color: var(--text-secondary); }

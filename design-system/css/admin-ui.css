@@ -41,7 +41,7 @@
 .kpi__ico { flex: none; width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-solid); }
 .kpi__ico svg { width: 21px; height: 21px; }
 .kpi__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
-.kpi__n { font-family: var(--font-flex); font-size: 27px; line-height: 1.15; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.kpi__n { font-family: var(--font-flex); font-size: 27px; line-height: 1.15; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .kpi__l { font-size: 13.5px; color: var(--text-secondary); }
 .kpi__r { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
 .delta { display: inline-flex; align-items: center; gap: 3px; height: 22px; padding: 0 8px; border-radius: var(--tl-round); font-size: 12px; font-weight: 700; white-space: nowrap; }
@@ -63,8 +63,8 @@
 .chart svg { display: block; width: 100%; height: auto; max-height: 264px; overflow: visible; }
 .chart__grid line { stroke: var(--border-subtle); stroke-width: 1; }
 .chart__axis { font-size: 11px; fill: var(--text-muted); }
-.chart__line { fill: none; stroke: var(--brand-solid); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.chart__dot { fill: var(--bg-surface); stroke: var(--brand-solid); stroke-width: 2; }
+.chart__line { fill: none; stroke: var(--brand-solid); stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.chart__dot { fill: var(--bg-surface); stroke: var(--brand-solid); stroke-width: 1.5; }
 .chart__hit { fill: transparent; cursor: pointer; }
 .chart__cross { stroke: var(--brand-solid); stroke-width: 1; stroke-dasharray: 3 3; opacity: .5; }
 .tip { position: absolute; z-index: 5; transform: translate(-50%, -100%); pointer-events: none; padding: 8px 11px; border-radius: 10px;
@@ -77,7 +77,7 @@
 .donut__svg { position: relative; width: 168px; height: 168px; flex: none; }
 .donut__svg svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .donut__mid { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
-.donut__mid b { display: block; font-family: var(--font-flex); font-size: 26px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.donut__mid b { display: block; font-family: var(--font-flex); font-size: 26px; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .donut__mid span { font-size: 12.5px; color: var(--text-muted); }
 .donut__key { flex: 1; min-width: 180px; display: flex; flex-direction: column; }
 .donut__row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-subtle); font-size: 14px; }
@@ -195,7 +195,7 @@
 .kpi2__lbl { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
 .kpi2__ico { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-solid); }
 .kpi2__ico svg { width: 16px; height: 16px; }
-.kpi2__n { font-family: var(--font-flex); font-size: 36px; line-height: 1; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.kpi2__n { font-family: var(--font-flex); font-size: 36px; line-height: 1; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .kpi2__n small { font-size: 17px; font-weight: 500; color: var(--text-secondary); margin-left: 3px; }
 .kpi2__foot { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); padding-bottom: 16px; }
 .kpi2__wave { position: absolute; left: 0; right: 0; bottom: 0; height: 42px; pointer-events: none; }
@@ -429,6 +429,40 @@
 .icard__state { display: inline-flex; align-items: center; gap: 7px; min-width: 0; font-size: 12.5px; color: var(--text-secondary); }
 .icard__dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted, #8a8a8a); }
 .icard__dot.is-on { background: var(--success-fg, #1a7f4b); }
+
+/* The brand mark sits on a plain tile rather than a coloured one: the logo already
+   carries the colour, and a tinted square behind it fights with it. */
+.icard__logo--mark { width: 44px; height: 44px; border-radius: 13px; background: var(--bg-subtle, rgba(127,127,127,.07)); border: 1px solid var(--border-subtle); }
+.icard.is-on { border-color: var(--border-default, var(--border-subtle)); box-shadow: var(--tl-elevation-100, 0 1px 2px rgba(16,24,40,.05)); }
+.icard__imp { align-self: flex-start; font-size: 11.5px; font-weight: 600; letter-spacing: .01em; padding: 3px 9px; border-radius: 999px; color: var(--text-brand); background: var(--brand-softer); }
+
+/* The filter row: state on the left, search on the right, categories on their own
+   line underneath so a long shelf is one chip away from being short. */
+.ifilter { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin: 2px 0 10px; }
+.ifilter__q { flex: 1; min-width: 220px; max-width: 320px; margin-left: auto; }
+.ichips { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 18px; }
+.ichip { appearance: none; border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: 12.5px; padding: 5px 12px; border-radius: 999px; cursor: pointer; }
+.ichip:hover { border-color: var(--brand-border); color: var(--text-primary); }
+.ichip.is-on { background: var(--brand-solid); border-color: var(--brand-solid); color: #fff; }
+
+.igroup { margin-bottom: 22px; }
+.igroup__h { display: flex; align-items: center; gap: 8px; margin: 0 0 11px; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-secondary); }
+.igroup__h span { font-size: 11.5px; font-weight: 600; letter-spacing: 0; padding: 1px 7px; border-radius: 999px; background: var(--bg-subtle, rgba(127,127,127,.09)); color: var(--text-secondary); }
+
+/* The configuration form's own header, so the modal says which provider it belongs to
+   with the mark rather than the title alone. */
+.ifm__h { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.ifm__logo { flex: none; width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center; background: var(--bg-subtle, rgba(127,127,127,.07)); border: 1px solid var(--border-subtle); }
+.ifm__h strong { display: block; font-size: 14.5px; font-weight: 600; color: var(--text-primary); }
+.ifm__h span { font-size: 12.5px; color: var(--text-secondary); }
+.ifm__can { margin: 0 0 14px; padding: 0; list-style: none; display: grid; gap: 6px; }
+.ifm__can li { position: relative; padding-left: 16px; font-size: 13px; line-height: 1.45; color: var(--text-secondary); }
+.ifm__can li::before { content: ''; position: absolute; left: 2px; top: 7px; width: 5px; height: 5px; border-radius: 50%; background: var(--brand-solid); }
+.ifm__imp { display: grid; gap: 3px; padding: 11px 13px; margin-bottom: 16px; border-radius: 14px; background: var(--brand-softer); border: 1px solid var(--brand-border); }
+.ifm__imp strong { font-size: 12px; font-weight: 600; letter-spacing: .03em; text-transform: uppercase; color: var(--text-brand); }
+.ifm__imp span { font-size: 13px; line-height: 1.45; color: var(--text-secondary); }
+.ifm__imp-go { font-size: 12.5px; color: var(--text-muted, var(--text-secondary)); }
+@media (max-width: 720px) { .ifilter__q { max-width: none; margin-left: 0; } }
 .isugg { display: flex; gap: 12px; padding: 14px 16px; border-radius: 18px; background: var(--brand-softer); border: 1px solid var(--brand-border); }
 .isugg__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .isugg__m strong { font-size: 14.5px; font-weight: 600; color: var(--text-primary); }
@@ -904,7 +938,7 @@ html.lenis, html.lenis body { height: auto; }
 .kpi2__lbl { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
 .kpi2__ico { flex: none; width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; background: var(--brand-soft); color: var(--brand-solid); }
 .kpi2__ico svg { width: 16px; height: 16px; }
-.kpi2__n { font-family: var(--font-flex); font-size: 36px; line-height: 1; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.kpi2__n { font-family: var(--font-flex); font-size: 36px; line-height: 1; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .kpi2__foot { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text-secondary); padding-bottom: 16px; }
 .kpi2__wave { position: absolute; left: 0; right: 0; bottom: 0; height: 42px; pointer-events: none; }
 .kpi2__wave svg { width: 100%; height: 100%; display: block; }
@@ -979,7 +1013,7 @@ html.lenis, html.lenis body { height: auto; }
 .donut__svg { position: relative; width: 168px; height: 168px; flex: none; }
 .donut__svg svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .donut__mid { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
-.donut__mid b { display: block; font-family: var(--font-flex); font-size: 26px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.donut__mid b { display: block; font-family: var(--font-flex); font-size: 26px; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .donut__mid span { font-size: 12.5px; color: var(--text-muted); }
 .donut__key { flex: 1; min-width: 180px; display: flex; flex-direction: column; }
 .donut__row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border-subtle); font-size: 14px; }
@@ -1083,7 +1117,7 @@ html.lenis, html.lenis body { height: auto; }
   font-family: var(--font-sans); text-align: center; }
 .ocn--more:hover { border-color: var(--brand-solid); background: var(--brand-softer); }
 .ocn--more:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
-.ocn__more__n { font-family: var(--font-flex); font-size: 24px; font-weight: 600; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ocn__more__n { font-family: var(--font-flex); font-size: 24px; font-weight: 450; line-height: 1; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ocn__more__t { font-size: 12.5px; color: var(--text-secondary); }
 .ocn__more__a { margin-top: 4px; font-size: 12.5px; font-weight: 600; color: var(--text-brand); }
 
@@ -1102,8 +1136,13 @@ html.lenis, html.lenis body { height: auto; }
 
 /* ===================================================================== asset register
    The reference layout, in the product's own palette. */
-.ast-hero { position: relative; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1.1fr) auto auto; align-items: center; gap: 28px;
-  padding: 26px 28px; border-radius: var(--tl-radius-card); border: 1px solid var(--border-subtle); background: var(--bg-surface); box-shadow: var(--tl-elevation-1); }
+/* The hero is not a card. It was one — a white panel with a border and a shadow, which
+   put a box around the page's own opening line and made the illustration look like
+   content filed inside something. It sits on the page now: no background, no border,
+   no shadow. The only thing that floats is the drawing, and it floats for real,
+   because it is the only part of the row with a shadow under it. */
+.ast-hero { position: relative; display: grid; grid-template-columns: minmax(0, 1.1fr) auto auto; align-items: center; gap: 28px;
+  padding: 10px 4px 22px; background: none; border: 0; box-shadow: none; }
 .ast-hero__eyebrow { display: inline-flex; align-items: center; gap: 9px; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-brand); }
 .ast-hero__eyebrow::before { content: ""; width: 22px; height: 3px; border-radius: 2px; background: var(--brand-solid); }
 .ast-hero__copy h1 { margin: 10px 0 0; font-family: var(--font-flex); font-size: clamp(26px, 2.6vw, 36px); line-height: 1.18; font-weight: 600; color: var(--text-primary); }
@@ -1130,13 +1169,13 @@ html.lenis, html.lenis body { height: auto; }
 .ast-top__c { padding: 22px 24px; border-left: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 6px; justify-content: center; min-width: 0; }
 .ast-top__c:first-child { border-left: 0; position: relative; }
 .ast-top__c:first-child::before { content: ""; position: absolute; left: 0; top: 22px; bottom: 22px; width: 4px; border-radius: 0 3px 3px 0; background: var(--brand-solid); }
-.ast-total__n { font-family: var(--font-flex); font-size: 54px; line-height: 1; font-weight: 600; letter-spacing: -.02em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ast-total__n { font-family: var(--font-flex); font-size: 54px; line-height: 1; font-weight: 420; letter-spacing: -.02em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ast-total__l { font-size: 15px; font-weight: 500; color: var(--text-primary); }
 
 .ast-ring { position: relative; width: 150px; height: 150px; margin: 0 auto; }
 .ast-ring svg { width: 100%; height: 100%; display: block; }
 .ast-ring__mid { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
-.ast-ring__mid b { display: block; font-family: var(--font-flex); font-size: 22px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ast-ring__mid b { display: block; font-family: var(--font-flex); font-size: 22px; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ast-ring__mid span { font-size: 12px; color: var(--text-muted); }
 
 .ast-brk { gap: 12px; }
@@ -1147,7 +1186,7 @@ html.lenis, html.lenis body { height: auto; }
 .ast-brk__r b { font-family: var(--font-flex); font-size: 17px; font-weight: 600; min-width: 42px; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 
 .ast-val { position: relative; }
-.ast-val__n { font-family: var(--font-flex); font-size: 32px; line-height: 1.1; font-weight: 600; color: var(--text-primary); }
+.ast-val__n { font-family: var(--font-flex); font-size: 32px; line-height: 1.1; font-weight: 450; color: var(--text-primary); }
 .ast-val__bars { position: absolute; right: 18px; bottom: 20px; display: flex; align-items: flex-end; gap: 6px; height: 74px; }
 .ast-val__bars i { width: 15px; border-radius: 5px 5px 0 0; background: var(--brand-soft); }
 .ast-val__bars i:last-child { background: var(--brand-solid); }
@@ -1158,9 +1197,9 @@ html.lenis, html.lenis body { height: auto; }
 .ast-cat__i svg { width: 16px; height: 16px; }
 .ast-cat__b { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .ast-cat__top { display: flex; align-items: baseline; gap: 8px; font-size: 13.5px; color: var(--text-primary); }
-.ast-cat__top b { font-family: var(--font-flex); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.ast-cat__bar { display: block; height: 6px; border-radius: 4px; background: var(--bg-muted); overflow: hidden; }
-.ast-cat__bar i { display: block; height: 100%; border-radius: 4px; background: var(--brand-solid); }
+.ast-cat__top b { font-family: var(--font-flex); font-size: 15px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.ast-cat__bar { display: block; height: 4px; border-radius: 4px; background: var(--bg-muted); overflow: hidden; }
+.ast-cat__bar i { display: block; height: 100%; border-radius: 3px; background: var(--brand-solid); }
 
 @media (max-width: 1280px) {
   .ast-top { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1183,3 +1222,84 @@ html.lenis, html.lenis body { height: auto; }
 .ast-val { padding-right: 112px; }
 .ast-val__bars { bottom: 24px; height: 62px; }
 .ast-val__bars i { width: 13px; }
+
+/* ---------- Data, import and retention ----------
+   One module, three tabs, and a shared vocabulary: a pick list (.dpick), a wizard rail
+   (.dsteps), a source tile (.dsrc) and a result bar (.dres). Nothing here is layered,
+   for the same reason the rest of this file is not: it is the admin console's own
+   stylesheet and it should win over the design system's defaults without a specificity
+   argument. */
+.dpick { display: grid; gap: 7px; }
+.dpick__row { display: flex; align-items: flex-start; gap: 11px; padding: 11px 13px; border-radius: 14px; border: 1px solid var(--border-subtle); background: var(--bg-surface); cursor: pointer; }
+.dpick__row:hover { border-color: var(--brand-border); }
+.dpick__row.is-on { border-color: var(--brand-border); background: var(--brand-softer); }
+.dpick__m { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.dpick__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.dpick__m span { font-size: 12.5px; line-height: 1.45; color: var(--text-secondary); }
+.dpick__n { flex: none; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+
+.dsum { display: flex; align-items: baseline; gap: 8px; padding: 12px 14px; border-radius: 14px; background: var(--bg-subtle, rgba(127,127,127,.07)); }
+.dsum__n { font-size: 26px; font-weight: 500; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+.dsum__s { font-size: 12.5px; color: var(--text-secondary); }
+
+.dnote { display: grid; gap: 3px; padding: 11px 13px; border-radius: 14px; background: var(--brand-softer); border: 1px solid var(--brand-border); }
+.dnote strong { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.dnote span { font-size: 12.5px; line-height: 1.45; color: var(--text-secondary); }
+
+/* The wizard rail. A step you have not reached is not a link, so the button carries
+   `disabled` rather than looking live and doing nothing. */
+.dsteps { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 16px; padding: 0; list-style: none; }
+.dstep__b { display: inline-flex; align-items: center; gap: 8px; appearance: none; border: 1px solid var(--border-subtle); background: var(--bg-surface); color: var(--text-secondary); font: inherit; font-size: 13px; padding: 7px 13px 7px 8px; border-radius: 999px; cursor: pointer; }
+.dstep__b[disabled] { cursor: default; opacity: .62; }
+.dstep__n { flex: none; width: 21px; height: 21px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 600; background: var(--bg-subtle, rgba(127,127,127,.1)); color: var(--text-secondary); }
+.dstep.is-now .dstep__b { border-color: var(--brand-solid); color: var(--text-primary); }
+.dstep.is-now .dstep__n { background: var(--brand-solid); color: #fff; }
+.dstep.is-done .dstep__n { background: var(--success-fg, #1a7f4b); color: #fff; }
+
+.dsrc { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 11px; }
+.dsrc__c { display: flex; align-items: flex-start; gap: 12px; text-align: left; appearance: none; border: 1px solid var(--border-subtle); background: var(--bg-surface); font: inherit; padding: 13px; border-radius: 16px; cursor: pointer; }
+.dsrc__c:hover { border-color: var(--brand-border); }
+.dsrc__logo { flex: none; width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--bg-subtle, rgba(127,127,127,.07)); border: 1px solid var(--border-subtle); }
+.dsrc__m { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.dsrc__m strong { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+.dsrc__m span { font-size: 12.5px; color: var(--text-secondary); }
+.dsrc__m em { font-size: 12px; font-style: normal; color: var(--text-muted, var(--text-secondary)); }
+.dsrc__go { flex: none; color: var(--text-muted, var(--text-secondary)); }
+.dsrc__c:hover .dsrc__go { color: var(--text-brand); }
+
+.dorder { margin: 0; padding: 0; list-style: none; display: grid; gap: 9px; counter-reset: d; }
+.dorder li { display: flex; gap: 10px; font-size: 13px; line-height: 1.45; color: var(--text-secondary); }
+.dorder li span { flex: none; width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 600; background: var(--bg-subtle, rgba(127,127,127,.1)); color: var(--text-secondary); }
+
+/* A result row: what, how it splits, and why anything was held. The bar is a flex
+   strip rather than three widths in percent, so the segments cannot drift apart. */
+.dres { display: grid; gap: 13px; }
+.dres__r { display: grid; grid-template-columns: minmax(150px, 1.2fr) minmax(120px, 2fr) auto; grid-template-areas: 'w bar n' 'why why why'; align-items: center; gap: 4px 12px; }
+.dres__w { grid-area: w; font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.dres__bar { grid-area: bar; display: flex; height: 8px; border-radius: 999px; overflow: hidden; background: var(--bg-subtle, rgba(127,127,127,.1)); }
+.dres__seg.is-ok { background: var(--success-fg, #1a7f4b); }
+.dres__seg.is-warn { background: var(--warning-fg, #b26a00); }
+.dres__seg.is-err { background: var(--danger-fg, #b42318); }
+.dres__n { grid-area: n; font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.dres__why { grid-area: why; font-size: 12px; color: var(--text-muted, var(--text-secondary)); }
+
+/* The retention schedule. A row is the record kind, its period, what happens at the
+   end and the hold switch; held rows grey their own controls out because the schedule
+   is suspended, not changed. */
+.dret { display: grid; gap: 10px; }
+.dret__r { display: grid; grid-template-columns: minmax(220px, 1.6fr) minmax(130px, .7fr) minmax(190px, 1fr) auto; align-items: start; gap: 14px; padding: 13px; border-radius: 16px; border: 1px solid var(--border-subtle); background: var(--bg-surface); }
+.dret__r.is-held { background: var(--bg-subtle, rgba(127,127,127,.05)); }
+.dret__m { display: grid; gap: 3px; min-width: 0; }
+.dret__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.dret__m span { font-size: 12.5px; line-height: 1.45; color: var(--text-secondary); }
+.dret__m em { font-size: 12px; font-style: normal; line-height: 1.4; color: var(--text-muted, var(--text-secondary)); }
+.dret__h { display: flex; align-items: center; gap: 8px; padding-top: 22px; }
+.dret__h span { font-size: 12.5px; white-space: nowrap; color: var(--text-secondary); }
+@media (max-width: 960px) { .dret__r { grid-template-columns: 1fr 1fr; } .dret__m { grid-column: 1 / -1; } .dret__h { padding-top: 0; grid-column: 1 / -1; } }
+
+.djob__dir { font-size: 11.5px; font-weight: 600; padding: 2px 9px; border-radius: 999px; }
+.djob__dir--export { background: var(--brand-softer); color: var(--text-brand); }
+.djob__dir--import { background: var(--success-soft, rgba(26,127,75,.12)); color: var(--success-fg, #1a7f4b); }
+.djob__what { display: grid; gap: 2px; min-width: 0; }
+.djob__what strong { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+.djob__what span { font-size: 12px; line-height: 1.4; color: var(--text-secondary); }

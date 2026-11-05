@@ -224,7 +224,7 @@
     React.useEffect(function () { drawerSt[1](false); }, [p.path]);
 
     var role = p.role || 'hr';
-    var notes = store.notificationsFor(role);
+    var notes = store.notificationsFor(role, (store.persona(role) || {}).id);
     var unread = notes.filter(function (n) { return !n.read; }).length;
     var stats = store.stats();
     var persona = store.employee(HRMS.nav.role(role).persona);

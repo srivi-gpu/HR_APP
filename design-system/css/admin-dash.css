@@ -49,7 +49,7 @@
 .adm-kpi__l { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .adm-kpi__l strong { font-size: 14px; font-weight: 600; color: var(--text-primary); }
 .adm-kpi__l span { font-size: 11.5px; color: var(--text-muted); }
-.adm-kpi__n { font-family: var(--font-flex); font-size: 36px; line-height: 1; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.adm-kpi__n { font-family: var(--font-flex); font-size: 36px; line-height: 1; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
 .adm-kpi__n small { font-size: 18px; font-weight: 500; color: var(--text-secondary); margin-left: 2px; }
 @media (max-width: 1100px) {
   .adm-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -97,36 +97,7 @@ html[data-theme="dark"] .adm-kpi { border-color: var(--border-subtle); }
 .adm-p--btn:hover { background: color-mix(in srgb, currentColor 8%, transparent); }
 .adm-p--btn:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
 
-/* --- the alerts card --- */
-.adm-alerts { display: flex; flex-direction: column; margin-top: 6px; }
-.adm-alert { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-top: 1px solid #e6edff; min-width: 0; }
-.adm-alerts > .adm-alert:first-child { border-top: 0; }
-.adm-alert__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.adm-alert__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
-.adm-alert__m span { font-size: 12px; line-height: 1.45; color: var(--text-secondary); }
-.adm-alert__kv { font-size: 11.5px; color: var(--text-muted); }
-.adm-alert__kv b { font-weight: 600; color: var(--text-secondary); }
-.adm-alert__t { flex: none; font-size: 11.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-@media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .adm-alert { border-color: var(--border-subtle); } }
-html[data-theme="dark"] .adm-alert { border-color: var(--border-subtle); }
-
-
-.adm-tips { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
-.adm-tips .adm-tip { margin-top: 0; }
-
 .adm-inl { font-weight: 700; color: var(--text-primary); }
-.adm-alert__top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.adm-alert__s { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-
-
-/* --- Ara on the sign-in card --- */
-.adm-sug { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; flex: none;
-  height: 30px; padding: 0 11px; border-radius: var(--tl-round); border: 1px solid var(--brand-border);
-  background: var(--brand-softer); font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--text-brand); }
-.adm-sug:hover { background: var(--brand-soft); border-color: var(--brand-solid); }
-.adm-sug:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
-.adm-sug__n { display: inline-grid; place-items: center; min-width: 17px; height: 17px; padding: 0 4px; border-radius: var(--tl-round);
-  background: var(--brand-solid); color: var(--brand-on-solid); font-size: 10.5px; font-weight: 700; }
 .adm-plot__v { font-size: 12px; font-weight: 600; fill: var(--text-primary); }
 /* A marker on a bar Ara has a suggestion about. */
 .adm-pin { all: unset; box-sizing: border-box; cursor: pointer; position: absolute; transform: translate(-50%, -50%);
@@ -135,23 +106,6 @@ html[data-theme="dark"] .adm-alert { border-color: var(--border-subtle); }
 .adm-pin:hover { transform: translate(-50%, -50%) scale(1.12); }
 .adm-pin:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 3px; }
 .adm-pin svg { width: 13px; height: 13px; }
-/* The top suggestion, inline under the chart. */
-.adm-tip { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 11px; margin-top: 14px;
-  padding: 8px 12px; border-radius: 14px; border: 1px solid var(--brand-border); background: var(--brand-softer); }
-.adm-tip:hover { border-color: var(--brand-solid); }
-.adm-tip:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
-.adm-tip.is-bad { border-color: #ffc9d3; background: var(--danger-bg); }
-.adm-tip.is-warn { border-color: #fbdca8; background: var(--warning-bg); }
-@media (prefers-color-scheme: dark) { html:not([data-theme="light"]) .adm-tip.is-bad, html:not([data-theme="light"]) .adm-tip.is-warn { border-color: var(--border-default); } }
-html[data-theme="dark"] .adm-tip.is-bad, html[data-theme="dark"] .adm-tip.is-warn { border-color: var(--border-default); }
-.adm-tip__i { flex: none; width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center; background: var(--brand-solid); color: var(--brand-on-solid); }
-.adm-tip__i svg { width: 16px; height: 16px; }
-.adm-tip.is-bad .adm-tip__i { background: var(--danger-fg); }
-.adm-tip.is-warn .adm-tip__i { background: var(--warning-fg); }
-.adm-tip__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; font-family: var(--font-sans); }
-.adm-tip__m small { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }
-.adm-tip__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
-.adm-tip > svg:last-child { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 
 /* --- the suggestion modal --- */
 .adm-say { display: flex; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--brand-softer); border: 1px solid var(--brand-border); }
@@ -183,7 +137,7 @@ html[data-theme="dark"] .adm-tip.is-bad, html[data-theme="dark"] .adm-tip.is-war
 .admb-ring { position: relative; flex: none; width: 168px; height: 168px; }
 .admb-ring svg { width: 100%; height: 100%; display: block; }
 .admb-ring__mid, .admb-gauge__mid { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.admb-ring__mid b, .admb-gauge__mid b { font-family: var(--font-flex); font-size: 32px; line-height: 1; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.admb-ring__mid b, .admb-gauge__mid b { font-family: var(--font-flex); font-size: 32px; line-height: 1; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .admb-ring__mid span, .admb-gauge__mid span { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
 .admb-gauge { position: relative; flex: none; width: 200px; height: 118px; }
 .admb-gauge svg { width: 100%; height: 100%; display: block; }
@@ -239,10 +193,7 @@ html[data-theme="dark"] .adm-tip.is-bad, html[data-theme="dark"] .adm-tip.is-war
 @layer tl {
 .adm-card__foot--warn { display: flex; align-items: center; gap: 6px; color: var(--danger-fg); font-weight: 600; margin-top: auto; padding-top: 10px; }
 .adm-card__foot--warn svg { width: 13px; height: 13px; flex: none; }
-.adm-alert__top strong { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.adm-alert__top .adm-alert__t { flex: none; }
 }
-@layer tl { .adm-alert__h { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .adm-alert__kv { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
 
 /* --- option A: MFA coverage and plan usage --- */
 @layer tl {
@@ -330,4 +281,84 @@ html[data-theme="dark"] .adm-tip.is-bad, html[data-theme="dark"] .adm-tip.is-war
 .admb-hol__d small { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
 .admb-hol strong { display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); }
 .admb-hol small { font-size: 11.5px; color: var(--text-muted); }
+}
+
+/* --- Ara at the head, KPI arrows, the one suggestion, the alert timeline --- */
+@layer tl {
+.adm__tools { display: flex; align-items: center; gap: 10px; flex: none; }
+
+/* Ara: one small button for every suggestion on the page. */
+.adm-ara { all: unset; box-sizing: border-box; cursor: pointer; position: relative; flex: none;
+  width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--brand-solid); color: var(--brand-on-solid); box-shadow: var(--tl-button-primary-glow); }
+.adm-ara:hover { background: var(--brand-hover); }
+.adm-ara:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 3px; }
+.adm-ara svg { width: 19px; height: 19px; }
+.adm-ara__n { position: absolute; top: -3px; right: -3px; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: var(--tl-round); display: grid; place-items: center; background: var(--danger-fg); color: #fff;
+  border: 2px solid var(--bg-surface); font-size: 10.5px; font-weight: 700; font-family: var(--font-sans); }
+
+/* The arrow from a figure to the thing to do about it. */
+.adm-kpi__t { align-items: flex-start; }
+.adm-kpi__go { all: unset; box-sizing: border-box; cursor: pointer; flex: none; width: 28px; height: 28px;
+  border-radius: 50%; display: grid; place-items: center; color: var(--text-muted);
+  border: 1px solid var(--border-subtle); background: var(--bg-surface); }
+.adm-kpi__go:hover { border-color: var(--brand-solid); color: var(--brand-solid); background: var(--brand-softer); }
+.adm-kpi__go:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.adm-kpi__go svg { width: 15px; height: 15px; }
+
+/* One suggestion, as a quiet dashed strip rather than a stack of banners. */
+.adm-tip { display: flex; align-items: center; gap: 12px; margin-top: 14px; padding: 10px 12px;
+  border-radius: 14px; border: 1px dashed var(--brand-border); background: var(--brand-softer); }
+.adm-tip__i { flex: none; width: 30px; height: 30px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--brand-solid); color: var(--brand-on-solid); }
+.adm-tip__i svg { width: 16px; height: 16px; }
+.adm-tip__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.adm-tip__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary); }
+.adm-tip__m span { font-size: 12px; line-height: 1.4; color: var(--text-secondary);
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.adm-tip__go { all: unset; box-sizing: border-box; cursor: pointer; flex: none; height: 32px; padding: 0 15px;
+  border-radius: var(--tl-round); border: 1px solid var(--border-default); background: var(--bg-surface);
+  font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+.adm-tip__go:hover { border-color: var(--brand-solid); color: var(--text-brand); }
+.adm-tip__go:focus-visible, .adm-tip__x:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.adm-tip__x { all: unset; box-sizing: border-box; cursor: pointer; flex: none; width: 26px; height: 26px;
+  border-radius: 50%; display: grid; place-items: center; color: var(--text-muted); }
+.adm-tip__x:hover { background: var(--bg-hover); color: var(--text-primary); }
+.adm-tip__x svg { width: 14px; height: 14px; }
+
+/* Alerts as a timeline: the time, a dot on the line, what happened. */
+.adm-tl { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; }
+.adm-tl__r { position: relative; display: grid; grid-template-columns: 44px 12px minmax(0, 1fr); align-items: start;
+  gap: 10px; padding-bottom: 16px; }
+.adm-tl__r:last-child { padding-bottom: 0; }
+.adm-tl__r:not(:last-child)::before { content: ''; position: absolute; left: 49px; top: 16px; bottom: -2px;
+  width: 1.5px; background: var(--border-subtle); }
+.adm-tl__time { font-size: 11.5px; line-height: 18px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right; }
+.adm-tl__dot { width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: var(--brand-solid);
+  box-shadow: 0 0 0 3px var(--brand-soft); }
+.adm-tl__r.is-good .adm-tl__dot { background: var(--success-fg); box-shadow: 0 0 0 3px var(--success-bg); }
+.adm-tl__r.is-warn .adm-tl__dot { background: var(--warning-fg); box-shadow: 0 0 0 3px var(--warning-bg); }
+.adm-tl__r.is-bad .adm-tl__dot { background: var(--danger-fg); box-shadow: 0 0 0 3px var(--danger-bg); }
+.adm-tl__m { all: unset; box-sizing: border-box; cursor: pointer; min-width: 0; display: flex; flex-direction: column;
+  gap: 2px; padding: 0 6px 4px; margin: -2px -6px 0; border-radius: 9px; font-family: var(--font-sans); }
+.adm-tl__m:hover { background: var(--bg-hover); }
+.adm-tl__m:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: -2px; }
+.adm-tl__m strong { font-size: 13.5px; font-weight: 600; line-height: 1.35; color: var(--text-primary); }
+.adm-tl__m span { font-size: 12px; line-height: 1.45; color: var(--text-secondary);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* Cards in a row end level with each other, and whatever closes a card sits at its foot. */
+.adm-mid > .adm-card, .adm-low > .adm-card, .admb-three > .adm-card, .admb-two > .adm-card { height: 100%; }
+.adm-tabbed__p { flex: 1; }
+.adm-card__foot { margin-top: auto; padding-top: 12px; }
+.admb-setup2 { flex: 1; }
+.adm-split { flex: 1; align-content: center; }
+}
+@layer tl {
+.ara-pick__more { all: unset; box-sizing: border-box; cursor: pointer; align-self: center; margin-top: 8px;
+  height: 28px; padding: 0 13px; border-radius: var(--tl-round); border: 1px solid var(--border-subtle);
+  font-family: var(--font-sans); font-size: 12.5px; font-weight: 600; color: var(--text-brand); }
+.ara-pick__more:hover { background: var(--brand-softer); border-color: var(--brand-border); }
+.ara-pick__more:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
 }

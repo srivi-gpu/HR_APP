@@ -22,9 +22,6 @@
   }
   var CHECK = g('M5 13l4 4L19 7', 15);
   var UP = g('M7 14l5-5 5 5', 13);
-  var USER_OK = g('M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c.5-3.6 3.2-6 6.5-6 1.3 0 2.5.4 3.5 1M15 18l2 2 4-4.5', 18);
-  var USER_OFF = g('M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20c.5-3.6 3.2-6 6.5-6 1.3 0 2.5.4 3.5 1M16 16l5 5M21 16l-5 5', 18);
-  var PULSE = g('M3 12h4l2.5-6 4 12 2.5-6H21', 18);
   var KEY = g('M14.5 9.5a4 4 0 1 1-1.2-2.9M14.5 9.5L21 16v3h-3v-2h-2v-2h-2l-1.3-1.3', 18);
 
   var num = function (n) { return Number(n || 0).toLocaleString('en-IN'); };
@@ -86,8 +83,8 @@
             h('text', { x: PL - 9, y: y(t) + 4, textAnchor: 'end', className: 'adm-plot__ax' }, t));
         }),
         h('path', { d: path + ' L' + x(last) + ' ' + (H - PB) + ' L' + x(0) + ' ' + (H - PB) + ' Z', fill: 'url(#admbGrow)' }),
-        h('path', { d: path, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 2.4, strokeLinecap: 'round' }),
-        h('circle', { cx: x(last), cy: y(d[last].n), r: 5, fill: 'var(--brand-solid)', stroke: 'var(--bg-surface)', strokeWidth: 2.5 }),
+        h('path', { d: path, fill: 'none', stroke: 'var(--brand-solid)', strokeWidth: 1.6, strokeLinecap: 'round' }),
+        h('circle', { cx: x(last), cy: y(d[last].n), r: 4, fill: 'var(--brand-solid)', stroke: 'var(--bg-surface)', strokeWidth: 2 }),
         d.map(function (pt, i) {
           return h('text', { key: i, x: x(i), y: H - 7, textAnchor: i === 0 ? 'start' : i === last ? 'end' : 'middle', className: 'adm-plot__ax' }, pt.label);
         })));
@@ -99,11 +96,11 @@
     var R = 62, C = 2 * Math.PI * R, GAP = 3, off = 0;
     return h('div', { className: 'admb-ring' },
       h('svg', { viewBox: '0 0 160 160', 'aria-hidden': 'true' },
-        h('circle', { cx: 80, cy: 80, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 18 }),
+        h('circle', { cx: 80, cy: 80, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 10 }),
         p.rows.map(function (r, i) {
           var len = r.n / total * C, dash = Math.max(len - GAP, 1.5), o = off;
           off += len;
-          return h('circle', { key: r.k, cx: 80, cy: 80, r: R, fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 18,
+          return h('circle', { key: r.k, cx: 80, cy: 80, r: R, fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 10,
             strokeDasharray: dash + ' ' + (C - dash), strokeDashoffset: -o, transform: 'rotate(-90 80 80)' });
         })),
       h('span', { className: 'admb-ring__mid' }, h('b', null, num(p.center)), h('span', null, p.caption)));
@@ -115,11 +112,11 @@
     var R = 70, C = Math.PI * R, GAP = 3, off = 0;
     return h('div', { className: 'admb-gauge' },
       h('svg', { viewBox: '0 0 180 104', 'aria-hidden': 'true' },
-        h('path', { d: 'M20 92 A70 70 0 0 1 160 92', fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 20 }),
+        h('path', { d: 'M20 92 A70 70 0 0 1 160 92', fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 11 }),
         p.rows.map(function (r, i) {
           var len = r.n / total * C, dash = Math.max(len - GAP, 1.5), o = off;
           off += len;
-          return h('path', { key: r.k, d: 'M20 92 A70 70 0 0 1 160 92', fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 20,
+          return h('path', { key: r.k, d: 'M20 92 A70 70 0 0 1 160 92', fill: 'none', stroke: RAMP[i % RAMP.length], strokeWidth: 11,
             strokeDasharray: dash + ' ' + (C + 10), strokeDashoffset: -o });
         })),
       h('span', { className: 'admb-gauge__mid' }, h('b', null, p.center), h('span', null, p.caption)));
@@ -174,16 +171,20 @@
         return { k: r.name, n: users.filter(function (u) { return u.role === r.id; }).length };
       });
 
-    var integrations = seed.integrations;
+    var integrations = store.collection('integrations');
     var connected = integrations.filter(function (x) { return x.status === 'Connected'; }).length;
+    /* Health is about something being wrong, not about how long the catalogue is. A
+       provider we never connected is not a fault; one that was connected and dropped
+       out is. */
+    var dropped = integrations.filter(function (x) { return x.status !== 'Connected' && x.droppedOn; }).length;
     /* The prototype keeps no heartbeat for the first three; they are fixed rows. The
        fourth is the integrations on record, so it can and does say when one is down. */
     var HEALTH = [
       { t: 'Application', ok: true, s: 'Operational' },
       { t: 'API services', ok: true, s: 'Operational' },
       { t: 'Database', ok: true, s: 'Operational' },
-      { t: 'Integrations', ok: connected === integrations.length,
-        s: connected === integrations.length ? 'Operational' : connected + ' of ' + integrations.length + ' connected' }
+      { t: 'Integrations', ok: !dropped,
+        s: dropped ? dropped + ' dropped out' : connected + ' connected, all reporting' }
     ];
     var allOk = HEALTH.every(function (x) { return x.ok; });
 
@@ -204,10 +205,10 @@
       .sort(function (x, y) { return x.date < y.date ? -1 : 1; }).slice(0, 3);
 
     var KPIS = [
-      { ico: I.users, t: 'Total users', s: '+' + s.newJoiners + ' this month', up: true, n: users.length },
-      { ico: USER_OK, t: 'Active users', s: pct(active.length, users.length) + '% signed in this week', n: active.length },
-      { ico: USER_OFF, t: 'Inactive users', s: pct(inactive, users.length) + '% quiet for over a week', n: inactive },
-      { ico: I.mail, t: 'Pending invitations', s: 'Awaiting activation', warn: pending.length > 0, n: pending.length }
+      { t: 'Total users', s: '+' + s.newJoiners + ' this month', up: true, n: users.length },
+      { t: 'Active users', s: pct(active.length, users.length) + '% signed in this week', n: active.length },
+      { t: 'Inactive users', s: pct(inactive, users.length) + '% quiet for over a week', n: inactive },
+      { t: 'Pending invitations', s: 'Awaiting activation', warn: pending.length > 0, n: pending.length }
     ];
 
     return h('div', { className: 'adm' },
@@ -228,7 +229,6 @@
         h('div', { className: 'adm-kpis' }, KPIS.map(function (k) {
           return h('div', { className: 'adm-kpi', key: k.t },
             h('div', { className: 'adm-kpi__t' },
-              h('span', { className: 'adm-ico' }, k.ico),
               h('span', { className: 'adm-kpi__l' }, h('strong', null, k.t),
                 h('span', { className: k.up ? 'admb-up' : k.warn ? 'admb-warn' : null }, k.up ? UP : null, k.s))),
             h('span', { className: 'adm-kpi__n' }, num(k.n)));

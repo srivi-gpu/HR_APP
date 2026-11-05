@@ -27,7 +27,7 @@
      read — the arc is the context around it. */
   function Gauge(p) {
     var value = Math.max(0, Math.min(100, p.value || 0));
-    var R = 70, CX = 90, CY = 86, STROKE = 18;
+    var R = 70, CX = 90, CY = 86, STROKE = 10;
     /* Half the circumference is the whole track; the value fills a share of it. */
     var half = Math.PI * R;
     var fill = (value / 100) * half;

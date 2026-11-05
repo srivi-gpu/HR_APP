@@ -86,6 +86,20 @@
     { path: 'integrations', label: 'Integrations', icon: 'plug', section: '2.1',
       note: 'Connected providers, grouped by what they do.' },
 
+    /* Three questions an administrator arrives with and the product could not answer:
+       how do I get our data out, how do I get our data in, and how long do we keep it.
+       One item, three tabs, in the order they are asked. Import is the longest of the
+       three, and it is the one the Integrations page links to, so it keeps its own
+       route rather than being a modal on a provider card. */
+    { path: 'data', label: 'Data and retention', icon: 'database', section: '8.3', tabs: [
+      { path: 'export', label: 'Export', section: '8.3',
+        note: 'Take a copy of any record kind out, as CSV, Excel or JSON, with past exports and their download windows.' },
+      { path: 'import', label: 'Import', section: '8.3',
+        note: 'Bring people, structure, balances and history in from another application or a spreadsheet, with a dry run before anything is written.' },
+      { path: 'retention', label: 'Retention', section: '14',
+        note: 'How long each record kind is kept, what happens at the end of that, legal holds and erasure requests.' }
+    ]},
+
     /* Security, as one page rather than seven tabs. Sign-in rules, who is blocked and
        who has a second step are one question asked three ways, and splitting them meant
        reading a policy on one tab to understand a lockout on another. */
@@ -167,6 +181,11 @@
     ]},
     { path: 'holidays', label: 'Holiday calendar', icon: 'star', section: '4.11',
       note: 'Holiday calendars per location, including optional and restricted holidays.' },
+
+    /* HR does not run the asset register — that is admin's — but HR is who knows a
+       joiner needs a laptop before their first day, so the asking belongs here. */
+    { path: 'assets', label: 'Assets', icon: 'package', section: '4.31',
+      note: 'Asset requests raised for joiners and for people who need something, and where each has got to.' },
 
     { path: 'payroll', label: 'Payroll', icon: 'card', section: '4.36', tabs: [
       { path: 'dashboard', label: 'Dashboard', section: '4.36', note: 'Total cost, gross, deductions, net payable and processing status.' },
@@ -415,8 +434,9 @@
     ]},
     { label: 'Compensation & resources', slots: [
       { label: 'Payroll', icon: 'card', path: 'payroll' },
-      /* An employee's own assets. Admin's register is under Administration. */
-      { label: 'Assets', icon: 'package', as: { me: 'assets' } }
+      /* An employee's own assets, and HR's requests for joiners. Admin's register is
+         under Administration. */
+      { label: 'Assets', icon: 'package', as: { me: 'assets', hr: 'assets' } }
     ]},
     { label: 'Organization', slots: [
       { label: 'Organization', icon: 'building', path: 'org' },
@@ -436,6 +456,7 @@
       { label: 'Permissions', icon: 'shield', path: 'roles' },
       { label: 'Billing and usage', icon: 'card', path: 'billing' },
       { label: 'Integrations', icon: 'plug', path: 'integrations' },
+      { label: 'Data and retention', icon: 'database', path: 'data' },
       { label: 'Audit logs', icon: 'history', path: 'audit' },
       { label: 'Security', icon: 'lock', path: 'settings' }
     ]},
