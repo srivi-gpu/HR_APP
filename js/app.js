@@ -110,8 +110,12 @@
 
     /* Tabs and page head belong to the frame, so a stub and a built screen agree.
        A built screen draws its own head; only stubs get one here. */
+    var Banner = route.meta && route.meta.item && route.meta.item.banner
+      ? HRMS.screens.banners[route.meta.item.banner] : null;
     var framed = denied || route.notFound ? body : h(React.Fragment, null,
-      Screen ? null : h(ui.PageHead, { eyebrow: route.meta.group, title: route.meta.label }),
+      /* Above the tabs, because it belongs to the person rather than to one tab. */
+      Banner ? h(Banner, { route: route }) : null,
+      Screen || Banner ? null : h(ui.PageHead, { eyebrow: route.meta.group, title: route.meta.label }),
       route.meta.item && route.meta.item.tabs
         ? h(ui.ModuleTabs, { item: route.meta.item, role: route.meta.role, active: route.meta.tab && route.meta.tab.path })
         : null,

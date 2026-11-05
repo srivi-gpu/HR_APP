@@ -951,8 +951,16 @@
     'global/404': NotFound
   };
 
+  /* A module may put something above its tab row — a profile header, say — which the
+     frame draws, so every tab of that module shows it without each screen repeating it. */
+  var BANNERS = {};
+
   HRMS.screens = {
     registry: REGISTRY,
+    banners: BANNERS,
+    registerBanner: function (map) {
+      Object.keys(map).forEach(function (key) { BANNERS[key] = map[key]; });
+    },
     NotFound: NotFound,
     Denied: Denied,
     /* The per-phase screen files call this to add their routes. Registering a route

@@ -1772,6 +1772,160 @@
           onClick: function () { ui.toast('Exit documents download started', 'success'); } }, 'Download exit documents')));
   }
 
+  /* ================================================ Profile header and overview
+     The header is drawn by the frame above the tab row, because it is the person
+     rather than any one tab: whichever tab you are on, it is still your record. */
+  function ProfileHeader() {
+    var m = me();
+    if (!m) return null;
+    var dept = store.department(m.department);
+    return h('div', { className: 'phead' },
+      h('div', { className: 'phead__cover' },
+        /* The arcs of the design, drawn rather than fetched. */
+        h('svg', { viewBox: '0 0 900 112', preserveAspectRatio: 'none', 'aria-hidden': 'true' },
+          h('path', { d: 'M300 150 A 150 150 0 0 1 600 150', fill: 'none',
+            stroke: 'var(--brand-solid)', strokeWidth: 10, opacity: 0.5 }),
+          h('path', { d: 'M345 160 A 105 105 0 0 1 555 160', fill: 'none',
+            stroke: 'var(--brand-solid)', strokeWidth: 8, opacity: 0.25 }))),
+
+      h('div', { className: 'phead__body' },
+        h('span', { className: 'phead__face' }, h(V.Avatar, { name: m.name, size: 'xl' })),
+        h('div', { className: 'phead__who' },
+          h('h1', { className: 'phead__name' }, m.name),
+          h('span', { className: 'phead__sub' },
+            h('span', { className: 'mono' }, '#' + m.id), ' · ', m.designation)),
+        h('div', { className: 'phead__aside' },
+          h(ui.StatusChip, { status: m.status, size: 'md' }))),
+
+      h('div', { className: 'phead__chips' },
+        h('div', { className: 'pchip' },
+          h('span', { className: 'pchip__k' }, 'Department'),
+          h('span', { className: 'pchip__v' },
+            h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'primary', dot: true },
+              dept ? dept.name : '—'))),
+        h('div', { className: 'pchip' },
+          h('span', { className: 'pchip__k' }, 'Employment type'),
+          h('span', { className: 'pchip__v' },
+            h(V.Chip, { size: 'sm', shape: 'tag' }, m.type))),
+        h('div', { className: 'pchip' },
+          h('span', { className: 'pchip__k' }, 'Email'),
+          h('span', { className: 'pchip__v' }, I.mail, h('span', { title: m.workEmail }, m.workEmail))),
+        h('div', { className: 'pchip' },
+          h('span', { className: 'pchip__k' }, 'Phone number'),
+          h('span', { className: 'pchip__v' }, I.chat, h('span', null, m.phone)))));
+  }
+
+  /* Present, remote, late and leave over the last 30 days, counted from the same
+     day-by-day record the attendance history lists. */
+  function attendanceSummary(m, days) {
+    var rows = historyFor(m, days);
+    var n = { present: 0, remote: 0, late: 0, leave: 0 };
+    rows.forEach(function (r) {
+      if (r.status === 'Present') n.present++;
+      else if (r.status === 'Work From Home') n.remote++;
+      else if (r.status === 'Late') { n.late++; n.present++; }
+      else if (r.status === 'On Leave') n.leave++;
+    });
+    return n;
+  }
+
+  function ProfileOverview() {
+    var m = me();
+    if (!m) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
+
+    var manager = m.manager ? emp(m.manager) : null;
+    var goals = store.collection('goals')
+      .filter(function (g) { return g.employee === m.id; })
+      .sort(function (a, b) { return b.progress - a.progress; });
+    var open = goals.filter(function (g) { return g.status !== 'Achieved'; });
+    var shown = (open.length ? open : goals).slice(0, 3);
+    var att = attendanceSummary(m, 30);
+    var achieved = goals.filter(function (g) { return g.status === 'Achieved'; }).length;
+    var avg = goals.length
+      ? Math.round(goals.reduce(function (t, g) { return t + g.progress; }, 0) / goals.length) : 0;
+    var assessment = store.collection('assessments').filter(function (a) { return a.employee === m.id; })[0];
+    var shift = store.shift(m.shift);
+    var loc = store.location(m.location);
+
+    return h('div', { className: 'pcols' },
+      h('div', null,
+      h(Card, { title: 'About' },
+        h('p', { style: { fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', margin: 0 } },
+          m.name + ' is a ' + m.designation + ' in '
+          + (store.department(m.department) || {}).name + ', based at '
+          + (loc ? loc.name : 'the office') + ' since ' + m.joinedLabel + '.'
+          + (manager ? ' They report to ' + manager.name + '.' : ''))),
+
+      h(Card, { title: 'Employee information' },
+        h('div', { className: 'psnap' },
+          [['Employee ID', h('span', { className: 'mono' }, m.id)],
+            ['Work email', m.workEmail],
+            ['Phone', m.phone],
+            ['Join date', m.joinedLabel],
+            ['Reporting to', manager ? manager.name : 'Not assigned'],
+            ['Work type', shift ? shift.name : 'Not set'],
+            ['Office location', loc ? loc.name : '\u2014'],
+            ['Employment type', m.type]].map(function (row) {
+            return h('div', { key: row[0] },
+              h('span', { className: 'psnap__k' }, row[0]),
+              h('span', { className: 'psnap__v' }, row[1]));
+          }))),
+
+      h(Card, { title: 'Performance snapshot',
+        description: assessment ? 'The open cycle, as it stands.' : 'No cycle open for you yet.',
+        aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
+          onClick: function () { router.go('me/performance/standing'); } }, 'My standing') },
+        h('div', { className: 'pmeter' },
+          h('div', { className: 'pmeter__head' },
+            h('span', { className: 'pmeter__t' }, 'Goal completion'),
+            h('span', { className: 'pmeter__n' }, avg + '%')),
+          h(V.ProgressBar, { value: avg, size: 'sm', 'aria-label': 'Goal completion',
+            tone: avg >= 75 ? 'success' : avg >= 40 ? 'primary' : 'warning' }),
+          h('span', { className: 'pmeter__s' }, achieved + ' of ' + goals.length + ' goals achieved')),
+        assessment
+          ? h('div', { className: 'pmeter' },
+            h('div', { className: 'pmeter__head' },
+              h('span', { className: 'pmeter__t' }, 'Self-assessment'),
+              h('span', { className: 'pmeter__n' }, assessment.self === 'Submitted' ? 'Submitted' : 'Not started')),
+            h(V.ProgressBar, { value: assessment.self === 'Submitted' ? 100 : 0, size: 'sm',
+              'aria-label': 'Self-assessment', tone: assessment.self === 'Submitted' ? 'success' : 'warning' }),
+            h('span', { className: 'pmeter__s' },
+              'Manager review ' + (assessment.manager === 'Submitted' ? 'submitted' : 'not started')))
+          : null)),
+
+      h('div', null,
+      h(Card, { title: 'Goals in progress',
+        description: goals.length ? achieved + ' of ' + goals.length + ' achieved this cycle' : null,
+        aside: h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconEnd: I.right,
+          onClick: function () { router.go('me/performance/goals'); } }, 'All goals') },
+        shown.length
+          ? shown.map(function (g) {
+            return h('div', { className: 'pmeter pmeter--lined', key: g.id },
+              h('div', { className: 'pmeter__head' },
+                h('span', { className: 'pmeter__t' }, g.title),
+                h('span', { className: 'pmeter__n' }, g.progress + '%')),
+              h(V.ProgressBar, {
+                value: g.progress, size: 'sm', 'aria-label': g.title,
+                tone: g.progress >= 100 ? 'success' : g.progress >= 50 ? 'primary' : 'warning'
+              }),
+              h('span', { className: 'pmeter__s' }, g.status + ' · due ' + ui.dateLabel(g.due)));
+          })
+          : h(ui.Empty, { icon: I.target, title: 'No goals set for this cycle' })),
+
+      h(Card, { title: 'Attendance summary', description: 'Your last 30 days.' },
+        h('div', null,
+          [['Present days', att.present, 'var(--brand-solid)', null],
+            ['Remote days', att.remote, 'var(--success-fg)', null],
+            ['Late check-ins', att.late, 'var(--danger-fg)', null],
+            ['Leave taken', att.leave, 'var(--warning-fg)', 'days']].map(function (row) {
+            return h('div', { className: 'pstat', key: row[0] },
+              h('span', { className: 'pstat__dot', style: { background: row[2] } }),
+              h('span', { className: 'pstat__l' }, row[0]),
+              h('span', { className: 'pstat__v' }, row[1],
+                row[3] ? h('small', null, row[3]) : null));
+          })))));
+  }
+
   /* ================================================== My documents (PRD 4.24)
      An employee's own papers, on their own record. Sharing one sends it to HR as
      Pending Verification — the same path a document uploaded by HR takes — so the two
@@ -2006,8 +2160,11 @@
   }
 
   /* ---------------------------------------------------------------- Register */
+  HRMS.screens.registerBanner({ 'me/profile': ProfileHeader });
+
   HRMS.screens.register({
 
+    'me/profile/overview': ProfileOverview,
     'me/profile/personal': profileScreen('personal'),
     'me/profile/employment': profileScreen('employment'),
     'me/profile/contact': profileScreen('contact'),

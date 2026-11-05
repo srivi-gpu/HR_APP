@@ -256,7 +256,10 @@
     { path: 'announcements', label: 'Announcements', icon: 'flag', section: '4.39',
       note: 'Company announcements, newest first, with pinned items on top.' },
 
-    { path: 'profile', label: 'My profile', icon: 'person', section: '4.4', tabs: [
+    /* The header above the tabs belongs to the person, not to one tab, so the frame
+       draws it once for every tab of this module. */
+    { path: 'profile', label: 'My profile', icon: 'person', section: '4.4', banner: 'me/profile', tabs: [
+      { path: 'overview', label: 'Overview', section: '4.4', note: 'Your record at a glance: who you report to, how the year is going, and this month\u2019s attendance.' },
       { path: 'personal', label: 'Personal', section: '4.4', note: 'Name, date of birth and personal contact details.' },
       { path: 'employment', label: 'Employment', section: '4.4', note: 'Employee ID, joining date, department, designation and manager.' },
       { path: 'contact', label: 'Contact', section: '4.3', note: 'Current and permanent address.' },
