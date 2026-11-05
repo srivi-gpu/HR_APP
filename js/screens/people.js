@@ -652,7 +652,7 @@
     var tabSt = React.useState('departments');
     var deptSt = React.useState(false), desSt = React.useState(false);
     var deptForm = ui.useForm({ status: 'Active' });
-    var desForm = ui.useForm({ status: 'Active', level: 3 });
+    var desForm = ui.useForm({ status: 'Active' });
 
     function saveDept() {
       var res = deptForm.submit(function (v) { return ui.report(act.createDepartment(v)); });
@@ -660,7 +660,7 @@
     }
     function saveDes() {
       var res = desForm.submit(function (v) { return ui.report(act.createDesignation(v)); });
-      if (res && res.ok) { desSt[1](false); desForm.reset({ status: 'Active', level: 3 }); }
+      if (res && res.ok) { desSt[1](false); desForm.reset({ status: 'Active' }); }
     }
 
     var departments = store.collection('departments');
@@ -702,10 +702,6 @@
           columns: [
             { key: 'name', header: 'Designation', sortable: true },
             { key: 'code', header: 'Code', cell: function (d) { return h('span', { className: 'mono' }, d.code); } },
-            { key: 'level', header: 'Job level', numeric: true, align: 'right', sortable: true,
-              cell: function (d) { return 'L' + d.level; } },
-            { key: 'reportsTo', header: 'Reports to', csv: function (d) { return d.reportsTo ? (store.designation(d.reportsTo) || {}).name : ''; },
-              cell: function (d) { return d.reportsTo && store.designation(d.reportsTo) ? store.designation(d.reportsTo).name : h('span', { className: 'muted' }, '—'); } },
             { key: 'count', header: 'Employees', numeric: true, align: 'right',
               cell: function (d) { return store.collection('employees').filter(function (e) { return e.designationId === d.id && e.status !== 'Exited'; }).length; } },
             { key: 'status', header: 'Status', cell: function (d) { return h(ui.StatusChip, { status: d.status }); } }
@@ -739,9 +735,6 @@
         h(ui.FieldRow, null,
           h(V.TextField, Object.assign({ label: 'Designation name', required: true, placeholder: 'e.g. Staff Engineer' }, desForm.field('name'))),
           h(V.TextField, Object.assign({ label: 'Code', required: true, placeholder: 'e.g. STE' }, desForm.field('code')))),
-        h(ui.FieldRow, null,
-          h(V.NumberField, Object.assign({ label: 'Job level', required: true, min: 1, max: 10 }, desForm.field('level', { number: true }))),
-          h(V.Select, Object.assign({ label: 'Reports to', placeholder: 'None', options: desOptions() }, desForm.select('reportsTo')))),
         h(V.TextArea, Object.assign({ label: 'Description', rows: 2 }, desForm.field('description')))) : null);
   }
 
