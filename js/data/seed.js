@@ -342,19 +342,22 @@
   var LEAVE_TYPES = [
     { id: 'lt-cl', code: 'CL', name: 'Casual Leave', paid: true, annual: 12, carry: false, maxConsecutive: 3, notice: 1, docRequired: false, halfDay: true },
     { id: 'lt-sl', code: 'SL', name: 'Sick Leave', paid: true, annual: 12, carry: false, maxConsecutive: 7, notice: 0, docRequired: true, halfDay: true },
-    { id: 'lt-el', code: 'EL', name: 'Earned Leave', paid: true, annual: 18, carry: true, maxAccrual: 45, notice: 7, docRequired: false, halfDay: true },
+    { id: 'lt-el', code: 'EL', name: 'Earned Leave', paid: true, annual: 18, carry: true, carryPct: 100, maxAccrual: 45, notice: 7, docRequired: false, halfDay: true },
     { id: 'lt-ml', code: 'ML', name: 'Maternity Leave', paid: true, annual: 182, carry: false, notice: 30, docRequired: true, halfDay: false },
     /* Loss of pay, where paternity used to sit. The id stays so every reference holds,
        and the annual figure is the cap on unpaid days a year rather than an entitlement
        — the balance machinery counts it the same way. Keeping the slot also keeps the
        seeded random stream where it was, which the figures PRD 15 fixes depend on. */
     { id: 'lt-pl', code: 'LOP', name: 'Loss of Pay (LOP)', paid: false, annual: 15, carry: false, notice: 7, docRequired: false, halfDay: false },
-    { id: 'lt-co', code: 'CO', name: 'Compensatory Off', paid: true, annual: 0, carry: true, notice: 1, docRequired: false, halfDay: true }
+    { id: 'lt-co', code: 'CO', name: 'Compensatory Off', paid: true, annual: 0, carry: true, carryPct: 100, notice: 1, docRequired: false, halfDay: true }
   ];
+  /* Compensatory off is no longer granted by any policy. The type itself stays
+     defined — it carries no annual entitlement, so it never produced a balance
+     and dropping it from the policies changes no figure. */
   var LEAVE_POLICIES = [
-    { id: 'lp-standard', name: 'Standard — Full-Time', appliesTo: 'Full-Time employees past probation', types: ['lt-cl', 'lt-sl', 'lt-el', 'lt-ml', 'lt-pl', 'lt-co'], status: 'Active' },
-    { id: 'lp-intern', name: 'Interns', appliesTo: 'Interns and trainees', types: ['lt-cl', 'lt-sl', 'lt-co'], status: 'Active' },
-    { id: 'lp-contract', name: 'Contract & Consultant', appliesTo: 'Contract, consultant and part-time', types: ['lt-cl', 'lt-sl', 'lt-co'], status: 'Active' }
+    { id: 'lp-standard', name: 'Standard — Full-Time', appliesTo: 'Full-Time employees past probation', types: ['lt-cl', 'lt-sl', 'lt-el', 'lt-ml', 'lt-pl'], status: 'Active' },
+    { id: 'lp-intern', name: 'Interns', appliesTo: 'Interns and trainees', types: ['lt-cl', 'lt-sl'], status: 'Active' },
+    { id: 'lp-contract', name: 'Contract & Consultant', appliesTo: 'Contract, consultant and part-time', types: ['lt-cl', 'lt-sl'], status: 'Active' }
   ];
 
   var SHIFTS = [
@@ -489,7 +492,7 @@
   addLeave(id('Sneha Kulkarni'), 'lt-sl', addDays(TODAY, 1), 2, 'Pending Approval', { reason: 'Fever, rest advised' });
   var pendingPool = shuffle(eligible.filter(function (e) { return !onLeaveIds[e.id] && e.name !== 'Sneha Kulkarni'; })).slice(0, PENDING_LEAVE - 1);
   pendingPool.forEach(function (e) {
-    addLeave(e.id, pick(['lt-cl', 'lt-sl', 'lt-el', 'lt-co']), addDays(TODAY, 2 + Math.floor(r() * 24)), 1 + Math.floor(r() * 4), 'Pending Approval');
+    addLeave(e.id, pick(['lt-cl', 'lt-sl', 'lt-el']), addDays(TODAY, 2 + Math.floor(r() * 24)), 1 + Math.floor(r() * 4), 'Pending Approval');
   });
 
   /* 3. History: settled requests in the past, so reports have something to show. */

@@ -556,12 +556,19 @@
     var dup = rules.uniqueIn('leaveTypes', 'code', form.code, null, 'Leave code ' + form.code);
     if (dup && !errors.code) errors.code = dup;
     if (form.annual != null && Number(form.annual) < 0) errors.annual = 'Entitlement cannot be negative';
+    var pct = form.carry ? Number(form.carryPct) : 0;
+    if (form.carry && (isNaN(pct) || pct <= 0 || pct > 100)) {
+      errors.carryPct = 'Carry forward is a percentage between 1 and 100';
+    }
     if (rules.hasErrors(errors)) return fail(errors);
     store.add('leaveTypes', {
       id: 'lt-' + form.code.toLowerCase(), code: form.code.toUpperCase(), name: form.name,
       paid: form.paid !== false, annual: Number(form.annual) || 0, carry: !!form.carry,
+      /* How much of an unused balance moves into the next year, as a percentage.
+         Nil when nothing carries, so the two fields cannot disagree. */
+      carryPct: form.carry ? pct : 0,
       maxAccrual: Number(form.maxAccrual) || 0, maxConsecutive: Number(form.maxConsecutive) || 0,
-      notice: Number(form.notice) || 0, docRequired: !!form.docRequired, halfDay: form.halfDay !== false,
+      notice: Number(form.notice) || 0, docRequired: !!form.docRequired,
       status: 'Active'
     });
     store.log('created the ' + form.name + ' leave type', 'Configuration');
