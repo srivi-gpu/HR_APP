@@ -578,6 +578,53 @@
 
   /* ============================================================ Leave dashboard
      PRD 4.10: request volume, pending approvals, who is out today and what is next. */
+  /* A pie of where the requests stand. Bars were answering "how many of each",
+     which is a share question, and a share reads better as a whole cut up than as
+     four lengths to compare against nothing. */
+  var STATUS_COLOR = {
+    'Approved': 'var(--success-fg)',
+    'Pending Approval': 'var(--warning-fg)',
+    'Rejected': 'var(--danger-fg)',
+    'Cancelled': 'var(--text-muted)'
+  };
+  var STATUS_ORDER = ['Approved', 'Pending Approval', 'Rejected', 'Cancelled'];
+
+  function Pie(p) {
+    var total = p.slices.reduce(function (n, x) { return n + x.n; }, 0);
+    if (!total) return h(ui.Empty, { icon: I.reports, title: 'Nothing to chart yet' });
+    var R = 62, C = 70;
+    var at = -Math.PI / 2;
+    var wedges = p.slices.map(function (x) {
+      var sweep = (x.n / total) * Math.PI * 2;
+      var from = at, to = at + sweep;
+      at = to;
+      /* A single slice covering everything cannot be drawn as an arc — the start
+         and the end land on the same point — so it is the whole circle. */
+      if (x.n === total) {
+        return h('circle', { key: x.k, cx: C, cy: C, r: R, fill: x.color });
+      }
+      var x1 = C + R * Math.cos(from), y1 = C + R * Math.sin(from);
+      var x2 = C + R * Math.cos(to), y2 = C + R * Math.sin(to);
+      return h('path', {
+        key: x.k, fill: x.color,
+        d: 'M' + C + ' ' + C + ' L' + x1.toFixed(2) + ' ' + y1.toFixed(2)
+          + ' A' + R + ' ' + R + ' 0 ' + (sweep > Math.PI ? 1 : 0) + ' 1 '
+          + x2.toFixed(2) + ' ' + y2.toFixed(2) + ' Z'
+      });
+    });
+
+    return h('div', { className: 'lpie' },
+      h('svg', { className: 'lpie__svg', viewBox: '0 0 140 140', role: 'img',
+        'aria-label': p.slices.map(function (x) { return x.n + ' ' + x.k; }).join(', ') }, wedges),
+      h('div', { className: 'lpie__key' }, p.slices.map(function (x) {
+        return h('div', { className: 'lpie__r', key: x.k },
+          h('i', { style: { background: x.color } }),
+          h('span', { className: 'lpie__l' }, x.k),
+          h('span', { className: 'lpie__pc' }, Math.round((x.n / total) * 100) + '%'),
+          h('b', null, x.n));
+      })));
+  }
+
   function LeaveDashboard() {
     var s = store.stats();
     var all = store.collection('leaveRequests');
@@ -589,17 +636,8 @@
       .sort(function (a, b) { return a.from < b.from ? -1 : 1; });
     var thisMonth = all.filter(function (l) { return l.appliedOn >= monthStart; });
 
-    var byType = {}, byDept = {}, byStatus = {};
-    all.forEach(function (l) {
-      byStatus[l.status] = (byStatus[l.status] || 0) + 1;
-      byType[typeName(l.type)] = (byType[typeName(l.type)] || 0) + l.days;
-      var e = emp(l.employee);
-      if (e) byDept[deptName(e.department)] = (byDept[deptName(e.department)] || 0) + l.days;
-    });
-    function rowsOf(obj, tone) {
-      return Object.keys(obj).map(function (k) { return [k, Math.round(obj[k]), tone]; })
-        .sort(function (a, b) { return b[1] - a[1]; });
-    }
+    var byStatus = {};
+    all.forEach(function (l) { byStatus[l.status] = (byStatus[l.status] || 0) + 1; });
     var holidaysAhead = store.collection('holidays').filter(function (hd) { return hd.date >= today; })
       .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
 
@@ -618,19 +656,16 @@
           tone: s.pendingLeave ? 'warn' : 'good', onClick: function () { router.go('hr/leave/requests'); } }),
         h(Stat, { label: 'Out today', value: s.onLeaveToday, sub: 'Approved leave covering today' }),
         h(Stat, { label: 'Requests this month', value: thisMonth.length, sub: 'Applied since ' + ui.dateLabel(monthStart) }),
-        h(Stat, { label: 'Approved all time', value: byStatus.Approved || 0, sub: (byStatus.Rejected || 0) + ' rejected', tone: 'good' })),
+        h(Stat, { label: 'Upcoming leave', value: upcoming.length,
+          sub: upcoming.length ? 'Next starts ' + ui.dateLabel(upcoming[0].from) : 'Nothing booked ahead' })),
 
       h(Grid, null,
-        h(Card, { span: 5, title: 'Days by leave type', description: 'Total days requested, all statuses.' },
-          h(ui.Bars, { rows: rowsOf(byType, 'info') })),
-        h(Card, { span: 7, title: 'Days by department' },
-          h(ui.Bars, { rows: rowsOf(byDept, 'success') })),
-
-        h(Card, { span: 4, title: 'Request status' },
-          h(ui.Bars, {
-            rows: Object.keys(byStatus).map(function (k) {
-              return [k, byStatus[k], k === 'Approved' ? 'success' : k === 'Rejected' ? 'error' : 'warning'];
-            }).sort(function (a, b) { return b[1] - a[1]; })
+        h(Card, { span: 4, title: 'Request status',
+          description: 'Every request on record, by where it ended up.' },
+          h(Pie, {
+            slices: STATUS_ORDER.concat(Object.keys(byStatus).filter(function (k) { return STATUS_ORDER.indexOf(k) < 0; }))
+              .filter(function (k) { return byStatus[k]; })
+              .map(function (k) { return { k: k, n: byStatus[k], color: STATUS_COLOR[k] || 'var(--brand-solid)' }; })
           })),
 
         h(Card, {
