@@ -51,12 +51,44 @@
     { value: '3', label: 'Last 3 months' }
   ];
 
+  /* What an export is usually for. Each purpose knows which record kinds it needs and
+     how it wants them, so the common cases are one press instead of nine checkboxes
+     and three selects — and the reason is stated, so you can disagree with it.
+
+     This is the whole of the assistance on this screen: it fills the form in and gets
+     out of the way. It does not run the export, and every value it sets is still a
+     control you can change. */
+  var PURPOSES = [
+    { k: 'migrate', t: 'Moving to another system',
+      why: 'Everything a new system needs to stand the organisation up, in a format it can read.',
+      kinds: ['employees', 'documents', 'leave', 'payroll', 'assets'],
+      fmt: 'json', range: 'all', prot: true, files: true },
+    { k: 'audit', t: 'An audit or a data request',
+      why: 'The records an auditor asks for, with the log that shows who touched them.',
+      kinds: ['employees', 'payroll', 'attendance', 'audit'],
+      fmt: 'xlsx', range: 'fy', prot: true, files: false },
+    { k: 'statutory', t: 'A statutory filing',
+      why: 'Wage and attendance registers for the current financial year, and nothing else.',
+      kinds: ['payroll', 'attendance'],
+      fmt: 'xlsx', range: 'fy', prot: false, files: false }
+  ];
+
   function ExportTab() {
     var pickSt = React.useState({ employees: true, documents: false });
     var fmtSt = React.useState('csv');
     var rangeSt = React.useState('all');
     var protSt = React.useState(true);
     var filesSt = React.useState(false);
+    var whySt = React.useState(null);
+
+    function applyPurpose(pp) {
+      var next = {};
+      pp.kinds.forEach(function (k) { next[k] = true; });
+      pickSt[1](next); fmtSt[1](pp.fmt); rangeSt[1](pp.range);
+      protSt[1](pp.prot); filesSt[1](pp.files);
+      whySt[1](pp);
+      ui.toast('Set up for ' + pp.t.toLowerCase(), 'success');
+    }
 
     var picked = records().filter(function (r) { return pickSt[0][r.id]; });
     var rows = picked.reduce(function (n, r) { return n + r.rows; }, 0);
@@ -89,15 +121,28 @@
       ui.toast('Export prepared. It is in the history below.', 'success');
     }
 
-    return h(Grid, null,
+    return h(Grid, { className: 'grid--even' },
       h(Card, {
-        span: 7, title: 'What to take out',
+        span: 7, className: 'dcard', title: 'What to take out',
         description: 'Pick the record kinds. Everything an export can carry is a kind retention knows '
           + 'about, so the two never disagree.',
         aside: h('div', { className: 'row gap-1' },
           h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { all(true); } }, 'All'),
           h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { all(false); } }, 'None'))
       },
+        h('div', { className: 'dai' },
+          h('span', { className: 'dai__m', 'aria-hidden': 'true' }, I.leo),
+          h('div', { className: 'dai__b' },
+            h('span', { className: 'dai__h' }, 'What is this export for?'),
+            h('div', { className: 'dai__row' }, PURPOSES.map(function (pp) {
+              return h('button', { key: pp.k, type: 'button',
+                className: 'dai__p' + (whySt[0] && whySt[0].k === pp.k ? ' is-on' : ''),
+                onClick: function () { applyPurpose(pp); } }, pp.t);
+            })),
+            h('p', { className: 'dai__why' }, whySt[0]
+              ? whySt[0].why + ' Change anything below \u2014 nothing here is fixed.'
+              : 'Pick one and the record kinds, format and range below are filled in for it.'))),
+
         h('div', { className: 'dpick' }, records().map(function (r) {
           var on = !!pickSt[0][r.id];
           return h('label', { key: r.id, className: 'dpick__row' + (on ? ' is-on' : '') },
@@ -111,7 +156,7 @@
             h('span', { className: 'dpick__n' }, nf(r.rows)));
         }))),
 
-      h(Card, { span: 5, title: 'How to take it' },
+      h(Card, { span: 5, className: 'dcard', title: 'How to take it' },
         h('div', { className: 'stack gap-3' },
           h(V.Select, {
             label: 'Format', value: fmtSt[0], options: FORMATS,

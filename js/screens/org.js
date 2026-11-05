@@ -1495,7 +1495,9 @@
     var view = rows.filter(function (x) {
       if (stateSt[0] === 'on' && x.status !== 'Connected') return false;
       if (stateSt[0] === 'off' && x.status === 'Connected') return false;
-      if (catSt[0] && x.category !== catSt[0]) return false;
+      if (catSt[0] === '@tracklivo') {
+        if (x.provider !== 'Tracklivo' && x.name !== 'Tracklivo') return false;
+      } else if (catSt[0] && x.category !== catSt[0]) return false;
       if (!q) return true;
       return (x.name + ' ' + x.provider + ' ' + x.kind + ' ' + x.category + ' ' + x.summary)
         .toLowerCase().indexOf(q) >= 0;
@@ -1542,16 +1544,22 @@
             value: qSt[0], onChange: function (e) { qSt[1](e.target.value); }
           }))),
 
+      /* Tracklivo gets a chip of its own, at the head of the row and carrying its mark.
+         It is not a category — it is the product this HRMS reports into, and "show me
+         the Tracklivo connection" is a question asked often enough that making someone
+         find it inside Work management is a small tax charged repeatedly. */
       h('div', { className: 'ichips' },
-        [{ value: '', label: 'Everything' }].concat((store.seed.intCategories || []).map(function (cat) {
-          return { value: cat, label: cat };
-        })).map(function (o) {
+        [{ value: '', label: 'Everything' }, { value: '@tracklivo', label: 'Tracklivo', mark: 'tracklivo' }]
+          .concat((store.seed.intCategories || []).map(function (cat) {
+            return { value: cat, label: cat };
+          })).map(function (o) {
           var on = catSt[0] === o.value;
           return h('button', {
             key: o.value || 'all', type: 'button',
-            className: 'ichip' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false',
+            className: 'ichip' + (o.mark ? ' ichip--mark' : '') + (on ? ' is-on' : ''),
+            'aria-pressed': on ? 'true' : 'false',
             onClick: function () { catSt[1](o.value); }
-          }, o.label);
+          }, o.mark ? h('span', { className: 'ichip__m' }, HRMS.logos.mark(o.mark, 16, o.label)) : null, o.label);
         })),
 
       order.map(function (cat) {

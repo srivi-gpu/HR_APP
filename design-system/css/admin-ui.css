@@ -1375,3 +1375,33 @@ html.lenis, html.lenis body { height: auto; }
 @media (max-width: 720px) { .ast-top--3 { grid-template-columns: minmax(0, 1fr); } }
 /* The value cell no longer reserves space for the stub bars that used to float in it. */
 .ast-top--3 .ast-val { padding-right: 24px; }
+
+/* A chip that carries a provider's mark rather than only its name. */
+.ichip--mark { display: inline-flex; align-items: center; gap: 7px; padding-left: 7px; }
+.ichip__m { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; overflow: hidden; }
+.ichip--mark.is-on .ichip__m { box-shadow: 0 0 0 1.5px rgba(255,255,255,.55); }
+
+/* A grid whose cards end level with each other. The default is `align-items: start`,
+   which is right when cards are independent and wrong when two of them are two halves
+   of one form. */
+.grid--even { align-items: stretch; }
+.grid--even > .card { height: 100%; }
+.dcard { display: flex; flex-direction: column; }
+.dcard > .stack:last-child, .dcard > .dpick { flex: 1; }
+
+/* The one piece of assistance on the export screen: it fills the form in, says why,
+   and leaves every control it set still a control. */
+.dai { display: flex; gap: 12px; padding: 13px 14px; margin-bottom: 14px; border-radius: 16px;
+  background: var(--brand-softer); border: 1px solid var(--brand-border); }
+.dai__m { flex: none; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--brand-solid); color: var(--brand-on-solid, #fff); }
+.dai__m svg { width: 17px; height: 17px; }
+.dai__b { flex: 1; min-width: 0; display: grid; gap: 8px; }
+.dai__h { font-size: 12px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-brand); }
+.dai__row { display: flex; flex-wrap: wrap; gap: 7px; }
+.dai__p { appearance: none; cursor: pointer; font: inherit; font-size: 12.5px; padding: 6px 12px;
+  border-radius: 999px; border: 1px solid var(--brand-border); background: var(--bg-surface); color: var(--text-primary); }
+.dai__p:hover { border-color: var(--brand-solid); }
+.dai__p.is-on { background: var(--brand-solid); border-color: var(--brand-solid); color: #fff; }
+.dai__p:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.dai__why { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }

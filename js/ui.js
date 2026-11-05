@@ -131,7 +131,7 @@
     }, [head, desc].concat(kids(p.children)));
   }
 
-  function Grid(p) { return el('div', { className: 'grid' }, p.children); }
+  function Grid(p) { return el('div', { className: ['grid', p.className || ''].filter(Boolean).join(' ') }, p.children); }
 
   /* ---------- the KPI card ----------
      Every module screen opens on a row of these, and they only ever know a label, a
