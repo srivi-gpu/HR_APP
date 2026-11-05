@@ -40,6 +40,11 @@
      the same kind of thing in an order — roles by seniority, a share of a whole. A
      monochrome ramp says "more of the same" where six hues would say "six things". */
   --chart-ramp-1:#3d2496; --chart-ramp-2:#5733c1; --chart-ramp-3:#7a5ad2; --chart-ramp-4:#a690e4;
+  /* The quiet grey a chart paints when a segment means "the rest", "none" or
+     "declined": lighter than --chart-6, which stays dark enough to be read as text
+     on the leave cards. Light enough not to compete with the series beside it, dark
+     enough to be told from the track behind it. */
+  --chart-neutral:#c7ccd4;
 
   /* Tracklivo shadows, radii and sizes (prefixed: names clash with Violet) */
   --tl-elevation-1: 0 2px 4px #0000000a, 0 8px 16px #0000000a;
@@ -74,6 +79,7 @@
     --priority-high:#f59e6b;
 
     --chart-ramp-1:#c4b2ff; --chart-ramp-2:#a993f0; --chart-ramp-3:#8872d8; --chart-ramp-4:#6b56b0;
+    --chart-neutral:#595866;
     color-scheme: dark;
   }
 }
@@ -94,6 +100,7 @@
   --priority-high:#f59e6b;
 
   --chart-ramp-1:#c4b2ff; --chart-ramp-2:#a993f0; --chart-ramp-3:#8872d8; --chart-ramp-4:#6b56b0;
+  --chart-neutral:#595866;
   color-scheme: dark;
 }
 
