@@ -155,6 +155,15 @@
       { path: 'notice', label: 'Notice period', section: '3.3', note: 'Employees serving notice, with last working day and clearance progress.' },
       { path: 'exited', label: 'Exited', section: '14.1', note: 'Archived records, excluded from active headcount.' }
     ]},
+
+    /* Who reports to whom is a question about the organisation rather than about any
+       one record, so it is its own item rather than a sixth tab of Employees. The tree
+       is read-only here: HR changes a reporting line on the employee's record, which is
+       where the change is audited. Departments and designations stay in
+       Configuration -> Organization structure. */
+    { path: 'org', label: 'Organization', icon: 'building', section: '3.2', tabs: [
+      { path: 'org-tree', label: 'Organization tree', section: '3.2', note: 'The reporting line from the top of the organization down, three levels at a time.' }
+    ]},
     /* No dashboard tab on either of these. A dashboard counts the work on the tabs
        beside it, which is one more click before you can do any of it; In progress
        already opens on the people who are joining and what is blocking them. */
@@ -312,6 +321,12 @@
       { path: 'leave', label: 'Leave', section: '4.12', note: 'Your balances and recent requests.' },
       { path: 'attendance', label: 'Attendance', section: '4.17', note: 'Your last thirty days, and the month so far.' },
       { path: 'performance', label: 'Performance', section: '4.46', note: 'Goals, the open cycle and where you stand.' }
+    ]},
+
+    /* The same reporting tree HR reads. An employee's own record already names their
+       manager; this is the rest of the line, above them and below them. */
+    { path: 'org', label: 'Organization', icon: 'building', section: '3.2', tabs: [
+      { path: 'org-tree', label: 'Organization tree', section: '3.2', note: 'The reporting line from the top of the organization down, three levels at a time.' }
     ]},
 
     /* One item, as in HR: was I at work, and if not, why not. Attendance and leave

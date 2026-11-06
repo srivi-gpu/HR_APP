@@ -74,7 +74,12 @@
     /* Admin's People module governs accounts, access and the reporting structure, not
        employee records, so it is gated on User management rather than on `people` —
        which admin only reads. The HR workspace keeps `hr/people` on employee records. */
-    'admin/people': 'users'
+    'admin/people': 'users',
+    /* HR's and the employee's Organization item is the reporting tree, which is a
+       reading of employee records rather than of the company profile in `org` — the
+       employee may not see that one at all, and gating the tree on it would have left
+       the rail row there and the screen denied. */
+    'hr/org': 'people', 'me/org': 'people', 'team/org': 'people'
   };
 
   function moduleOf(path) {
