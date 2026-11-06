@@ -67,7 +67,7 @@
   }
 
   /* --------------------------------------------------------------- Score dial
-     The score, its band, and the seven dimensions underneath it. Every row says what
+     The score, its band, and the six dimensions underneath it. Every row says what
      it measured and where that came from, so the number can be argued with. */
   function ScoreBreakdown(p) {
     var person = p.employee;

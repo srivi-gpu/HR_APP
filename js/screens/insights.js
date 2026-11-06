@@ -724,7 +724,6 @@
     var goals = store.collection('goals')
       .filter(function (g) { return ids[g.employee] && (!cycle || g.cycle === cycle.id); });
 
-    var selfDone = assessments.filter(function (a) { return a.self === 'Submitted'; });
     var managerDone = assessments.filter(function (a) { return a.manager === 'Submitted'; });
     var achieved = goals.filter(function (g) { return g.status === 'Achieved'; });
 
@@ -772,8 +771,6 @@
         h(Stat, { label: 'Appraisal completion', value: ui.pct(managerDone.length, assessments.length), unit: '%',
           sub: managerDone.length + ' of ' + assessments.length + ' manager reviews submitted',
           tone: ui.pct(managerDone.length, assessments.length) > 80 ? 'good' : 'warn' }),
-        h(Stat, { label: 'Self-assessments in', value: ui.pct(selfDone.length, assessments.length), unit: '%',
-          sub: selfDone.length + ' of ' + assessments.length + ' submitted' }),
         h(Stat, { label: 'Goal achievement', value: achievement, unit: '%',
           sub: 'Weighted across ' + goals.length + ' goals' }),
         h(Stat, { label: 'Goals achieved', value: achieved.length,
@@ -826,7 +823,6 @@
             { key: 'reviewer', header: 'Reviewer',
               csv: function (a) { var r = emp(a.reviewer); return r ? r.name : ''; },
               cell: function (a) { var r = emp(a.reviewer); return r ? r.name : h('span', { className: 'muted' }, 'Not assigned'); } },
-            { key: 'self', header: 'Self', cell: function (a) { return h(ui.StatusChip, { status: a.self === 'Submitted' ? 'Submitted' : 'Not Started' }); } },
             { key: 'manager', header: 'Manager', cell: function (a) { return h(ui.StatusChip, { status: a.manager === 'Submitted' ? 'Submitted' : 'Not Started' }); } },
             { key: 'goals', header: 'Goals', numeric: true, align: 'right', sortable: true },
             { key: 'progress', header: 'Progress', numeric: true, align: 'right', sortable: true,

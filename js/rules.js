@@ -267,16 +267,11 @@
   }
 
   /* ------------------------------------------------- 14.7 Performance rules */
-  function canSubmitSelf(assessment, employeeId) {
-    if (!assessment) return 'You have no assessment in the open cycle';
-    if (assessment.employee !== employeeId) return 'You can only submit an assessment assigned to you';
-    if (assessment.self === 'Submitted') return 'Your self-assessment has already been submitted';
-    return null;
-  }
+  /* There is no self-appraisal in this process, so a review waits on nothing but
+     its reviewer: an assessment is the manager's to write from the record. */
   function canReview(assessment, reviewerId) {
     if (!assessment) return 'That assessment no longer exists';
     if (assessment.reviewer !== reviewerId) return 'You are not the assigned reviewer for this employee';
-    if (assessment.self !== 'Submitted') return 'The employee has not submitted a self-assessment yet';
     if (assessment.manager === 'Submitted') return 'Your review has already been submitted';
     return null;
   }
@@ -370,7 +365,7 @@
     validShift: validShift, shiftHours: shiftHours, conflictingAssignment: conflictingAssignment,
     canAllocate: canAllocate, validAsset: validAsset,
     payrollLocked: payrollLocked, payrollInputsReady: payrollInputsReady, validSalaryStructure: validSalaryStructure,
-    canSubmitSelf: canSubmitSelf, canReview: canReview,
+    canReview: canReview,
     validResignation: validResignation, noticeShortfall: noticeShortfall, outstandingClearance: outstandingClearance,
     validOnboardingStart: validOnboardingStart, validHoliday: validHoliday,
     required: required, uniqueIn: uniqueIn, hasErrors: hasErrors

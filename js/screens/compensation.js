@@ -784,7 +784,6 @@
   function PerformanceDashboard() {
     var cycle = perfOpen();
     var asm = cycle ? assessmentsIn(cycle.id) : [];
-    var selfIn = asm.filter(function (a) { return a.self === 'Submitted'; }).length;
     var mgrIn = asm.filter(function (a) { return a.manager === 'Submitted'; }).length;
     var rated = asm.filter(function (a) { return a.rating; });
     var goals = cycle ? goalsIn(cycle.id) : [];
@@ -793,8 +792,7 @@
       ? Math.round(goals.reduce(function (n, g) { return n + g.progress; }, 0) / goals.length) : 0;
 
     var progressRows = [
-      ['Awaiting self-assessment', asm.filter(function (a) { return a.status === 'Awaiting Self-Assessment'; }).length, 'warning'],
-      ['Awaiting manager', asm.filter(function (a) { return a.status === 'Awaiting Manager'; }).length, 'info'],
+      ['Awaiting manager', asm.filter(function (a) { return a.status === 'Awaiting Manager'; }).length, 'warning'],
       ['Manager review done', mgrIn, 'success']
     ];
     var ratingRows = RATINGS.map(function (r) {
@@ -818,7 +816,6 @@
     return h(React.Fragment, null,
       h(Stats, null,
         h(Stat, { label: 'Employees in cycle', value: asm.length, sub: cycle ? cycle.name : 'No open cycle' }),
-        h(Stat, { label: 'Self-assessments in', value: selfIn, sub: ui.pct(selfIn, asm.length) + '% of the cycle', tone: selfIn < asm.length ? 'warn' : 'good' }),
         h(Stat, { label: 'Manager reviews done', value: mgrIn, sub: (asm.length - mgrIn) + ' still open', tone: mgrIn < asm.length ? 'warn' : 'good' }),
         h(Stat, { label: 'Completion rate', value: ui.pct(mgrIn, asm.length), unit: '%', sub: 'Reviews submitted against eligible' })),
 
@@ -952,7 +949,7 @@
         h(V.Select, Object.assign({ label: 'Rating scale', options: ['1 – 5', '1 – 4', '1 – 10'] }, form.select('ratingScale'))),
         h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6 } },
           store.collection('employees').filter(function (e) { return e.status === 'Active'; }).length
-            + ' active employees are eligible today. A self-assessment must be in before the manager can review (PRD 14.7).')) : null);
+            + ' active employees are eligible today. Each one is reviewed by their manager; there is no self-appraisal step.')) : null);
   }
 
   /* ------------------------------------------------------- Criteria (4.43) */
@@ -1142,7 +1139,7 @@
     var form = ui.useForm({ rating: '', summary: '', asMe: false });
     var goals = store.collection('goals').filter(function (g) { return g.employee === a.employee && g.cycle === a.cycle; });
 
-    /* PRD 14.7: the assigned reviewer, and only after the self-assessment is in. */
+    /* PRD 14.7: the assigned reviewer, and nobody else. */
     var blocked = rules.canReview(a, a.reviewer);
 
     function save() {
@@ -1155,7 +1152,7 @@
 
     return h(ui.Modal, {
       title: 'Manager review · ' + (e ? e.name : a.employee), wide: true,
-      description: a.cycle + ' · self-assessment ' + a.self.toLowerCase() + ' · review ' + a.manager.toLowerCase(),
+      description: a.cycle + ' · review ' + a.manager.toLowerCase(),
       onClose: p.onClose,
       footer: h(React.Fragment, null,
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
@@ -1165,7 +1162,6 @@
         ['Employee', e ? e.name : a.employee],
         ['Department', e ? deptName(e.department) : null],
         ['Assigned reviewer', reviewer ? reviewer.name : h('span', { className: 'muted' }, 'None assigned')],
-        ['Self-assessment', h(ui.StatusChip, { status: a.self === 'Submitted' ? 'Submitted' : 'Not Started' })],
         ['Goals in cycle', goals.length],
         ['Average goal progress', goals.length
           ? Math.round(goals.reduce(function (n, g) { return n + g.progress; }, 0) / goals.length) + '%' : null]
@@ -1213,17 +1209,16 @@
     if (cycleSt[0]) rows = rows.filter(function (a) { return a.cycle === cycleSt[0]; });
     if (statusSt[0]) rows = rows.filter(function (a) { return a.status === statusSt[0]; });
 
-    var selfIn = rows.filter(function (a) { return a.self === 'Submitted'; }).length;
     var mgrIn = rows.filter(function (a) { return a.manager === 'Submitted'; }).length;
     var open = openSt[0] ? store.find('assessments', openSt[0]) : null;
 
     return h(React.Fragment, null,
       h(Stats, { cols: 3 },
         h(Stat, { label: 'Assessments', value: rows.length, sub: 'In the selected cycle' }),
-        h(Stat, { label: 'Self-assessments in', value: selfIn, sub: ui.pct(selfIn, rows.length) + '% submitted' }),
-        h(Stat, { label: 'Manager reviews in', value: mgrIn, sub: (rows.length - mgrIn) + ' still open', tone: rows.length - mgrIn ? 'warn' : 'good' })),
+        h(Stat, { label: 'Manager reviews in', value: mgrIn, sub: ui.pct(mgrIn, rows.length) + '% submitted' }),
+        h(Stat, { label: 'Still open', value: rows.length - mgrIn, sub: 'Waiting on a reviewer', tone: rows.length - mgrIn ? 'warn' : 'good' })),
 
-      h(Card, { title: 'Reviews', description: 'Self-assessment and manager review progress for every employee in the cycle (PRD 4.45).' },
+      h(Card, { title: 'Reviews', description: 'Manager review progress for every employee in the cycle (PRD 4.45).' },
         h(ui.DataTable, {
           exportName: 'performance-reviews', label: 'Reviews', rows: rows, pageSize: 10,
           search: function (a) {
@@ -1234,7 +1229,7 @@
           filters: h(React.Fragment, null,
             h(ui.Filter, { label: 'Cycle', value: cycleSt[0], onChange: cycleSt[1], options: perfOptions() }),
             h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1],
-              options: ['Awaiting Self-Assessment', 'Awaiting Manager', 'Manager Review Done'] })),
+              options: ['Awaiting Manager', 'Manager Review Done'] })),
           columns: [
             { key: 'employee', header: 'Employee', sortable: true,
               sortValue: function (a) { return emp(a.employee) ? emp(a.employee).name : a.employee; },
@@ -1250,8 +1245,6 @@
                   ? h(ui.Person, { employee: emp(a.reviewer), sub: null })
                   : h('span', { className: 'muted' }, 'Not assigned');
               } },
-            { key: 'self', header: 'Self-assessment',
-              cell: function (a) { return h(ui.StatusChip, { status: a.self === 'Submitted' ? 'Submitted' : 'Not Started' }); } },
             { key: 'manager', header: 'Manager review',
               cell: function (a) { return h(ui.StatusChip, { status: a.manager === 'Submitted' ? 'Submitted' : 'Not Started' }); } },
             { key: 'rating', header: 'Rating', numeric: true, align: 'right',
@@ -1561,7 +1554,6 @@
       };
     });
     var HIERARCHY = [
-      ['Self-assessment', 'Employee', 'Must be submitted before the manager can review (PRD 14.7).'],
       ['Manager review', 'Reporting manager', 'Only the assigned reviewer may submit it.'],
       ['Calibration', 'Department head', 'Ratings are compared across teams before publishing.'],
       ['Publication', 'HR Administrator', 'Refused while any review in the cycle is incomplete.']
@@ -1573,8 +1565,7 @@
           ['Frequency', 'Half-yearly'],
           ['Open cycle', cycle ? cycle.name : null],
           ['Rating scale', cycle ? cycle.ratingScale : '1 – 5'],
-          ['Self-assessment window', '14 days from the cycle opening'],
-          ['Manager review window', '14 days after self-assessments close'],
+          ['Manager review window', '14 days from the cycle opening'],
           ['Goal weighting', '60% of the final score'],
           ['Competency weighting', '40% of the final score'],
           ['Eligibility', 'Active employees who joined before the period end'],
@@ -1585,8 +1576,7 @@
 
       h(Card, { span: 6, title: 'Options' },
         h('div', { className: 'checks' },
-          [['Self-assessment is mandatory before a manager review', true],
-            ['A written summary is required with every rating', true],
+          [['A written summary is required with every rating', true],
             ['Peer feedback is collected alongside the manager review', false],
             ['Calibration is required before results are published', true],
             ['Employees see their rating once results are published', true],
@@ -1597,8 +1587,8 @@
               h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
           })),
         h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
-          'The first two options are enforced as rules, not preferences: rules.canReview refuses a '
-            + 'review whose self-assessment is missing, and refuses anyone who is not the assigned reviewer.')),
+          'The first option is enforced as a rule, not a preference, and so is the reviewer: '
+            + 'rules.canReview refuses anyone who is not the assigned reviewer for that employee.')),
 
       h(Card, { span: 7, title: 'Competencies', description: 'What every review scores, with its weighting.' },
         h(ui.DataTable, {

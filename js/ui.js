@@ -57,7 +57,7 @@
     'In Review': 'info', Finalized: 'success', Published: 'success', Connected: 'success',
     'Not Configured': 'neutral', 'Pending Invitation': 'warning', Deactivated: 'neutral',
     Open: 'warning', 'Under Review': 'info', Actioned: 'success', 'Awaiting Manager': 'warning',
-    'Awaiting Self-Assessment': 'neutral', 'Manager Review Done': 'success', Pending: 'warning',
+    'Manager Review Done': 'success', Pending: 'warning',
     /* Data export and import runs. */
     Ready: 'success', Queued: 'info', Running: 'info', 'Held for Review': 'warning'
   };

@@ -1123,91 +1123,6 @@
           h(V.DateField, Object.assign({ label: 'Due date' }, form.field('due'))))) : null);
   }
 
-  function SelfAppraisal() {
-    var m = me();
-    var assessment = store.collection('assessments').filter(function (a) { return a.employee === m.id; })[0];
-    var form = ui.useForm({ ratings: {} });
-    var ratingsSt = React.useState({});
-
-    function save() {
-      var res = form.submit(function (v) {
-        return ui.report(act.submitSelfAssessment(m.id, assessment && assessment.id, {
-          summary: v.summary, ratings: ratingsSt[0]
-        }));
-      });
-      if (res && res.ok) form.reset({ ratings: {} });
-    }
-
-    if (!assessment) {
-      return h(Card, { title: 'Self-appraisal' },
-        h(ui.Empty, {
-          icon: I.target, title: 'No open assessment',
-          body: 'You are not in an open appraisal cycle. H2 FY2026 opens on 15 November 2026.'
-        }));
-    }
-    if (assessment.self === 'Submitted') {
-      return h(Grid, null,
-        h(Card, { span: 7, title: 'Self-appraisal submitted' },
-          h(ui.KeyValue, { rows: [
-            ['Cycle', 'H2 FY2026'],
-            ['Submitted on', ui.dateLabel(assessment.selfSubmittedOn)],
-            ['Reviewer', assessment.reviewer ? emp(assessment.reviewer).name : null],
-            ['Manager review', h(ui.StatusChip, { status: assessment.manager === 'Submitted' ? 'Submitted' : 'Not Started' })]
-          ]}),
-          assessment.selfSummary
-            ? h('div', { className: 'stack gap-2' },
-                h('span', { className: 'eyebrow' }, 'What you wrote'),
-                h('p', { style: { fontSize: 14, lineHeight: 1.6, color: 'var(--text-secondary)' } }, assessment.selfSummary))
-            : null),
-        h(Card, { span: 5, title: 'What happens next' },
-          h(ui.Timeline, { items: [
-            { title: 'Self-assessment submitted', when: ui.dateLabel(assessment.selfSubmittedOn), tone: 'success' },
-            { title: 'Manager review', when: assessment.manager === 'Submitted' ? 'Done' : 'Pending', tone: assessment.manager === 'Submitted' ? 'success' : 'warning' },
-            { title: 'Calibration', when: 'After all reviews', tone: 'neutral' },
-            { title: 'Results published', when: 'Mid December', tone: 'neutral' }
-          ]})));
-    }
-
-    return h(Grid, null,
-      h(Card, { span: 7, title: 'Self-appraisal · H2 FY2026',
-        description: 'Rate yourself against each competency, then summarise your half.' },
-        seed.competencies.map(function (c) {
-          return h('div', { className: 'stack gap-1', key: c, style: { paddingBottom: 10 } },
-            h('span', { style: { fontSize: 14 } }, c),
-            h(V.SegmentedControl, {
-              size: 'sm', value: String(ratingsSt[0][c] || ''),
-              items: [1, 2, 3, 4, 5].map(function (n) { return { value: String(n), label: String(n) }; }),
-              onChange: function (v) {
-                var next = Object.assign({}, ratingsSt[0]);
-                next[c] = Number(v);
-                ratingsSt[1](next);
-              }
-            }));
-        }),
-        h(V.TextArea, Object.assign({
-          label: 'Summary of your half', required: true, rows: 5,
-          placeholder: 'What went well, what was hard, what you want next.',
-          hint: form.errors.summary || 'At least a couple of sentences.'
-        }, form.field('summary'))),
-        form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null,
-        h(V.Button, { variant: 'primary', onClick: save }, 'Submit self-assessment')),
-
-      h(Card, { span: 5, title: 'My goals this cycle' },
-        (function () {
-          var goals = store.collection('goals').filter(function (g) { return g.employee === m.id; });
-          return goals.length
-            ? h('div', { className: 'list' }, goals.map(function (g) {
-                return h('div', { className: 'list__row', key: g.id },
-                  h('div', { className: 'list__main' },
-                    h('span', { className: 'list__title' }, g.title),
-                    h('span', { className: 'list__meta' }, g.weight + '% weight')),
-                  h('span', { style: { width: 76 } }, h(V.ProgressBar, { value: g.progress, size: 'sm', 'aria-label': g.title })));
-              }))
-            : h(ui.Empty, { icon: I.target, title: 'No goals to reference' });
-        })(),
-        h(V.Button, { variant: 'outline', className: 'vi-btn--sm', onClick: function () { router.go('me/performance/goals'); } }, 'Update my goals')));
-  }
-
   function ManagerFeedback() {
     var m = me();
     var assessment = store.collection('assessments').filter(function (a) { return a.employee === m.id; })[0];
@@ -1761,12 +1676,14 @@
         assessment
           ? h('div', { className: 'pmeter' },
             h('div', { className: 'pmeter__head' },
-              h('span', { className: 'pmeter__t' }, 'Self-assessment'),
-              h('span', { className: 'pmeter__n' }, assessment.self === 'Submitted' ? 'Submitted' : 'Not started')),
-            h(V.ProgressBar, { value: assessment.self === 'Submitted' ? 100 : 0, size: 'sm',
-              'aria-label': 'Self-assessment', tone: assessment.self === 'Submitted' ? 'success' : 'warning' }),
+              h('span', { className: 'pmeter__t' }, 'Manager review'),
+              h('span', { className: 'pmeter__n' }, assessment.manager === 'Submitted' ? 'Submitted' : 'Not started')),
+            h(V.ProgressBar, { value: assessment.manager === 'Submitted' ? 100 : 0, size: 'sm',
+              'aria-label': 'Manager review', tone: assessment.manager === 'Submitted' ? 'success' : 'warning' }),
             h('span', { className: 'pmeter__s' },
-              'Manager review ' + (assessment.manager === 'Submitted' ? 'submitted' : 'not started')))
+              assessment.reviewer && emp(assessment.reviewer)
+                ? 'With ' + emp(assessment.reviewer).name
+                : 'No reviewer assigned yet'))
           : null)),
 
       h('div', null,
@@ -2017,9 +1934,6 @@
         h(ui.KeyValue, { rows: [
           ['Goal completion', avg + '%'],
           ['Goals achieved', achieved + ' of ' + goals.length],
-          ['Self-assessment', assessment
-            ? h(ui.StatusChip, { status: assessment.self === 'Submitted' ? 'Submitted' : 'Not Started' })
-            : null],
           ['Manager review', assessment
             ? h(ui.StatusChip, { status: assessment.manager === 'Submitted' ? 'Submitted' : 'Not Started' })
             : null]
@@ -2262,7 +2176,6 @@
     'me/payroll/documents': MyTaxDocuments,
 
     'me/performance/goals': MyGoals,
-    'me/performance/self': SelfAppraisal,
     'me/performance/feedback': ManagerFeedback,
     'me/performance/history': PerformanceHistory,
 

@@ -245,12 +245,12 @@
       { path: 'cycles', label: 'Cycles', section: '4.44', note: 'Appraisal cycles with period, eligibility, reviewers and workflow.' },
       { path: 'criteria', label: 'Criteria', section: '4.43', note: 'Competencies, rating scales and weightings.' },
       { path: 'goals', label: 'Goals', section: '4.46', note: 'Goals and KPIs assigned across the organization.' },
-      { path: 'reviews', label: 'Reviews', section: '4.45', note: 'Self-assessment, manager review and peer feedback progress.' },
+      { path: 'reviews', label: 'Reviews', section: '4.45', note: 'Manager review and peer feedback progress.' },
       { path: 'calibration', label: 'Calibration', section: '4.45', note: 'Normalise ratings across teams before publishing.' },
       { path: 'results', label: 'Results', section: '4.45', note: 'Final approved results and their publication state.' },
       /* The standings: one score out of a hundred per person, the badges behind it and
          the rewards those points buy. HR sees the whole organization. */
-      { path: 'board', label: 'Leaderboard', section: '4.47', note: 'Everyone ranked by performance score, with the seven dimensions behind each one.' },
+      { path: 'board', label: 'Leaderboard', section: '4.47', note: 'Everyone ranked by performance score, with the six dimensions behind each one.' },
       { path: 'badges', label: 'Badges', section: '4.47', note: 'What the organization recognises, what each badge asks for and who holds it.' },
       { path: 'rewards', label: 'Rewards', section: '4.47', note: 'The reward catalogue people claim their points against, and where each claim stands.' }
     ]},
@@ -388,10 +388,9 @@
 
     { path: 'performance', label: 'Performance', icon: 'target', section: '4.46', tabs: [
       { path: 'goals', label: 'Goals', section: '4.46', note: 'Your goals, progress and achievements.' },
-      { path: 'self', label: 'Self-appraisal', section: '4.46', note: 'Complete your self-assessment for the open cycle.' },
       { path: 'feedback', label: 'Manager feedback', section: '4.46', note: 'Feedback from your manager, once published.' },
       { path: 'history', label: 'History', section: '4.46', note: 'Results from earlier appraisal cycles.' },
-      { path: 'standing', label: 'My standing', section: '4.47', note: 'Your score, what the seven dimensions measured, and the badges you have earned.' },
+      { path: 'standing', label: 'My standing', section: '4.47', note: 'Your score, what the six dimensions measured, and the badges you have earned.' },
       { path: 'board', label: 'Leaderboard', section: '4.47', note: 'Your department ranked by performance score, with your own place in it.' },
       { path: 'rewards', label: 'Rewards', section: '4.47', note: 'Your points, the tier they put you in and what they can be claimed for.' }
     ]},
