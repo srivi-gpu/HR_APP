@@ -1130,14 +1130,13 @@
   var assessments = shuffle(perfEligible).slice(0, 48).map(function (e, n) {
     return {
       id: 'ASM' + (700 + n), cycle: 'pc-h2-26', employee: e.id, reviewer: e.manager,
-      self: n < 12 ? 'Submitted' : 'Not Started',
       manager: n < 5 ? 'Submitted' : 'Not Started',
-      status: n < 5 ? 'Manager Review Done' : n < 12 ? 'Awaiting Manager' : 'Awaiting Self-Assessment'
+      status: n < 5 ? 'Manager Review Done' : 'Awaiting Manager'
     };
   });
   if (!assessments.some(function (a) { return a.employee === id('Arjun Nair'); })) {
     assessments.unshift({ id: 'ASM699', cycle: 'pc-h2-26', employee: id('Arjun Nair'), reviewer: byName['Arjun Nair'].manager,
-      self: 'Not Started', manager: 'Not Started', status: 'Awaiting Self-Assessment' });
+      manager: 'Not Started', status: 'Awaiting Manager' });
   }
 
   var SURVEYS = [
@@ -1181,7 +1180,7 @@
   var ANNOUNCEMENTS = [
     { id: 'an-1', title: 'Diwali holidays — 8 and 9 November', body: 'Offices are closed on Sunday 8 and Monday 9 November. The payroll cut-off stays at 25 November.', byName: 'Priya Sharma', on: '2026-10-29', pinned: true },
     { id: 'an-2', title: 'Information Security Policy v5.0 published', body: 'Everyone must acknowledge the updated policy by 15 November.', byName: 'Sandeep Rao', on: '2026-10-28' },
-    { id: 'an-3', title: 'H2 performance cycle opens 15 November', body: 'Self-assessments open on 15 November and close on 30 November.', byName: 'Priya Sharma', on: '2026-10-24' },
+    { id: 'an-3', title: 'H2 performance cycle opens 15 November', body: 'Manager reviews open on 15 November and close on 30 November.', byName: 'Priya Sharma', on: '2026-10-24' },
     { id: 'an-4', title: 'New Bengaluru office floor', body: 'The Bengaluru team moves to the 7th floor from 10 November. Access cards are being reissued.', byName: 'Neha Choudhary', on: '2026-10-20' },
     { id: 'an-5', title: 'Nexora wins Best SaaS Workplace 2026', body: 'Thank you to everyone who took part in the engagement survey that earned us the listing.', byName: 'Rohit Khanna', on: '2026-10-14' }
   ].map(function (a) { return Object.assign({}, a, { by: id(a.byName) }); });
@@ -1267,7 +1266,7 @@
     { id: 'n7', kind: 'Invitation', title: '2 invitations are still unaccepted', body: 'Sent more than 5 days ago', on: '2026-10-30T14:30', read: true, route: 'admin/users/all', roles: ['admin', 'hr'] },
     { id: 'n8', kind: 'Payslip Published', title: 'Your October 2026 payslip is ready', body: 'Net pay credited on 31 Oct 2026', on: '2026-10-31T18:00', read: true, route: 'me/payroll/payslips', roles: ['me'] },
     { id: 'n9', kind: 'Survey Invitation', title: 'Q4 engagement pulse is open', body: '6 questions · closes 14 Nov 2026', on: '2026-10-30T10:00', read: false, route: 'me/engagement/surveys', roles: ['me'] },
-    { id: 'n10', kind: 'Performance Review', title: 'H2 FY2026 self-assessment opens 15 November', body: 'Closes 30 November', on: '2026-10-24T09:30', read: true, route: 'me/performance/self', roles: ['me'] },
+    { id: 'n10', kind: 'Performance Review', title: 'H2 FY2026 review opens 15 November', body: 'Closes 30 November', on: '2026-10-24T09:30', read: true, route: 'me/performance/goals', roles: ['me'] },
     { id: 'n11', kind: 'Security Event', title: 'Password policy changed', body: 'Minimum length raised to 12 characters by Rohit Khanna', on: '2026-10-29T16:12', read: true, route: 'admin/audit/security', roles: ['admin'] },
     { id: 'n12', kind: 'Subscription', title: 'Seat usage at ' + Math.round((live.length / SUBSCRIPTION.seats) * 100) + '%', body: live.length + ' of ' + SUBSCRIPTION.seats + ' seats used', on: '2026-10-28T09:00', read: true, route: 'admin/billing/billing', roles: ['admin'] },
     { id: 'n13', kind: 'Resignation Request', title: 'Aditya Ghosh has submitted a resignation', body: 'Awaiting HR decision', on: '2026-10-12T15:20', read: true, route: 'hr/offboarding/resignations', roles: ['hr'] }

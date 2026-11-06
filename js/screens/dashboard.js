@@ -1056,20 +1056,9 @@
       });
     }
 
-    var cycle = seed.perfCycles.filter(function (c) { return c.status !== 'Completed'; })[0];
-    if (cycle) {
-      var opens = daysFromToday(cycle.from);
-      var closes = daysFromToday(cycle.to);
-      out.push({
-        id: cycle.id, icon: I.star, tone: 'info',
-        title: 'Submit your ' + cycle.name.replace(' Appraisal', '') + ' self-review',
-        sub: 'Performance · ' + (opens > 0 ? 'opens ' + ui.dateLabel(cycle.from) : 'open now')
-          + ', closes ' + ui.dateLabel(cycle.to),
-        pill: opens > 0 ? 'Opens ' + relDays(opens) : 'Due ' + relDays(closes),
-        pillTone: opens > 0 ? 'sched' : closes <= 7 ? 'warn' : 'ok',
-        action: 'Start', to: 'me/performance/self', urgency: opens > 0 ? opens : closes
-      });
-    }
+    /* The appraisal cycle used to ask for a self-review here. There is no
+       self-appraisal in this process, and the cycle is the manager's to write, so
+       nothing about it is this person's to action. */
 
     var answered = {};
     store.collection('surveyResponses')

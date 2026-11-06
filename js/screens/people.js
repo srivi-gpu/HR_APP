@@ -252,7 +252,6 @@
           assessment
             ? h(ui.KeyValue, { rows: [
                 ['Open cycle', 'H2 FY2026'],
-                ['Self-assessment', h(ui.StatusChip, { status: assessment.self === 'Submitted' ? 'Submitted' : 'Not Started' })],
                 ['Manager review', h(ui.StatusChip, { status: assessment.manager === 'Submitted' ? 'Submitted' : 'Not Started' })],
                 ['Reviewer', assessment.reviewer ? emp(assessment.reviewer).name : null],
                 ['Rating', assessment.rating || null]

@@ -1,7 +1,7 @@
 /* Performance scoring, badges and the reward economy.
 
    The shape of this is borrowed from the Tracklivo prototype: one score out of a
-   hundred from seven weighted dimensions, five rating bands, a cap when something
+   hundred from six weighted dimensions, five rating bands, a cap when something
    critical is missed, a badge catalogue in five tiers where every badge states its rule
    and how far along you are, and a points balance — separate from the score — that
    buys things from a catalogue.
@@ -45,12 +45,13 @@
     { k: 'teamwork', label: 'Teamwork',        w: 10, kind: 'measured',
       how: 'Recognition from colleagues, and recognition you gave',
       from: 'Peer recognition' },
+    /* Growth was here, measured from self-assessments filed on time. There is no
+       self-appraisal in this process, so the dimension has nothing behind it and is
+       gone rather than scoring everybody the same. The rest keep their weights, and
+       the score divides by the weight actually present. */
     { k: 'review',   label: '360 feedback',    w: 25, kind: 'rated',
       how: 'The manager and peer rating from your last completed appraisal',
-      from: 'Appraisal ratings, out of five' },
-    { k: 'growth',   label: 'Growth',          w: 10, kind: 'rated',
-      how: 'Self-assessments filed, and filed before the cycle closed',
-      from: 'Appraisal participation \u2014 blank until you have had a cycle' }
+      from: 'Appraisal ratings, out of five' }
   ];
   var WEIGHTS = {};
   INPUTS.forEach(function (i) { WEIGHTS[i.k] = i.w; });
@@ -141,11 +142,9 @@
     var reviewed = asm.filter(function (a) { return a.manager === 'Submitted'; });
     var rated = reviewed.length > 0;
 
-    /* Surveys answered, which is the measurable half of Growth. */
     var responses = s.collection('surveyResponses')
       .filter(function (x) { return x.employee === emp.id; }).length;
     var surveys = s.collection('surveys').filter(function (x) { return x.status !== 'Scheduled'; }).length;
-    var selfOnTime = asm.filter(function (a) { return a.self === 'Submitted'; }).length;
 
     var m = {
       id: emp.id, employee: emp,
@@ -156,7 +155,7 @@
       policiesOwed: owed.length, policiesOverdue: overdue.length, docsUnverified: unverified.length,
       recognitionGot: got, recognitionGave: gave,
       surveysAnswered: responses, surveysOpen: surveys,
-      selfOnTime: selfOnTime, rated: rated, cycles: asm.length, cyclesReviewed: reviewed.length,
+      rated: rated, cycles: asm.length, cyclesReviewed: reviewed.length,
       pace: goals.length ? round(clamp(attain / Math.max(elapsed(), 0.2), 0, 100)) : 0,
       goalsOnPace: goals.filter(function (g) { return g.progress >= 90; }).length,
       tenureMonths: monthsSince(emp.joined),
@@ -182,10 +181,10 @@
     return Math.max(0, (now.getFullYear() - then.getFullYear()) * 12 + (now.getMonth() - then.getMonth()));
   }
 
-  /* The seven dimensions, each 0–100, from those measures. The two rated ones are
-     derived from the records too — this prototype has no reviewer typing a number —
-     but they are marked `rated` so a screen can say which half of the score is
-     judgement rather than measurement. */
+  /* The six dimensions, each 0–100, from those measures. The rated one is derived
+     from the records too — this prototype has no reviewer typing a number — but it is
+     marked `rated` so a screen can say which part of the score is judgement rather
+     than measurement. */
   function parts(emp) {
     var m = measures(emp);
     if (!m) return null;
@@ -207,14 +206,6 @@
          as zero. */
       review: m.rated
         ? round(clamp(m.attain * 0.65 + clamp(pct(m.recognitionGot, 0, 3) * 100, 0, 100) * 0.35, 0, 100))
-        : null,
-      /* Growth is appraisal participation. Survey responses would be the better
-         measure, but this organization's surveys are anonymous — which is the right
-         default and not something to undo for a score — so they cannot be attributed
-         to a person. Somebody who has never been in a cycle has nothing to measure
-         here, and the dimension drops out rather than scoring them zero for it. */
-      growth: m.cycles
-        ? round(clamp(pct(m.selfOnTime, 0, m.cycles) * 100, 0, 100))
         : null
     };
     return p;

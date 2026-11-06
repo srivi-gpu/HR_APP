@@ -1495,7 +1495,7 @@
       if (has) return;
       store.add('assessments', {
         id: store.nextId('assessments', 'ASM'), cycle: cycleId, employee: e.id, reviewer: e.manager,
-        self: 'Not Started', manager: 'Not Started', status: 'Awaiting Self-Assessment'
+        manager: 'Not Started', status: 'Awaiting Manager'
       });
       made++;
     });
@@ -1522,21 +1522,6 @@
       progress: p, status: p === 100 ? 'Achieved' : p > 0 ? 'In Progress' : 'Not Started'
     });
     return done('Progress saved');
-  }
-
-  function submitSelfAssessment(employeeId, assessmentId, payload) {
-    var a = store.find('assessments', assessmentId);
-    var bad = rules.canSubmitSelf(a, employeeId);
-    if (bad) return fail({ _: bad });
-    if (!payload || !payload.summary || String(payload.summary).trim().length < 10) {
-      return fail({ summary: 'Write a short summary of your half' });
-    }
-    store.setOverride('assessments', assessmentId, {
-      self: 'Submitted', selfSubmittedOn: today(), selfSummary: payload.summary,
-      selfRatings: payload.ratings || {}, status: 'Awaiting Manager'
-    });
-    store.log('submitted a self-assessment', 'User activity');
-    return done('Self-assessment submitted');
   }
 
   function submitManagerReview(reviewerId, assessmentId, payload) {
@@ -2223,7 +2208,7 @@
     /* Performance */
     createAppraisalCycle: createAppraisalCycle, launchAppraisalCycle: launchAppraisalCycle,
     createGoal: createGoal, updateGoalProgress: updateGoalProgress,
-    submitSelfAssessment: submitSelfAssessment, submitManagerReview: submitManagerReview,
+    submitManagerReview: submitManagerReview,
     publishResults: publishResults,
     /* Engagement */
     createSurvey: createSurvey, submitSurvey: submitSurvey, giveRecognition: giveRecognition,
