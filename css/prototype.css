@@ -1684,8 +1684,3 @@
   .pexc__i { grid-template-columns: minmax(0, 1fr) auto; }
   .pexc__w { display: none; }
 }
-
-/* The reporting tree inside an ordinary card. Its own wrapper carries the side padding
-   an admin card does not have and this card already does, so take it back off. */
-.orgtree .axwrap { padding: 0; }
-.orgtree .apextree { min-height: 520px; }

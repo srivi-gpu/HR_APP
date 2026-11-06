@@ -23,66 +23,6 @@
       .map(function (t) { return t.name; });
   }
 
-  /* ==================================================== Organization tree
-     The reporting line, for HR and for the employee. Admin has its own tree, with
-     four views and a card chart you can drag somebody onto another manager in;
-     neither of these two decides who reports to whom, so this one only reads.
-
-     The staff list is the directory itself rather than a copy: everybody still
-     employed, each under the manager their record names, so a reporting line changed
-     on a record is the line this draws. ApexOrgTree addresses people by name, as
-     admin's does, because that is what its cards show. */
-  function treeStaff() {
-    var live = store.collection('employees').filter(function (e) { return e.status !== 'Exited'; });
-    var byId = {};
-    live.forEach(function (e) { byId[e.id] = e; });
-    return live.map(function (e) {
-      var m = e.manager && byId[e.manager];
-      return { id: e.name, r: e.designation, d: deptName(e.department), k: m ? m.name : null };
-    });
-  }
-
-  function OrgTree() {
-    var fromMeSt = React.useState(false);
-    var all = treeStaff();
-    var root = all.filter(function (n) { return !n.k; })[0];
-    var charts = HRMS.orgcharts;
-
-    if (!root) {
-      return h(Card, { title: 'Organization tree' },
-        h(ui.Empty, { icon: I.sitemap, title: 'No reporting line yet',
-          body: 'Give employees a manager on their record and the tree draws itself.' }));
-    }
-
-    /* Starting at the top is the right reading of an organisation, but in a directory
-       this size the person reading is somewhere in the middle of it. So the one
-       control is where to start: the top, or them.
-
-       Rooting the chart at somebody with no reports draws one card and nothing else,
-       which answers nothing — so for them it starts at their manager, where they
-       appear among their peers with the line above them still visible. */
-    var mine = (store.persona(store.pref('role')) || {}).name;
-    var row = all.filter(function (n) { return n.id === mine; })[0];
-    var hasMine = !!row;
-    var mineHasReports = hasMine && all.some(function (n) { return n.k === row.id; });
-    var myStart = !hasMine ? null : (mineHasReports || !row.k ? row.id : row.k);
-    var top = fromMeSt[0] && myStart ? myStart : root.id;
-
-    return h(Card, {
-      title: 'Organization tree',
-      description: 'Who reports to whom, three levels at a time. A card with a count below it opens that branch, and the line above the chart climbs back up.',
-      aside: hasMine
-        ? h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.person,
-            onClick: function () { fromMeSt[1](!fromMeSt[0]); } },
-          fromMeSt[0] ? 'Start at the top' : 'Start at me')
-        : null
-    }, charts && charts.apexReady()
-      ? h('div', { className: 'orgtree' },
-          h(charts.ApexOrgTree, { key: top, staff: all, rootId: top }))
-      : h(ui.Empty, { icon: I.sitemap, title: 'The chart could not be drawn',
-          body: 'The tree library did not load. Reload the page to try again.' }));
-  }
-
   /* ======================================================= Employee profile
      A side drawer with the tabs PRD 4.4 lists, opened from any employee table. */
   function ProfileDrawer(p) {
@@ -1082,14 +1022,9 @@
       emptyTitle: 'No exited employees'
     }),
     'hr/config/structure': OrgStructure,
-    'hr/config/employee': EmployeeConfig,
-    /* One screen, both workspaces: the tree reads the same directory either way, and
-       the only difference — where it starts — is the reader's own position. */
-    'hr/org/org-tree': OrgTree,
-    'me/org/org-tree': OrgTree,
-    /* The team workspace is the employee's list plus the approval inbox, so it
-       carries this item too and needs the same screen behind it. */
-    'team/org/org-tree': OrgTree
+    'hr/config/employee': EmployeeConfig
+    /* The organization tree is admin's screen, registered against HR's, the
+       employee's and the team member's routes in js/screens/admin-people.js. */
   });
 
   /* Shared with other phase files that open an employee record. */

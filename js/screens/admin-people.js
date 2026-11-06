@@ -906,6 +906,14 @@
                 onSelect: function (id) { focusSt[1](id); sheetSt[1](true); },
                 onCount: function (n) { loadedSt[1](n); },
                 onMove: function (who, to) {
+                  /* Who reports to whom is admin's to change. HR changes a reporting
+                     line on the employee's record, where the change is audited, and an
+                     employee changes nobody's — so outside this workspace the card
+                     chart is the fourth reading of the line, not a way to redraw it. */
+                  if (store.pref('role') !== 'admin') {
+                    toast('Reporting lines are changed on the employee\u2019s record.');
+                    return;
+                  }
                   var p1 = staff().find(function (x) { return x.id === who; });
                   if (!p1 || who === to) return;
                   /* refuse a move that would put someone under their own report */
@@ -1131,6 +1139,14 @@
   HRMS.screens.register({
     'admin/org/org-tree': PeopleModule,
     'admin/org/teams': PeopleModule,
-    'admin/users/access': PeopleModule
+    'admin/users/access': PeopleModule,
+    /* The same reporting chart in HR's and the employee's Organization item — four
+       readings of one reporting line, rather than a second, poorer tree of their own
+       that would drift from this one. The team workspace is the employee's item list
+       plus an approval inbox, so it carries the item too. What differs is the one
+       thing that is admin's alone: dragging somebody onto another manager. */
+    'hr/org/org-tree': PeopleModule,
+    'me/org/org-tree': PeopleModule,
+    'team/org/org-tree': PeopleModule
   });
 })();
