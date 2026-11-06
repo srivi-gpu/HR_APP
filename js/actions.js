@@ -1208,6 +1208,155 @@
     return done(kind === 'Repair' ? 'Repair raised · ' + id : 'Request ' + id + ' raised', { id: id });
   }
 
+  /* ---------- Ara on asset requests ----------
+
+     Every request used to wait for a person, and most of them did not need one. An
+     access card is nine hundred rupees and the store has forty of them; a card that
+     snapped in a lanyard is a like-for-like swap for something the person already
+     carries. Nobody learns anything by approving those by hand, and while they sit
+     in a queue the person cannot get into the building.
+
+     So Ara decides those two, and only those two:
+
+       1. a repair or replacement of a unit the person already holds — the
+          entitlement is not in question, only the unit is;
+       2. standard kit — a category whose dearest unit on the register is at or under
+          the cap, so the worst a wrong call costs is one cheap item.
+
+     Everything else is a person's: a first laptop, a phone, a second monitor, any
+     category the cap does not cover. The cap is read against the register rather
+     than written as a list of categories, so a category somebody adds next year is
+     judged by what it costs, not by whether anyone remembered to add it here.
+
+     Ara never issues. It decides, and it reserves a unit where the store has one
+     free, so that the only thing left is a person handing the thing over. Issuing
+     moves an asset onto somebody's name and off the shelf, and that stays with IT. */
+  var ARA_ASSET_CAP = 15000;
+
+  function dearestOf(category) {
+    return store.collection('assets').reduce(function (n, a) {
+      return a.category === category ? Math.max(n, a.value || 0) : n;
+    }, 0);
+  }
+
+  /* Why, in the words the screen shows. A verdict always carries one, whichever way
+     it goes: "Ara approved it" with no reason is not a decision anybody can audit. */
+  function araAssetVerdict(req) {
+    if (!req || req.status !== 'Pending Approval') {
+      return { approve: false, why: 'Already decided.' };
+    }
+    var held = req.asset && store.find('assets', req.asset);
+    if (req.kind === 'Repair' && held && held.assignedTo === req.employee) {
+      return { approve: true, rule: 'replacement',
+        why: 'A like-for-like replacement of the ' + held.category.toLowerCase()
+          + ' ' + nameOf(req.employee) + ' already holds. The entitlement is not in question.' };
+    }
+    var dearest = dearestOf(req.category);
+    if (dearest && dearest <= ARA_ASSET_CAP) {
+      return { approve: true, rule: 'standard',
+        why: 'Standard kit: the dearest ' + req.category.toLowerCase() + ' on the register is '
+          + HRMS.ui.inr(dearest) + ', inside the ' + HRMS.ui.inr(ARA_ASSET_CAP) + ' cap.' };
+    }
+    return { approve: false, rule: 'person',
+      why: dearest
+        ? 'A ' + req.category.toLowerCase() + ' runs to ' + HRMS.ui.inr(dearest)
+          + ', over the ' + HRMS.ui.inr(ARA_ASSET_CAP) + ' cap, and this is not a replacement.'
+        : 'Nothing of this category is on the register yet, so there is nothing to judge it against.' };
+  }
+
+  /* The first free unit of the category, so an approved request names the thing it
+     will be met with. Reserving is not issuing: the unit stays Available and on the
+     shelf until somebody in IT hands it over. */
+  /* Available and not already promised. Two requests for the same category, or a
+     request and a joiner's kit, were both handed the first free unit of it: the
+     register said one thing was set aside for two people, and whoever was issued
+     second took a unit the other had been told was theirs. */
+  function spokenFor() {
+    var taken = {};
+    store.collection('assetRequests').forEach(function (r) {
+      if (r.reserved && r.status === 'Approved') taken[r.reserved] = true;
+    });
+    return taken;
+  }
+
+  function freeUnitFor(category, skip) {
+    var taken = skip || spokenFor();
+    return store.collection('assets').filter(function (a) {
+      return a.category === category && a.status === 'Available' && !taken[a.id];
+    })[0] || null;
+  }
+
+  function decideAssetRequest(id, approve, by, why) {
+    var req = store.find('assetRequests', id);
+    if (!req) return fail({ _: 'That request no longer exists' });
+    if (req.status !== 'Pending Approval') return fail({ _: 'That request has already been decided' });
+
+    var unit = approve ? freeUnitFor(req.category) : null;
+    store.setOverride('assetRequests', id, {
+      status: approve ? 'Approved' : 'Rejected',
+      decidedBy: by || 'Ara', decidedOn: today(),
+      decidedWhy: why || null,
+      reserved: unit ? unit.id : null
+    });
+
+    var who = store.employee(req.employee);
+    notify({
+      to: req.employee, kind: 'Asset Request', roles: ['me'], route: 'me/assets/requests',
+      title: req.category + ' request ' + (approve ? 'approved' : 'declined'),
+      body: approve
+        ? (unit ? unit.name + ' is set aside for you. IT will hand it over.'
+          : 'Approved. IT will issue one as soon as a unit is free.')
+        : (why || 'Declined.')
+    });
+    store.log((by === 'Ara' ? 'Ara ' : '') + (approve ? 'approved' : 'declined') + ' asset request ' + id
+      + ' for ' + (who ? who.name : req.employee), by === 'Ara' ? 'Automation' : 'User activity');
+    return done('Request ' + id + ' ' + (approve ? 'approved' : 'declined'), { reserved: unit });
+  }
+
+  /* ---------- Ara on a joiner's kit ----------
+     The same cap, applied the other way round. A joiner needs the standard kit on
+     day one and nobody gains anything by typing out an access card and a keyboard
+     for every person who starts: Ara picks a free unit of each standard category
+     they do not already hold, and sets it against their name in the issue screen.
+
+     Picking is not issuing. The units stay Available until IT presses the button,
+     because a joiner's kit is handed over in a room, and the register should say
+     what actually happened rather than what was planned. A laptop is never in this
+     list — it is over the cap, so it is a request somebody decides. */
+  function araJoinerKit(employeeId) {
+    var held = {};
+    store.collection('assets').forEach(function (a) {
+      if (a.assignedTo === employeeId) held[a.category] = true;
+    });
+    var taken = spokenFor();
+    var seen = {}, out = [];
+    store.collection('assets').forEach(function (a) {
+      if (a.status !== 'Available' || held[a.category] || seen[a.category] || taken[a.id]) return;
+      if (dearestOf(a.category) > ARA_ASSET_CAP) return;
+      seen[a.category] = true;
+      out.push({ category: a.category, unit: a });
+    });
+    return out.sort(function (x, y) { return x.category < y.category ? -1 : 1; });
+  }
+
+  /* Every pending request Ara's own rule covers, decided in one pass. */
+  function araAssetQueue() {
+    return store.collection('assetRequests')
+      .filter(function (r) { return r.status === 'Pending Approval'; })
+      .map(function (r) { return { request: r, verdict: araAssetVerdict(r) }; });
+  }
+
+  function araDecideAssetRequests() {
+    var mine = araAssetQueue().filter(function (x) { return x.verdict.approve; });
+    /* Decided one at a time, so each row's reservation is visible to the next: a
+       pass that read the register once would give two access-card requests the
+       same card. */
+    mine.forEach(function (x) { decideAssetRequest(x.request.id, true, 'Ara', x.verdict.why); });
+    return done(mine.length
+      ? 'Ara approved ' + mine.length + ' request' + (mine.length === 1 ? '' : 's')
+      : 'Nothing for Ara to decide', { n: mine.length });
+  }
+
   function returnAsset(assetId, condition) {
     var asset = store.find('assets', assetId);
     if (!asset) return fail({ _: 'That asset no longer exists' });
@@ -1726,8 +1875,30 @@
     store.log('issued ' + email + ' and ' + e.id + ' to ' + e.name
       + ' and sent them to ' + e.personalEmail, 'User activity');
 
-    return done(e.id + ' and ' + email + ' sent to ' + e.personalEmail,
-      { employeeId: e.id, workEmail: email });
+    /* The kit Ara set aside, handed over in the same act. Nothing was moved onto
+       their name before this button: picking is Ara's, issuing is IT's. */
+    var kit = (form && form.kit) || [];
+    var issued = [];
+    kit.forEach(function (assetId) {
+      var res = allocateAsset(assetId, e.id);
+      if (res && res.ok) {
+        var unit = store.find('assets', assetId);
+        issued.push(unit ? unit.name : assetId);
+      }
+    });
+    if (issued.length) {
+      completeOnboardingTask(caseId, 'Asset allocation', true);
+      notify({
+        to: e.id, kind: 'Asset Allocation', roles: ['me'], route: 'me/assets/assigned',
+        title: issued.length + ' item' + (issued.length === 1 ? '' : 's') + ' issued to you',
+        body: issued.join(', ') + '. Acknowledge the handover from your assets page.'
+      });
+      store.log('issued ' + issued.join(', ') + ' to ' + e.name + ' with their credentials', 'User activity');
+    }
+
+    return done(e.id + ' and ' + email + ' sent to ' + e.personalEmail
+      + (issued.length ? ', with ' + issued.length + ' item' + (issued.length === 1 ? '' : 's') + ' issued' : ''),
+      { employeeId: e.id, workEmail: email, issued: issued });
   }
 
   function completeOnboardingTask(caseId, taskName, doneFlag) {
@@ -2042,6 +2213,9 @@
     /* Assets */
     addAsset: addAsset, allocateAsset: allocateAsset, acknowledgeAsset: acknowledgeAsset,
     raiseAssetRequest: raiseAssetRequest, returnAsset: returnAsset,
+    araAssetVerdict: araAssetVerdict, araAssetQueue: araAssetQueue,
+    araDecideAssetRequests: araDecideAssetRequests, decideAssetRequest: decideAssetRequest,
+    araAssetCap: ARA_ASSET_CAP, freeUnitFor: freeUnitFor, araJoinerKit: araJoinerKit,
     /* Payroll */
     createSalaryStructure: createSalaryStructure, initiatePayroll: initiatePayroll,
     reviewPayroll: reviewPayroll, finalizePayroll: finalizePayroll, generatePayslips: generatePayslips,

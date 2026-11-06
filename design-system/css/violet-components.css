@@ -563,6 +563,10 @@
   .vi-table--wide .vi-td.is-right .vi-cell, .vi-table--wide .vi-td.is-center .vi-cell,
   .vi-table--wide .vi-td.is-actions .vi-cell { justify-content: flex-start; }
   .vi-table--wide .vi-cell__actions { margin-left: 0; }
+  /* A pair of decision buttons is 180px wide and the stacked cell is not, so the
+     pair wraps onto a second line rather than hanging over the card's edge, where
+     the wrapper's hidden overflow would cut the second button in half. */
+  .vi-table--wide .vi-td .row { flex-wrap: wrap; justify-content: flex-start; }
   /* The row background moves to the row once the cells stop being cells, or the hover
      tint lands on half a record. */
   .vi-table--wide .vi-td { background: none; }
@@ -583,6 +587,7 @@
   .vi-table--mid .vi-td.is-right .vi-cell, .vi-table--mid .vi-td.is-center .vi-cell,
   .vi-table--mid .vi-td.is-actions .vi-cell { justify-content: flex-start; }
   .vi-table--mid .vi-cell__actions { margin-left: 0; }
+  .vi-table--mid .vi-td .row { flex-wrap: wrap; justify-content: flex-start; }
   /* The row background moves to the row once the cells stop being cells, or the hover
      tint lands on half a record. */
   .vi-table--mid .vi-td { background: none; }

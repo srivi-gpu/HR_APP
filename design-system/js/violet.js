@@ -552,6 +552,8 @@
         return sort.direction === 'desc' ? -c : c;
       });
     }
+    var tier = props.tier
+      || (cols.length >= 8 ? 'wide' : cols.length >= 6 ? 'mid' : cols.length <= 4 ? 'slim' : null);
     var keys = view.map(rowKey);
     var selected = sel[0] || [];
     var nSel = keys.filter(function (k) { return selected.indexOf(k) >= 0; }).length;
@@ -591,7 +593,12 @@
            being a table. Eight or more is wide: tighter padding, smaller type, and it
            stacks below 880px. Six or seven stacks below 700. Five or fewer can hold out
            to 560, which is about where two columns stop being readable side by side. */
-        h('table', { className: cx('vi-table', 'vi-table--' + density, cols.length >= 8 && 'vi-table--wide', cols.length >= 6 && cols.length < 8 && 'vi-table--mid', cols.length <= 4 && 'vi-table--slim', props.hover !== false && 'vi-table--hover'), 'aria-label': props['aria-label'] },
+        /* The tier decides at what container width the rows stack instead of being
+           clipped, and it is guessed from the column count because that is usually
+           proportional to how wide a row needs to be. It is a guess, though: a queue
+           with two avatars and a pair of decision buttons in seven columns needs more
+           room than a plain nine-column list. `tier` lets such a table say so. */
+        h('table', { className: cx('vi-table', 'vi-table--' + density, tier === 'wide' && 'vi-table--wide', tier === 'mid' && 'vi-table--mid', tier === 'slim' && 'vi-table--slim', props.hover !== false && 'vi-table--hover'), 'aria-label': props['aria-label'] },
           h('thead', null, head), h('tbody', null, body))));
   }
 

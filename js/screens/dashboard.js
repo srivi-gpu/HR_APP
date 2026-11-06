@@ -1103,29 +1103,6 @@
     return (HRMS.attendanceHistory ? HRMS.attendanceHistory(who, days) : [])
       .filter(function (r) { return r.date >= monthStart; });
   }
-  var MONTH_TALLY = [
-    { k: 'Present', l: 'Present' },
-    { k: 'Work From Home', l: 'Work from home' },
-    { k: 'Late', l: 'Late' },
-    { k: 'On Leave', l: 'On leave' },
-    { k: 'Absent', l: 'Not recorded' }
-  ];
-
-  /* A ring, not a pie: one figure in the middle and the rest of the year's
-     entitlement behind it. */
-  function Ring(p) {
-    var R = 52, C = 2 * Math.PI * R;
-    var on = Math.max(0, Math.min(1, p.value)) * C;
-    return h('div', { className: 'ering' },
-      h('svg', { viewBox: '0 0 128 128', 'aria-hidden': 'true' },
-        h('circle', { cx: 64, cy: 64, r: R, fill: 'none', stroke: 'var(--bg-muted)', strokeWidth: 16 }),
-        h('circle', {
-          cx: 64, cy: 64, r: R, fill: 'none', stroke: p.color || 'var(--brand-solid)', strokeWidth: 16,
-          strokeDasharray: on + ' ' + (C - on), strokeDashoffset: C / 4, strokeLinecap: 'butt'
-        })),
-      h('span', { className: 'ering__mid' }, h('b', null, p.big), h('span', null, p.small)));
-  }
-
   /* -------------------------------------------------------- Around the team
      Colleagues are the people sharing a department: the ones whose absence or
      first week actually lands on the same work. */
@@ -1192,308 +1169,403 @@
     ];
   }
 
-  function MeCard(p) {
-    return h('section', { className: 'adm-card' + (p.className ? ' ' + p.className : '') },
-      h('div', { className: 'adm-card__head' },
-        h('div', null,
-          h('h2', null, p.title, p.count !== undefined
-            ? h('span', { className: 'ecount' + (p.countTone ? ' is-' + p.countTone : '') }, p.count) : null),
-          p.sub ? h('p', null, p.sub) : null),
-        p.right || null),
-      p.children);
+  /* ====================================================================== 
+     THE TEAM MEMBER AND MANAGER DASHBOARD
+
+     Built to the dashboard the brief attached: a greeting, the attendance
+     banner with its calendar-and-tick mark, four figures, the requests this
+     person has raised beside what is coming up, and a row of shortcuts.
+
+     One screen serves both workspaces, because a manager is a team member who
+     also approves. Everything below is theirs unchanged; the one band that is
+     not — what is waiting on their decision, and where their people are today
+     — is drawn only when somebody actually reports to them, so a label alone
+     never conjures a team.
+
+     Every figure is read from the store: the punches from the prototype's own
+     clock, the month from the attendance history, the balance from the ledger,
+     and the salary from this person's latest published payslip. */
+
+  var PLANE = g('M21 3 3 10.5l7 2.6M21 3l-7.5 18-2.9-7.4M21 3 10.6 13.1');
+  var WALLET = g('M3 8.5A2.5 2.5 0 0 1 5.5 6h12A2.5 2.5 0 0 1 20 8.5v7a2.5 2.5 0 0 1-2.5 2.5h-12A2.5 2.5 0 0 1 3 15.5v-7ZM20 10.5h-3.2a1.8 1.8 0 0 0 0 3.6H20M6 6V4.8A1.8 1.8 0 0 1 8.2 3l8 1.8');
+  var CAKE = g('M4 20h16M5 20v-5.5A2.5 2.5 0 0 1 7.5 12h9a2.5 2.5 0 0 1 2.5 2.5V20M9 12V8.5M15 12V8.5M12 12V8.5M9 5.5V4M12 5.5V4M15 5.5V4');
+  var TICK = h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', 'aria-hidden': 'true' },
+    h('circle', { cx: 12, cy: 12, r: 9, fill: 'currentColor', opacity: .18 }),
+    h('path', { d: 'M8 12.2l2.6 2.6L16 9.4', stroke: 'currentColor', strokeWidth: 2, strokeLinecap: 'round', strokeLinejoin: 'round' }));
+
+  /* The calendar-and-tick mark beside the banner, drawn in the product's own
+     tokens rather than the reference's fixed lavenders, so it holds up when the
+     theme flips. */
+  function AttArt() {
+    return h('div', { className: 'dash__att__art', 'aria-hidden': 'true' },
+      h('svg', { viewBox: '0 0 160 110', fill: 'none' },
+        h('rect', { x: 26, y: 18, width: 86, height: 78, rx: 16,
+          fill: 'var(--bg-surface)', stroke: 'var(--brand-border)', strokeWidth: 1.5 }),
+        h('g', { stroke: 'var(--brand-solid)', strokeWidth: 3, strokeLinecap: 'round', opacity: .5 },
+          h('path', { d: 'M46 12v12M70 12v12M94 12v12' })),
+        h('path', { d: 'M26 44h86', stroke: 'var(--brand-border)', strokeWidth: 2 }),
+        h('g', { fill: 'var(--brand-soft)' },
+          h('rect', { x: 40, y: 56, width: 22, height: 7, rx: 3.5 }),
+          h('rect', { x: 72, y: 56, width: 22, height: 7, rx: 3.5 }),
+          h('rect', { x: 40, y: 72, width: 22, height: 7, rx: 3.5 })),
+        h('circle', { cx: 112, cy: 60, r: 15, fill: 'var(--success-fg)' }),
+        h('path', { d: 'M105 60.5l5 5 9.5-9.5', stroke: 'var(--bg-surface)', strokeWidth: 2.6,
+          strokeLinecap: 'round', strokeLinejoin: 'round' }),
+        h('rect', { x: 112, y: 76, width: 34, height: 30, rx: 10, fill: 'var(--brand-solid)' }),
+        h('path', { d: 'M121 91.5l4.5 4.5 8-9', stroke: 'var(--brand-on-solid)', strokeWidth: 2.4,
+          strokeLinecap: 'round', strokeLinejoin: 'round' })));
   }
 
-  /* Each line says something about the signed-in person, so every one of these is
-     scoped to them. Reading the latest payslip in the organisation, rather than
-     theirs, is how a dashboard ends up quoting somebody else's salary. */
-  var SHORTCUTS = [
-    { t: 'Latest payslip', icon: I.download, act: 'Download', to: 'me/payroll/payslips',
-      sub: function (who) {
-        var ps = store.collection('payslips')
-          .filter(function (x) { return x.employee === who.id && x.status === 'Published'; })
-          .sort(function (a, b) { return a.paidOn < b.paidOn ? 1 : -1; })[0];
-        return ps ? ps.period + ' · ' + ui.inr(ps.net) + ' net' : 'Nothing published yet';
-      } },
-    { t: 'Upload a document', icon: I.clip, act: 'Upload', to: 'me/profile/documents',
-      sub: function () { return 'Saved against your own record'; } },
-    { t: 'Tax declaration', icon: I.reports, act: 'Open', to: 'me/payroll/tax',
-      sub: function (who) {
-        var td = store.collection('taxDeclarations')
-          .filter(function (x) { return x.employee === who.id; })[0];
-        return td ? (td.fy || 'This year') + ' · ' + (td.status || 'Draft') : 'Not started yet';
-      } },
-    { t: 'My assets', icon: I.package, act: 'View', to: 'me/assets/assigned',
-      sub: function (who) {
-        var n = store.collection('assets').filter(function (a) { return a.assignedTo === who.id; }).length;
-        return n ? n + ' item' + (n === 1 ? '' : 's') + ' in your name' : 'Nothing assigned';
-      } }
-  ];
+  /* One status reads four different vocabularies — leave says Rejected, a claim
+     says Declined, payroll says Paid — so the pill is derived once here, and
+     `open` is what sorts a request still waiting above one already settled. */
+  function tagOf(status) {
+    if (status === 'Pending Approval' || status === 'Awaiting approval' || status === 'With HR'
+      || status === 'Submitted' || status === 'In Review') {
+      return { tag: status === 'With HR' ? 'With HR' : 'Pending', tone: 'warn', open: true };
+    }
+    if (status === 'Rejected' || status === 'Declined' || status === 'Cancelled') {
+      return { tag: status, tone: 'bad', open: false };
+    }
+    if (status === 'Approved' || status === 'Paid' || status === 'Issued') {
+      return { tag: status, tone: 'ok', open: false };
+    }
+    return { tag: status || 'Open', tone: 'info', open: false };
+  }
 
   function MeDashboard() {
-    var who = store.persona('me');
-    var tabSt = React.useState('leave');
-    var teamSt = React.useState('out');
+    /* The manager's workspace is this same screen under another prefix, so the
+       active role decides where every link points. */
+    var roleId = store.pref('role') === 'team' ? 'team' : 'me';
+    function to(path) { return roleId + '/' + path; }
+
     var clockSt = React.useState(new Date());
     React.useEffect(function () {
       var t = setInterval(function () { clockSt[1](new Date()); }, 30000);
       return function () { clearInterval(t); };
     }, []);
+
+    var who = store.persona(roleId);
     if (!who) return h(ui.Empty, { icon: I.person, title: 'No employee record' });
 
+    /* ---- today ---- */
     var shift = store.shift(who.shift) || seed.shifts[0];
-    var balances = store.balancesFor(who.id);
-    var punch = store.pref('punch') || {};
     var today = seed.todayIso;
+    var punch = store.pref('punch') || {};
     var inAt = punch.date === today ? punch.in : null;
     var outAt = punch.date === today ? punch.out : null;
     function hhmm(d) { return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); }
     function setPunch(next) {
       store.setPref('punch', Object.assign({ date: today }, punch.date === today ? punch : {}, next));
     }
+    var elapsed = inAt
+      ? Math.max(0, (clockSt[0].getHours() * 60 + clockSt[0].getMinutes()) - minutesOf(inAt))
+      : 0;
 
-    var actions = actionsFor(who);
+    /* ---- the month, the balance, the last payslip ---- */
     var rows = monthRows(who);
-    var counts = {};
-    rows.forEach(function (r) { counts[r.status] = (counts[r.status] || 0) + 1; });
+    var counts = {}, hours = 0;
+    rows.forEach(function (r) {
+      counts[r.status] = (counts[r.status] || 0) + 1;
+      hours += Number(r.hours) || 0;
+    });
     var worked = (counts.Present || 0) + (counts['Work From Home'] || 0) + (counts.Late || 0);
-    var working = rows.filter(function (r) { return r.status !== 'Weekly Off' && r.status !== 'Holiday'; }).length;
+    var working = rows.filter(function (r) {
+      return r.status !== 'Weekly Off' && r.status !== 'Holiday';
+    }).length;
 
+    var balances = store.balancesFor(who.id);
     var left = balances.reduce(function (n, b) { return n + b.available; }, 0);
-    var entitled = balances.reduce(function (n, b) { return n + b.entitled; }, 0);
-    var monthStart = today.slice(0, 8) + '01';
-    var takenThisMonth = store.collection('leaveRequests')
-      .filter(function (l) { return l.employee === who.id && l.status === 'Approved' && l.from >= monthStart && l.from <= today; })
-      .reduce(function (n, l) { return n + l.days; }, 0);
+
+    var payslip = store.collection('payslips')
+      .filter(function (p) { return p.employee === who.id && p.status === 'Published'; })
+      .sort(function (a, b) { return a.paidOn < b.paidOn ? 1 : -1; })[0];
 
     var holidays = store.collection('holidays')
       .filter(function (x) { return x.date >= today; })
       .sort(function (a, b) { return a.date < b.date ? -1 : 1; });
     var nextHoliday = holidays[0];
+    var actions = actionsFor(who);
 
-    var goals = store.collection('goals').filter(function (g) { return g.employee === who.id; });
-    var overdue = goals.filter(function (g) { return g.status !== 'Achieved' && daysFromToday(g.due) < 0; }).length;
+    var stats = [
+      { icon: I.calendar, n: worked + ' / ' + working, l: 'Days present', s: 'This month' },
+      { icon: PLANE, n: String(left), l: 'Leave balance', s: 'Available days' },
+      { icon: I.clock, n: Math.round(hours) + 'h', l: 'Hours worked', s: 'This month' },
+      payslip
+        ? { icon: WALLET, n: ui.inr(payslip.net), l: 'Last salary', s: payslip.period + ' credited' }
+        : { icon: WALLET, n: '—', l: 'Last salary', s: 'Nothing published yet' }
+    ];
 
-    /* Monday to Sunday of the week today falls in, from the same derivation the
-       attendance screens use. */
-    var weekStart = seed.util.addDays(seed.today, -((seed.today.getDay() + 6) % 7));
-    var byDate = {};
-    (HRMS.attendanceHistory ? HRMS.attendanceHistory(who, 14) : [])
-      .forEach(function (r) { byDate[r.date] = r; });
-    var week = [];
-    for (var d = 0; d < 5; d++) {
-      var day = seed.util.addDays(weekStart, d);
-      var key = seed.util.iso(day);
-      week.push({ iso: key, day: WEEKDAY[day.getDay()], row: byDate[key] || null, future: key > today });
+    /* ---- everything this person has asked for, whoever decides it ---- */
+    var reqs = [];
+    store.collection('leaveRequests')
+      .filter(function (l) { return l.employee === who.id; })
+      .forEach(function (l) {
+        var t = store.leaveType(l.type) || {};
+        reqs.push(Object.assign({
+          key: 'lv' + l.id, icon: PLANE, t: t.name || 'Leave',
+          m: l.fromLabel + (l.days > 1 ? ' – ' + l.toLabel : '')
+            + ' (' + l.days + ' day' + (l.days === 1 ? '' : 's') + ')',
+          on: l.appliedOn
+        }, tagOf(l.status)));
+      });
+    store.collection('regularizations')
+      .filter(function (x) { return x.employee === who.id; })
+      .forEach(function (x) {
+        reqs.push(Object.assign({
+          key: 'rg' + x.id, icon: I.clock, t: 'Attendance correction',
+          m: x.dateLabel + ' · ' + x.issue, on: x.date
+        }, tagOf(x.status)));
+      });
+    store.collection('reimbursements')
+      .filter(function (x) { return x.employee === who.id; })
+      .forEach(function (x) {
+        reqs.push(Object.assign({
+          key: 'rb' + x.id, icon: WALLET, t: x.kind + ' claim',
+          m: ui.inr(x.amount) + (x.receipt ? ' · receipt attached' : ' · no receipt'),
+          on: x.claimed || x.on
+        }, tagOf(x.status)));
+      });
+    store.collection('assetRequests')
+      .filter(function (x) { return x.employee === who.id; })
+      .forEach(function (x) {
+        reqs.push(Object.assign({
+          key: 'ar' + x.id, icon: I.package, t: x.category + ' request',
+          m: x.reason, on: x.requestedOn
+        }, tagOf(x.status)));
+      });
+    reqs.sort(function (a, b) {
+      if (a.open !== b.open) return a.open ? -1 : 1;
+      return a.on < b.on ? 1 : -1;
+    });
+    var openReqs = reqs.filter(function (r) { return r.open; }).length;
+
+    /* ---- what is coming, nearest first ---- */
+    var up = [];
+    holidays.slice(0, 2).forEach(function (hd) {
+      up.push({
+        key: 'h' + hd.date, n: daysFromToday(hd.date), d: shortWhen(hd.date), icon: I.calendar,
+        t: hd.name,
+        s: (hd.type === 'Optional' ? 'Optional holiday' : 'Office closed') + ' · '
+          + dayOf(hd.date).toLocaleDateString('en-GB', { weekday: 'long' })
+      });
+    });
+    store.collection('leaveRequests')
+      .filter(function (l) { return l.employee === who.id && l.status === 'Approved' && l.from > today; })
+      .sort(function (a, b) { return a.from < b.from ? -1 : 1; })
+      .slice(0, 1)
+      .forEach(function (l) {
+        var t = store.leaveType(l.type) || {};
+        up.push({
+          key: 'l' + l.id, n: daysFromToday(l.from), d: shortWhen(l.from), icon: PLANE,
+          t: (t.name || 'Leave') + ' approved',
+          s: l.days + ' day' + (l.days === 1 ? '' : 's') + ' from ' + l.fromLabel
+        });
+      });
+    (teamGroups(who).filter(function (x) { return x.k === 'birthdays'; })[0] || { rows: [] })
+      .rows.slice(0, 1).forEach(function (b) {
+        var mmdd = b.employee.dob.slice(5);
+        up.push({
+          key: 'b' + b.employee.id, n: daysToAnniversary(mmdd),
+          d: shortWhen(seed.today.getFullYear() + '-' + mmdd), icon: CAKE,
+          t: b.employee.name.split(' ')[0] + '’s birthday', s: b.employee.designation
+        });
+      });
+    var cycle = seed.perfCycles.filter(function (c) { return c.status !== 'Completed'; })[0];
+    if (cycle) {
+      up.push({
+        key: 'c' + cycle.id, n: daysFromToday(cycle.to), d: shortWhen(cycle.to), icon: I.star,
+        t: 'Self-review closes', s: cycle.name
+      });
+    }
+    up.sort(function (a, b) { return a.n - b.n; });
+
+    var quick = [
+      { icon: PLANE, t: 'Apply leave', to: to('leave/apply') },
+      { icon: I.clock, t: 'Regularize attendance', to: to('attendance/regularization') },
+      { icon: I.download, t: 'Download payslip', to: to('payroll/payslips') },
+      { icon: I.package, t: 'Request an asset', to: to('assets/requests') },
+      { icon: I.target, t: 'Update goals', to: to('performance/goals') },
+      { icon: I.calendar, t: 'View holidays', to: to('leave/holidays') }
+    ];
+
+    /* ---- the manager's band, if there is a team under them ---- */
+    var reports = store.collection('employees').filter(function (e) {
+      return e.manager === who.id && e.status !== 'Exited';
+    });
+    var waiting = reports.length
+      ? store.collection('approvals').filter(function (a) {
+          if (a.status !== 'Pending Approval') return false;
+          if (a.approver === who.id) return true;
+          var subject = store.employee(a.employee);
+          return !!(subject && subject.manager === who.id);
+        })
+      : [];
+    var away = {};
+    if (reports.length) {
+      store.collection('leaveRequests').forEach(function (l) {
+        if (l.status === 'Approved' && l.from <= today && l.to >= today) away[l.employee] = l;
+      });
     }
 
-    var groups = teamGroups(who);
-    var group = groups.filter(function (g) { return g.k === teamSt[0]; })[0] || groups[0];
-
-    var elapsed = inAt ? Math.max(0, (clockSt[0].getHours() * 60 + clockSt[0].getMinutes()) - minutesOf(inAt)) : 0;
-    var toGo = inAt ? Math.max(0, (minutesOf(shift.end) - minutesOf(shift.start)) - elapsed) : 0;
-
-    function link(label, to) {
-      return h('button', { type: 'button', className: 'dash__link',
-        onClick: function () { router.go(to); } }, label, I.right);
+    function row(key, tile, title, sub, tail) {
+      return h('div', { className: 'dash__row', key: key },
+        tile, h('span', { className: 'dash__row__m' }, h('strong', null, title), h('span', null, sub)), tail);
     }
 
-    return h('div', { className: 'edash' },
+    return h('div', { className: 'edash2' },
 
-      /* ---- the banner: who, what is waiting, and where the day is up to ---- */
-      h('div', { className: 'ehero' },
-        h('div', { className: 'ehero__m' },
-          h('span', { className: 'ehero__eyebrow' },
-            dayOf(today).toLocaleDateString('en-GB', { weekday: 'long' }) + ', ' + ui.dateLabel(today)),
-          h('h1', null, greeting() + ', ' + who.name.split(' ')[0]),
-          h('p', null,
+      /* ---- greeting ---- */
+      h('div', { className: 'dash__head' },
+        h('div', null,
+          h('h1', { className: 'dash__hi' },
+            greeting() + ', ', h('em', null, who.name.split(' ')[0]), '!'),
+          h('p', { className: 'dash__sub' },
             actions.length
-              ? actions.length + ' item' + (actions.length === 1 ? '' : 's') + ' need' + (actions.length === 1 ? 's' : '') + ' you.'
+              ? actions.length + ' item' + (actions.length === 1 ? '' : 's') + ' need'
+                + (actions.length === 1 ? 's' : '') + ' you.'
               : 'Nothing is waiting on you.',
             nextHoliday
-              ? ' The office is closed ' + relDays(daysFromToday(nextHoliday.date)) + ' for ' + nextHoliday.name + '.'
+              ? ' The office is closed ' + relDays(daysFromToday(nextHoliday.date))
+                + ' for ' + nextHoliday.name + '.'
               : '')),
-        h('div', { className: 'ehero__punch' },
-          inAt
-            ? h(React.Fragment, null,
-                h('div', { className: 'ehero__p1' },
-                  h('span', { className: 'ehero__dot' }),
-                  h('span', null, outAt ? 'Checked out at ' + outAt : 'Checked in at ' + inAt),
-                  h('b', null, outAt ? spell(minutesOf(outAt) - minutesOf(inAt)) : spell(elapsed))),
-                h('div', { className: 'ehero__p2' },
-                  h('span', null, 'Shift ' + shift.start + ' – ' + shift.end),
-                  h('span', null, outAt ? 'Day complete' : spell(toGo) + ' to go'),
-                  outAt ? null : h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.stop,
-                    onClick: function () { setPunch({ out: hhmm(new Date()) }); } }, 'Check out')))
-            : h(React.Fragment, null,
-                h('div', { className: 'ehero__p1' },
-                  h('span', { className: 'ehero__dot is-off' }),
-                  h('span', null, 'Not checked in'),
-                  h('b', null, '—')),
-                h('div', { className: 'ehero__p2' },
-                  h('span', null, 'Shift ' + shift.start + ' – ' + shift.end),
-                  h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.play,
-                    onClick: function () { setPunch({ in: hhmm(new Date()) }); } }, 'Check in'))))),
+        h(V.Button, { variant: 'outline', iconStart: I.calendar,
+          onClick: function () { router.go(to('attendance/history')); } },
+          MONTH_ABBR[seed.today.getMonth()] + ' ' + seed.today.getFullYear())),
 
-      /* ---- what needs me, and where the month stands ---- */
-      h('div', { className: 'edash-a' },
-        h(MeCard, { title: 'Needs your action', count: actions.length,
-          countTone: actions.length ? 'warn' : null,
-          right: actions.length
-            ? h('span', { className: 'adm-card__hint' },
-              actions.length > 5 ? 'Most urgent 5 of ' + actions.length : 'Most urgent first')
-            : null },
-          actions.length
-            ? h('div', { className: 'nact' }, actions.slice(0, 5).map(function (a) {
-                return h('div', { className: 'nact__r', key: a.id },
-                  h('span', { className: 'nact__i is-' + a.tone }, a.icon),
-                  h('span', { className: 'nact__m' },
-                    h('strong', null, a.title),
-                    h('span', null, a.sub)),
-                  h('span', { className: 'adm-p adm-p--' + a.pillTone }, a.pill),
-                  h(V.Button, { variant: a.pillTone === 'fail' ? 'primary' : 'outline', className: 'vi-btn--sm',
-                    onClick: function () { router.go(a.to); } }, a.action));
-              }))
-            : h(ui.Empty, { icon: I.ok, title: 'Nothing is waiting on you',
-              body: 'Goals, corrections, reviews and surveys appear here when they need an answer.' })),
+      /* ---- today's attendance ---- */
+      h('section', { className: 'dash__att', 'aria-label': 'Today’s attendance' },
+        h('div', { className: 'dash__att__main' },
+          h('div', { className: 'dash__att__head' },
+            h('h2', null, 'Today’s attendance'),
+            h('span', { className: inAt ? 'chip-ok' : 'chip-wait' },
+              inAt ? TICK : null, outAt ? 'Checked out' : inAt ? 'Checked in' : 'Not checked in'),
+            h('span', { className: 'dash__att__shift' }, 'Shift ' + shift.start + ' – ' + shift.end)),
+          h('div', { className: 'dash__att__times' },
+            h('span', { className: 'dash__att__t' },
+              h('b', null, inAt || '—'), h('span', null, 'Check-in time')),
+            h('span', { className: 'dash__att__rule' }),
+            h('span', { className: 'dash__att__t' },
+              h('b', null, outAt || shift.end),
+              h('span', null, outAt ? 'Checked out at' : 'Expected checkout')),
+            h('span', { className: 'dash__att__rule' }),
+            h('span', { className: 'dash__att__t' },
+              h('b', null, inAt ? spell(outAt ? minutesOf(outAt) - minutesOf(inAt) : elapsed) : '—'),
+              h('span', null, outAt ? 'Hours today' : inAt ? 'Worked so far' : 'Nothing logged yet')),
+            inAt
+              ? h(V.Button, { variant: 'outline', iconStart: I.stop, disabled: !!outAt,
+                  onClick: function () { setPunch({ out: hhmm(new Date()) }); } },
+                  outAt ? 'Checked out' : 'Check out')
+              : h(V.Button, { variant: 'primary', iconStart: I.play,
+                  onClick: function () { setPunch({ in: hhmm(new Date()) }); } }, 'Check in'))),
+        h(AttArt)),
 
-        h(MeCard, { title: 'This month',
-          right: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
-            onClick: function () { router.go('me/leave/overview'); } }, 'Apply leave') },
-          h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'This month' },
-            [['leave', 'Leave'], ['attendance', 'Attendance']].map(function (t) {
-              return h('button', { key: t[0], type: 'button', role: 'tab',
-                'aria-selected': tabSt[0] === t[0] ? 'true' : 'false',
-                className: 'ad-seg__b' + (tabSt[0] === t[0] ? ' is-on' : ''),
-                onClick: function () { tabSt[1](t[0]); } }, t[1]);
-            })),
+      /* ---- the four figures ---- */
+      h('section', { className: 'dash__stats', 'aria-label': 'Your month' }, stats.map(function (s) {
+        return h('div', { className: 'dash__stat', key: s.l },
+          h('span', { className: 'dash__tile' }, s.icon),
+          h('span', { className: 'dash__stat__txt' },
+            h('span', { className: 'dash__stat__n' }, s.n),
+            h('span', { className: 'dash__stat__l' }, s.l),
+            h('span', { className: 'dash__stat__s' }, s.s)));
+      })),
 
-          tabSt[0] === 'leave'
-            ? h('div', { className: 'emonth' },
-                h('div', { className: 'emonth__top' },
-                  /* Two series, two of the design system's chart colours: taken and
-                     left, the ring and its legend sharing them. */
-                  h(Ring, { value: entitled ? left / entitled : 0, big: left, small: 'days left',
-                    color: 'var(--chart-5)' }),
-                  h('div', { className: 'emonth__key' },
-                    h('div', { className: 'emonth__k' },
-                      h('i', { style: { background: 'var(--chart-1)' } }),
-                      h('span', null, h('strong', null, 'Taken · ' + takenThisMonth + ' day' + (takenThisMonth === 1 ? '' : 's')),
-                        h('span', null, 'This month'))),
-                    h('div', { className: 'emonth__k' },
-                      h('i', { style: { background: 'var(--chart-5)' } }),
-                      h('span', null, h('strong', null, 'Left · ' + left + ' days'),
-                        h('span', null, balances.map(function (b) {
-                          var t = store.leaveType(b.type) || {};
-                          return (t.code || t.name) + ' ' + b.available;
-                        }).join(' · ')))))),
-                holidays.length
-                  ? h('div', { className: 'ehol' }, holidays.slice(0, 2).map(function (hd) {
-                      var n = daysFromToday(hd.date);
-                      return h('div', { className: 'ehol__r', key: hd.id || hd.date },
-                        h('span', { className: 'ehol__d' },
-                          h('b', null, dayOf(hd.date).getDate()),
-                          h('span', null, MONTH_ABBR[dayOf(hd.date).getMonth()].toUpperCase())),
-                        h('span', { className: 'ehol__m' },
-                          h('strong', null, hd.name),
-                          h('span', null, dayOf(hd.date).toLocaleDateString('en-GB', { weekday: 'long' })
-                            + ' · ' + relDays(n))),
-                        h('span', { className: 'adm-p adm-p--' + (hd.type === 'Optional' ? 'sched' : 'ok') },
-                          hd.type === 'Optional' ? 'Optional' : 'Office closed'));
-                    }))
-                  : null)
-            : h('div', { className: 'emonth' },
-                h('div', { className: 'echips' }, MONTH_TALLY.map(function (t) {
-                  return h('div', { className: 'echip', key: t.k },
-                    h('b', null, counts[t.k] || 0), h('span', null, t.l));
-                })),
-                h('p', { className: 'adm-card__foot' },
-                  working
-                    ? 'Worked ' + worked + ' of ' + working + ' working day' + (working === 1 ? '' : 's')
-                      + ' this month. Weekends and holidays are not counted.'
-                    : 'The month has not reached a working day yet.')))),
+      /* ---- my requests / upcoming ---- */
+      h('div', { className: 'dash__two' },
+        h('section', { className: 'dash__card' },
+          h('div', { className: 'dash__card__head' },
+            h('h2', null, 'My requests',
+              openReqs ? h('span', { className: 'dash__n' }, openReqs) : null),
+            h('button', { type: 'button', className: 'dash__link',
+              onClick: function () { router.go(to('leave/overview')); } }, 'View all', I.right)),
+          reqs.length
+            ? reqs.slice(0, 4).map(function (r) {
+                return row(r.key,
+                  h('span', { className: 'dash__row__tile' }, r.icon),
+                  r.t, r.m,
+                  h('span', { className: 'tag tag--' + r.tone }, r.tag));
+              })
+            : h(ui.Empty, { icon: I.checklist, title: 'You have asked for nothing yet',
+                body: 'Leave, attendance corrections, claims and asset requests all land here.' })),
 
-      /* ---- the week, the promises, the shortcuts ---- */
-      h('div', { className: 'edash-b' },
-        h(MeCard, { title: 'This week',
-          right: h('span', { className: 'adm-card__hint' },
-            shortWhen(seed.util.iso(weekStart)) + ' – ' + shortWhen(seed.util.iso(seed.util.addDays(weekStart, 4)))) },
-          h('div', { className: 'eweek' }, week.map(function (w) {
-            var r = w.row;
-            var tone = !r ? '' : r.status === 'Holiday' || r.status === 'Weekly Off' ? 'is-off'
-              : r.status === 'Absent' ? 'is-bad' : 'is-ok';
-            return h('div', { className: 'eweek__r', key: w.iso },
-              h('span', { className: 'eweek__d' + (w.iso === today ? ' is-now' : '') }, w.day),
-              h('span', { className: 'eweek__t' },
-                w.future ? h('span', { className: 'muted' }, '—')
-                  : r && r.status === 'Holiday' ? (r.holiday || 'Holiday')
-                    : r && r.status === 'Weekly Off' ? 'Weekly off'
-                      : r && r.status === 'Absent' ? 'No punches recorded'
-                        : r ? r.checkIn + ' – ' + (w.iso === today && !outAt ? 'now' : r.checkOut)
-                          : '—'),
-              w.future ? h('span', { className: 'eweek__p' })
-                : r && r.status === 'Absent'
-                  ? h('button', { type: 'button', className: 'linklike eweek__fix',
-                      onClick: function () { router.go('me/attendance/regularization'); } }, 'Regularize')
-                  : h('span', { className: 'eweek__p ' + tone },
-                      w.iso === today ? 'Today'
-                        : r && r.status === 'Holiday' ? 'Holiday'
-                          : r && r.status === 'Weekly Off' ? 'Off'
-                            : r ? r.hours + 'h' : ''));
-          }))),
+        h('section', { className: 'dash__card' },
+          h('div', { className: 'dash__card__head' },
+            h('h2', null, 'Upcoming'),
+            h('button', { type: 'button', className: 'dash__link',
+              onClick: function () { router.go(to('leave/holidays')); } }, 'View calendar', I.right)),
+          up.length
+            ? up.slice(0, 4).map(function (u) {
+                return h('div', { className: 'dash__row', key: u.key },
+                  h('span', { className: 'dash__row__tile' }, u.icon),
+                  h('span', { className: 'dash__date' }, u.d),
+                  h('span', { className: 'dash__row__m' },
+                    h('strong', null, u.t), h('span', null, u.s)));
+              })
+            : h(ui.Empty, { icon: I.calendar, title: 'Nothing on the calendar',
+                body: 'Holidays, approved leave and review dates appear here.' }))),
 
-        h(MeCard, { title: 'My goals', count: overdue || undefined, countTone: 'bad',
-          right: link('All goals', 'me/performance/goals') },
-          goals.length
-            ? h(React.Fragment, null,
-                h('div', { className: 'egoals' }, goals.slice(0, 3).map(function (g) {
-                  var late = g.status !== 'Achieved' && daysFromToday(g.due) < 0;
-                  return h('div', { className: 'egoal', key: g.id },
-                    h('span', { className: 'egoal__t' },
-                      h('strong', null, g.title),
-                      h('span', null, (late ? 'Was due ' : 'Due ') + ui.dateLabel(g.due))),
-                    h('span', { className: 'egoal__bar' },
-                      h('i', { style: { width: g.progress + '%',
-                        background: g.progress >= 100 ? 'var(--success-fg)' : late ? 'var(--danger-fg)' : 'var(--brand-solid)' } })),
-                    h('b', { className: 'egoal__n' }, g.progress + '%'));
-                })),
-                h('div', { className: 'row gap-2', style: { marginTop: 14 } },
-                  h(V.Button, { variant: 'primary', className: 'vi-btn--sm',
-                    onClick: function () { router.go('me/performance/goals'); } }, 'Update progress')))
-            : h(ui.Empty, { icon: I.target, title: 'No goals set',
-              body: 'Goals for the open cycle appear here once your manager sets them.' })),
-
-        h(MeCard, { title: 'Shortcuts', sub: 'The things people open most' },
-          h('div', { className: 'eshort' }, SHORTCUTS.map(function (s) {
-            return h('div', { className: 'eshort__r', key: s.t },
-              h('span', { className: 'eshort__i' }, s.icon),
-              h('span', { className: 'eshort__m' },
-                h('strong', null, s.t),
-                h('span', null, s.sub(who))),
-              h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
-                onClick: function () { router.go(s.to); } }, s.act));
-          })))),
-
-      /* ---- who is around ---- */
-      h(MeCard, { title: 'Around the team',
-        sub: (store.department(who.department) || {}).name + ' · next 30 days' },
-        h('div', { className: 'eteam__tabs' }, groups.map(function (g) {
-          return h('button', { key: g.k, type: 'button',
-            className: 'eteam__tab' + (teamSt[0] === g.k ? ' is-on' : ''),
-            'aria-pressed': teamSt[0] === g.k ? 'true' : 'false',
-            onClick: function () { teamSt[1](g.k); } },
-            g.label, h('span', null, g.rows.length));
-        })),
-        group.rows.length
-          ? h('div', { className: 'eteam' }, group.rows.slice(0, 8).map(function (r) {
-              return h('div', { className: 'eteam__c', key: r.id },
-                h(V.Avatar, { name: r.employee.name, size: 'sm' }),
-                h('span', { className: 'eteam__m' },
-                  h('strong', null, r.employee.name),
-                  h('span', null, r.employee.designation)),
-                h('span', { className: 'adm-p adm-p--sched' }, r.tag));
+      /* ---- needs your action, when something does ---- */
+      actions.length
+        ? h('section', { className: 'dash__card' },
+            h('div', { className: 'dash__card__head' },
+              h('h2', null, 'Needs your action',
+                h('span', { className: 'dash__n' }, actions.length)),
+              h('span', { className: 'dash__hint' },
+                actions.length > 4 ? 'Most urgent 4 of ' + actions.length : 'Most urgent first')),
+            actions.slice(0, 4).map(function (a) {
+              return row(a.id,
+                h('span', { className: 'dash__row__tile' }, a.icon),
+                a.title, a.sub,
+                h(React.Fragment, null,
+                  h('span', { className: 'tag tag--'
+                    + (a.pillTone === 'fail' ? 'bad' : a.pillTone === 'warn' ? 'warn' : 'info') }, a.pill),
+                  h(V.Button, { variant: a.pillTone === 'fail' ? 'primary' : 'outline',
+                    className: 'vi-btn--sm',
+                    onClick: function () { router.go(a.to.replace(/^me\//, roleId + '/')); } }, a.action)));
             }))
-          : h(ui.Empty, { icon: I.users, title: 'Nothing under ' + group.label.toLowerCase(),
-            body: 'Try another tab — the counts show what each one holds.' })));
+        : null,
+
+      /* ---- the manager's band ---- */
+      reports.length
+        ? h('div', { className: 'dash__two' },
+            h('section', { className: 'dash__card' },
+              h('div', { className: 'dash__card__head' },
+                h('h2', null, 'Waiting on you',
+                  waiting.length ? h('span', { className: 'dash__n' }, waiting.length) : null),
+                h('button', { type: 'button', className: 'dash__link',
+                  onClick: function () { router.go(to('approvals')); } }, 'Approval inbox', I.right)),
+              waiting.length
+                ? waiting.slice(0, 4).map(function (a) {
+                    return row(a.id,
+                      h('span', { className: 'dash__row__tile' }, I.checklist),
+                      a.kind + ' · ' + nameOf(a.employee), a.detail,
+                      h('span', { className: 'tag tag--warn' }, 'Pending'));
+                  })
+                : h(ui.Empty, { icon: I.ok, title: 'Nothing to decide',
+                    body: 'Leave, corrections, swaps and claims from the people who report to you appear here.' })),
+
+            h('section', { className: 'dash__card' },
+              h('div', { className: 'dash__card__head' },
+                h('h2', null, 'Your team today'),
+                h('span', { className: 'dash__hint' },
+                  reports.length + ' report' + (reports.length === 1 ? '' : 's'))),
+              reports.slice(0, 5).map(function (e) {
+                var off = away[e.id];
+                return row(e.id,
+                  h(V.Avatar, { name: e.name, size: 'sm' }),
+                  e.name,
+                  off ? 'Back ' + shortWhen(seed.util.iso(seed.util.addDays(dayOf(off.to), 1))) : e.designation,
+                  h('span', { className: 'tag tag--' + (off ? 'info' : 'ok') }, off ? 'On leave' : 'At work'));
+              })))
+        : null,
+
+      /* ---- shortcuts ---- */
+      h('section', { 'aria-label': 'Quick actions', className: 'stack gap-3' },
+        h('h2', { className: 'dash__h2' }, 'Quick actions'),
+        h('div', { className: 'dash__qa' }, quick.map(function (q) {
+          return h('button', { key: q.t, type: 'button', className: 'dash__qbtn',
+            onClick: function () { router.go(q.to); } }, q.icon, h('span', null, q.t));
+        }))));
   }
 
   HRMS.screens.register({ 'admin/dashboard': AdminDashboard, 'me/dashboard': MeDashboard });

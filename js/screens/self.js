@@ -814,8 +814,9 @@
 
     return h(Card, {
       title: 'My asset requests',
-      description: 'Ask for a new asset, or report a fault on one you hold. Requests are decided in Tracklivo; ' +
-        'once one is cleared there, IT issues the unit from here.',
+      description: 'Ask for a new asset, or report a fault on one you hold. A replacement for something '
+        + 'you already hold, or a piece of standard kit, is decided straight away; anything larger goes '
+        + 'to IT. Either way IT hands the unit over.',
       aside: h(HRMS.assetRequest.Button, { role: 'me', employee: m.id, label: 'Raise a request' })
     },
       h(ui.DataTable, {
@@ -826,6 +827,15 @@
           { key: 'category', header: 'Category' },
           { key: 'reason', header: 'Reason' },
           { key: 'requestedOn', header: 'Raised', sortable: true, cell: function (a) { return ui.dateLabel(a.requestedOn); } },
+          /* Who decided it, and why — the same reason IT sees, because a decision the
+             person it is about cannot read back is not one they can argue with. */
+          { key: 'decidedBy', header: 'Decided by',
+            cell: function (a) {
+              if (!a.decidedBy) return h('span', { className: 'muted' }, '—');
+              return h(ui.Tip, { text: a.decidedBy + (a.decidedOn ? ' · ' + ui.dateLabel(a.decidedOn) : '')
+                + (a.decidedWhy ? '\n' + a.decidedWhy : '') },
+                h('span', { className: 'dby' + (a.decidedBy === 'Ara' ? ' dby--ara' : '') }, a.decidedBy));
+            } },
           { key: 'status', header: 'Status', cell: function (a) { return chip ? chip(a.status) : a.status; } }
         ],
         emptyIcon: I.package, emptyTitle: 'No requests raised',

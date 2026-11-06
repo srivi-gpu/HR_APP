@@ -127,4 +127,18 @@
   .dash__nav { display: none; }
   .dash__top, .dash__body { padding-inline: 16px; }
 }
+
+/* ---------- The screen inside the application shell ----------
+   The standalone page above draws its own rail, top bar and padding; inside the
+   shell those are already there, so the dashboard is only the stack of sections. */
+.edash2 { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.edash2 .dash__att { background: linear-gradient(100deg, var(--brand-softer) 0%, var(--brand-soft) 58%, var(--brand-softer) 100%); }
+.dash__att__shift { font-size: 13px; color: var(--text-secondary); }
+.chip-wait { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: var(--tl-round); background: var(--warning-bg); color: var(--warning-fg); font-size: 13px; font-weight: 600; }
+.tag--bad { background: var(--danger-bg); color: var(--danger-fg); }
+.dash__hint { font-size: 13px; color: var(--text-muted); }
+.dash__n { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; margin-left: 8px; padding: 0 7px; border-radius: var(--tl-round); background: var(--brand-soft); color: var(--text-brand); font-family: var(--font-sans); font-size: 12px; font-weight: 700; vertical-align: 2px; }
+.dash__row .vi-avatar { flex: none; }
+.dash__row .vi-btn { flex: none; }
+.dash__card > .vi-empty { padding-block: 18px; }
 }

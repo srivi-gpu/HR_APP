@@ -120,4 +120,22 @@ html::-webkit-scrollbar, html *::-webkit-scrollbar { display: none; width: 0; he
 @media (prefers-reduced-motion: reduce) {
   .vi-btn, .vi-switch__thumb { transition: none; }
 }
+
+/* ---------- Tip ----------
+   Portalled to the body, so a table wrapper's `overflow: hidden` cannot clip it.
+   `left`/`top` are the trigger's own centre and edge, written inline by the
+   component; the translate here is what turns those into a bubble sitting above
+   or below it. */
+.vi-tip__t { display: inline-flex; align-items: center; }
+.vi-tip__t:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; border-radius: 8px; }
+.vi-tip {
+  position: fixed; z-index: 90; pointer-events: none;
+  transform: translate(-50%, calc(-100% - 8px));
+  max-width: 320px; padding: 8px 11px; border-radius: 10px;
+  background: var(--text-primary); color: var(--bg-surface);
+  font-family: var(--font-sans); font-size: 12.5px; line-height: 1.45; font-weight: 500;
+  text-align: left; white-space: pre-line;
+  box-shadow: 0 8px 22px #110c2233;
+}
+.vi-tip--below { transform: translate(-50%, 8px); }
 }

@@ -33,6 +33,17 @@
 
   function go(path) {
     var next = String(path).replace(/^\/+/, '');
+    /* A screen written for the team member's workspace names its own routes, and the
+       manager's workspace is that list plus an approval inbox. Following such a link
+       while signed in as a manager should stay in the manager's workspace rather than
+       half-leave it, so the prefix is rebased when the signed-in role inherits it and
+       the rebased route is one we actually have. */
+    var here = HRMS.store ? HRMS.store.pref('role') : null;
+    var from = HRMS.nav.inherits && HRMS.nav.inherits[here];
+    if (from && next.indexOf(from + '/') === 0) {
+      var mine = here + next.slice(from.length);
+      if (HRMS.nav.routes[mine]) next = mine;
+    }
     if (raw() === next) return;
     window.location.hash = '#/' + next;
   }

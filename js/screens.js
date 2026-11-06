@@ -839,6 +839,7 @@
        them, and the screen decides that from the reporting line rather than from the
        route. */
     'hr/approvals': ApprovalInbox,
+    'me/approvals': ApprovalInbox,
     'team/approvals': ApprovalInbox,
     'admin/approvals': ApprovalInbox,
     'global/notifications': Notifications,
