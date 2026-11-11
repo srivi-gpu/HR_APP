@@ -19,11 +19,11 @@
   }
 
   /* ---- Preferences (role, theme, collapsed rail) ---- */
-  /* `setupComplete` starts false, so organisation setup is the first thing anyone meets
-     after signing in. It is set once the wizard is finished or skipped and never returns
-     by itself; the dashboard reopens it on demand. Setup is an organisation-wide wizard
-     rather than a workspace, so signing in while it is outstanding opens it in Admin,
-     whatever `role` says. */
+  /* `setupComplete` starts false and is set once the wizard is finished or skipped.
+     Signing in does not divert to it — that put a five-step form in front of everybody
+     who only wanted their own dashboard. What it still does is leave the setup nudge on
+     the admin dashboard, which is where the wizard is reopened from; signing up, which
+     is the case with no organisation behind it yet, goes straight there. */
   /* `signedIn` is what makes the sign-in page the front door. Without it the app had
      no notion of being signed out at all: an empty hash fell through to the stored
      role's dashboard, so the first thing a visitor saw was somebody's workspace. */
