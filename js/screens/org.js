@@ -122,7 +122,7 @@
           ['Gratuity', 'Applicable after 5 years']
         ]}),
         h('p', { className: 'muted', style: { fontSize: 12 } },
-          'PRD 4.34: statutory rules are configurable per jurisdiction and are not assumed to be universal.')));
+          'Statutory rules are configurable per jurisdiction and are not assumed to be universal.')));
   }
 
   function LegalEntities() {
@@ -489,7 +489,7 @@
       ['Performance Review', 'Reporting Manager', 'Department Head', 'Sequential']
     ].map(function (k, i) { return { id: i, kind: k[0], first: k[1], second: k[2], mode: k[3] }; });
 
-    return h(Card, { title: 'Approval permissions', description: 'Which roles may approve which request types (PRD 6.3).' },
+    return h(Card, { title: 'Approval permissions', description: 'Which roles may approve which request types.' },
       h(ui.DataTable, {
         exportName: 'approval-permissions', label: 'Approval permissions', rows: KINDS, pageSize: 15, onExport: false,
         columns: [

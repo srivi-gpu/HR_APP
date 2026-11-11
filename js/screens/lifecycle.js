@@ -177,7 +177,7 @@
 
     return h(ui.Modal, {
       title: 'Start onboarding',
-      description: 'Generates the checklist from the chosen template and assigns each task (PRD 4.7).',
+      description: 'Generates the checklist from the chosen template and assigns each task.',
       onClose: p.onClose,
       footer: h(React.Fragment, null,
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
@@ -294,7 +294,7 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Onboarding cases',
-        description: 'One case per new joiner. Open the checklist to tick a task off (PRD 4.9).',
+        description: 'One case per new joiner. Open the checklist to tick a task off.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { startSt[1](true); } }, 'Start onboarding')
       },
@@ -308,7 +308,7 @@
           }),
           columns: columns,
           emptyIcon: I.person, emptyTitle: 'No onboarding cases',
-          emptyBody: 'A record created with an Invited or Onboarding status generates a checklist (PRD 5.1). You can also start one here.',
+          emptyBody: 'A record created with an Invited or Onboarding status generates a checklist. You can also start one here.',
           emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus, onClick: function () { startSt[1](true); } }, 'Start onboarding')
         })),
 
@@ -540,7 +540,7 @@
 
       h(Card, {
         title: 'Documents awaiting verification',
-        description: 'PRD 4.8: accept or reject each uploaded document. A rejection needs a reason, which the employee sees.'
+        description: 'Accept or reject each uploaded document. A rejection needs a reason, which the employee sees.'
       },
         h(ui.DataTable, {
           exportName: 'document-verification', label: 'Documents awaiting verification', rows: rows, pageSize: 10,
@@ -567,7 +567,7 @@
 
     return h(React.Fragment, null,
       h(Card, { title: 'Onboarding templates',
-        description: 'A template per employee type and department, applied when a record is created (PRD 4.7).' },
+        description: 'A template per employee type and department, applied when a record is created.' },
         h(ui.DataTable, {
           exportName: 'onboarding-templates', label: 'Onboarding templates', rows: templates, pageSize: 10,
           search: function (t) { return t.name + ' ' + t.employeeType + ' ' + t.department; },
@@ -586,7 +586,7 @@
         })),
 
       h(Card, { title: 'Standard template tasks',
-        description: 'The task list, its default owner and the order it runs in. The first eight are mandatory, so activation is refused while any of them is open (PRD 14.1).' },
+        description: 'The task list, its default owner and the order it runs in. The first eight are mandatory, so activation is refused while any of them is open.' },
         h(ui.DataTable, {
           exportName: 'onboarding-tasks', label: 'Standard template tasks', pageSize: 12, onExport: false,
           rows: names.map(function (name, i) {
@@ -688,7 +688,7 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Resignations',
-        description: 'PRD 4.49: submitted resignations awaiting a decision. Approving one begins the notice period and moves the employee to Notice Period (PRD 5.1).',
+        description: 'Submitted resignations awaiting a decision. Approving one begins the notice period and moves the employee to Notice Period.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { recordSt[1](true); } }, 'Record resignation')
       },
@@ -726,7 +726,7 @@
         ]}),
         h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6 } },
           decideSt[0].decision === 'Approved'
-            ? 'Approval moves the employee to Notice Period and opens the clearance checklist (PRD 5.1).'
+            ? 'Approval moves the employee to Notice Period and opens the clearance checklist.'
             : 'Rejecting closes the case and leaves the employee record untouched.'),
         h(V.TextArea, Object.assign({
           label: decideSt[0].decision === 'Rejected' ? 'Reason for rejection' : 'Comment (optional)',
@@ -735,7 +735,7 @@
 
       recordSt[0] ? h(ui.Modal, {
         title: 'Record a resignation',
-        description: 'For a resignation received outside the system. Validated against PRD 14.8 before anything is written.',
+        description: 'For a resignation received outside the system. Validated before anything is written.',
         onClose: function () { recordSt[1](false); },
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { recordSt[1](false); } }, 'Cancel'),
@@ -767,13 +767,13 @@
           sub: 'Before the end of ' + seed.todayLabel.slice(-8) }),
         h(Stat, { key: 3, label: 'Assets outstanding', value: cases.reduce(function (n, c) {
           return n + store.collection('assets').filter(function (a) { return a.assignedTo === c.employee; }).length;
-        }, 0), sub: 'Must be returned before clearance (PRD 14.8)', tone: 'warn' }),
+        }, 0), sub: 'Must be returned before clearance', tone: 'warn' }),
         h(Stat, { key: 4, label: 'Average clearance', value: cases.length
           ? Math.round(cases.reduce(function (n, c) { return n + c.clearance; }, 0) / cases.length) : 0, unit: '%', sub: 'Across everyone serving notice' })),
 
       h(Card, {
         title: 'Notice period tracker',
-        description: 'PRD 4.50: who is leaving, when, and what is still outstanding on each case.'
+        description: 'Who is leaving, when, and what is still outstanding on each case.'
       },
         h(ui.DataTable, {
           exportName: 'notice-period', label: 'Notice period tracker', rows: cases, pageSize: 10,
@@ -886,7 +886,7 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Exit clearance',
-        description: 'PRD 4.50: knowledge transfer, access revocation and asset return per case. "Asset return" cannot be ticked while the employee still holds an asset (PRD 14.8).'
+        description: 'Knowledge transfer, access revocation and asset return per case. "Asset return" cannot be ticked while the employee still holds an asset.'
       },
         h(ui.DataTable, {
           exportName: 'exit-clearance', label: 'Exit clearance', rows: cases, pageSize: 10,
@@ -957,7 +957,7 @@
 
       h(Card, {
         title: 'Final settlement',
-        description: 'PRD 4.50: record the settlement, then close the exit. A settlement is refused while clearance is outstanding (PRD 14.8), and the exit cannot be closed until the settlement is recorded.'
+        description: 'Record the settlement, then close the exit. A settlement is refused while clearance is outstanding, and the exit cannot be closed until the settlement is recorded.'
       },
         h(ui.DataTable, {
           exportName: 'final-settlement', label: 'Final settlement', rows: cases, pageSize: 10,
@@ -1023,7 +1023,7 @@
 
       closeState[0] ? h(ui.Confirm, {
         title: 'Close the exit for ' + empName(closeState[0].employee) + '?',
-        body: 'The employee moves to Exited, their user account is deactivated and the record is archived (PRD 5.1, 14.1). This cannot be undone.',
+        body: 'The employee moves to Exited, their user account is deactivated and the record is archived. This cannot be undone.',
         confirmLabel: 'Close exit', tone: 'danger',
         onClose: function () { closeState[1](null); },
         onConfirm: function () { ui.report(act.completeOffboarding(closeState[0].id)); }
@@ -1648,7 +1648,7 @@
       h(ui.EmployeePicker, {
         label: 'Allocate to', value: form.values.employee,
         status: form.errors.employee ? 'error' : undefined,
-        hint: form.errors.employee || 'The holder is asked to acknowledge receipt (PRD 4.30)',
+        hint: form.errors.employee || 'The holder is asked to acknowledge receipt',
         onChange: function (v) { form.set('employee', v); }
       }),
       form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null);
@@ -1682,7 +1682,7 @@
         form.select('condition'))),
       h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6 } },
         'The return is kept in the asset history and the unit becomes ' + next.toLowerCase()
-        + '. Once nothing is left with the employee, "Asset return" can be ticked on their clearance checklist (PRD 14.8).'),
+        + '. Once nothing is left with the employee, "Asset return" can be ticked on their clearance checklist.'),
       form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null);
   }
 
@@ -2140,7 +2140,7 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Asset inventory',
-        description: 'PRD 4.29: every asset with its serial, warranty, condition, location and current holder. '
+        description: 'Every asset with its serial, warranty, condition, location and current holder. '
           + 'The category and the state are marks — hover either one for the rest.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { addSt[1](true); } }, 'Add asset')
@@ -2229,7 +2229,7 @@
 
       addSt[0] ? h(ui.Modal, {
         title: 'Add asset', wide: true,
-        description: 'PRD 4.29. The serial number must be unique across the inventory (PRD 14.5).',
+        description: 'The serial number must be unique across the inventory.',
         onClose: function () { addSt[1](false); },
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { addSt[1](false); } }, 'Cancel'),
@@ -2277,7 +2277,7 @@
 
       h(Card, {
         title: 'Allocations',
-        description: 'PRD 4.30: current assignments with the holder, the handover date and whether receipt was acknowledged.'
+        description: 'Current assignments with the holder, the handover date and whether receipt was acknowledged.'
       },
         h(ui.DataTable, {
           exportName: 'asset-allocations', label: 'Allocations', rows: rows, pageSize: 25, density: 'compact',
@@ -2563,7 +2563,7 @@
 
       h(Card, {
         title: 'Returns due from exits',
-        description: 'PRD 4.32: record the condition on return. Until an employee holds nothing, "Asset return" cannot be ticked on their clearance checklist (PRD 14.8).'
+        description: 'Record the condition on return. Until an employee holds nothing, "Asset return" cannot be ticked on their clearance checklist.'
       },
         h(ui.DataTable, {
           exportName: 'asset-returns', label: 'Returns due', rows: rows, pageSize: 10,
@@ -2595,7 +2595,7 @@
             : 'No exit is in progress. Returns appear here as soon as a resignation is approved.'
         })),
 
-      h(Card, { title: 'Return history', description: 'PRD 14.5: a return keeps the holding history rather than overwriting it.' },
+      h(Card, { title: 'Return history', description: 'A return keeps the holding history rather than overwriting it.' },
         h(ui.DataTable, {
           exportName: 'asset-return-history', label: 'Return history', rows: history, pageSize: 10, onExport: false,
           columns: [
@@ -2636,7 +2636,7 @@
 
       h(Grid, null,
         h(Card, { span: 12, title: 'Out of circulation',
-          description: 'PRD 4.33: assets that cannot be allocated. A unit returns to the pool through the return flow, with its condition recorded.' },
+          description: 'Assets that cannot be allocated. A unit returns to the pool through the return flow, with its condition recorded.' },
           h(ui.DataTable, {
             exportName: 'asset-maintenance', label: 'Out of circulation', rows: rows, pageSize: 10,
             search: function (a) { return a.id + ' ' + a.name + ' ' + a.category + ' ' + a.serial; },
@@ -2676,7 +2676,7 @@
             ['Write-off', 'Retired status, kept for the audit trail']
           ]}),
           h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
-            'A status change always runs through the return flow, so inventory and the holding history stay in step (PRD 14.5).'))));
+            'A status change always runs through the return flow, so inventory and the holding history stay in step.'))));
   }
 
   /* ============================================== Configuration (PRD 4.7, 4.48, 4.25, 4.29) */
@@ -2994,7 +2994,7 @@
     return h(React.Fragment, null,
       h(Grid, null,
         h(Card, { span: 12, title: 'Onboarding templates',
-          description: 'PRD 4.7: a template per employee type and department. The template chosen when a record is created decides the checklist.',
+          description: 'A template per employee type and department. The template chosen when a record is created decides the checklist.',
           aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
             onClick: function () { newSt[1](true); } }, 'New Onboarding')
         },
@@ -3201,7 +3201,7 @@
     return h(Grid, null,
       h(Card, { span: 12, title: 'Exit clearance checklists',
         description: 'What an exit has to clear, who does each step and who signs it off. '
-          + 'A resignation picks up the checklist that matches the leaver (PRD 4.48).',
+          + 'A resignation picks up the checklist that matches the leaver.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { editSt[1](false); } }, 'New checklist') },
         h(ui.DataTable, {
@@ -3264,8 +3264,8 @@
           ['Default notice period', '60 days'],
           ['Probation notice', '30 days'],
           ['Shortfall', 'Recorded against the case, not refused'],
-          ['Approval chain', 'Reporting Manager, then HR Administrator (PRD 6.3)'],
-          ['On approval', 'Employee moves to Notice Period and clearance opens (PRD 5.1)'],
+          ['Approval chain', 'Reporting Manager, then HR Administrator'],
+          ['On approval', 'Employee moves to Notice Period and clearance opens'],
           ['On completion', 'Employee moves to Exited and the user account is deactivated']
         ]}),
         h('div', { className: 'checks' },

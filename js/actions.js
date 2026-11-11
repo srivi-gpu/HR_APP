@@ -472,7 +472,7 @@
     var name = String(form.status).trim();
     store.add('statusTransitions', {
       id: store.nextId('statusTransitions', 'st-'), status: name,
-      to: form.to || [], note: form.note || ''
+      to: form.to || [], note: form.note || '', tone: form.tone || ''
     });
     store.log('added the employee status "' + name + '"', 'Configuration');
     return done(name + ' added');
@@ -486,7 +486,7 @@
     if (dup && !errors.status) errors.status = dup;
     if (rules.hasErrors(errors)) return fail(errors);
     var name = String(form.status).trim();
-    var to = (form.to || []).filter(function (t) { return t !== name; });
+    var to = (form.to || row.to || []).filter(function (t) { return t !== name; });
     if (name !== row.status) {
       /* Rename the status everywhere it is referenced: on employee records, and in
          every other row's target list, or those targets would dangle. */
@@ -499,7 +499,10 @@
         });
       });
     }
-    store.setOverride('statusTransitions', id, { status: name, to: to, note: form.note || '' });
+    store.setOverride('statusTransitions', id, {
+      status: name, to: to, note: form.note || '',
+      tone: form.tone == null ? (row.tone || '') : form.tone
+    });
     store.log('updated the employee status "' + name + '"', 'Configuration');
     return done(name + ' updated');
   }

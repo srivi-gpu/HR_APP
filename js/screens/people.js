@@ -324,10 +324,10 @@
           onChange: function (v) { editForm.set('manager', v); }
         }),
         h(V.NumberField, Object.assign({ label: 'Annual CTC (₹)', min: 0, step: 10000,
-          hint: 'A change here starts a new salary revision effective today (PRD 14.6).' }, editForm.field('ctc', { number: true })))) : null,
+          hint: 'A change here starts a new salary revision effective today.' }, editForm.field('ctc', { number: true })))) : null,
 
       statusSt[0] ? h(ui.Modal, {
-        title: 'Change status', description: e.name + ' is currently ' + e.status + '. Only valid transitions are offered (PRD 14.1).',
+        title: 'Change status', description: e.name + ' is currently ' + e.status + '. Only valid transitions are offered.',
         onClose: function () { statusSt[1](false); },
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { statusSt[1](false); } }, 'Cancel'),
@@ -422,7 +422,7 @@
         return h(React.Fragment, null,
           h(ui.FieldRow, null,
             h(V.TextField, Object.assign({ label: 'Employee ID', required: true,
-              hint: form.errors.id || 'Must be unique across the organization (PRD 14.1)' }, form.field('id'))),
+              hint: form.errors.id || 'Must be unique across the organization' }, form.field('id'))),
             h(V.TextField, Object.assign({ label: 'Work email', type: 'email', required: true }, form.field('workEmail')))),
           h(ui.FieldRow, null,
             h(V.DateField, Object.assign({ label: 'Joining date', required: true }, form.field('joined'))),
@@ -434,7 +434,7 @@
             h(V.Select, Object.assign({ label: 'Work location', required: true, options: locOptions() }, form.select('location'))),
             h(V.Select, Object.assign({ label: 'Initial status',
               options: ['Invited', 'Onboarding', 'Probation', 'Active'],
-              hint: 'Invited and Onboarding create an onboarding checklist (PRD 5.1)' }, form.select('status')))),
+              hint: 'Invited and Onboarding create an onboarding checklist' }, form.select('status')))),
           h(ui.EmployeePicker, {
             label: 'Reporting manager', allowNone: true, value: form.values.manager,
             onChange: function (v) { form.set('manager', v); }
@@ -549,7 +549,7 @@
     var res = resultSt[0];
     return h(ui.Modal, {
       title: 'Bulk import employees', wide: true, onClose: p.onClose,
-      description: 'Paste CSV rows. Every row is validated against the rules in PRD 14.1 before anything is written.',
+      description: 'Paste CSV rows. Every row is validated against the employee rules before anything is written.',
       footer: h(React.Fragment, null,
         h(V.Button, { variant: 'ghost', iconStart: I.download, onClick: downloadTemplate }, 'Download template'),
         h('span', { style: { flex: 1 } }),
@@ -805,20 +805,24 @@
       looseErrors(form, ['name', 'code', 'probation', 'leavePolicy', 'status', 'description']));
   }
 
+  /* The colours a status may be shown in. They are the design system's own tones,
+     not free hex, so a status someone adds reads the same as the ones that shipped
+     and still has the contrast it needs in both themes. */
+  var STATUS_TONES = [
+    { value: 'neutral', label: 'Grey' },
+    { value: 'primary', label: 'Violet' },
+    { value: 'info', label: 'Blue' },
+    { value: 'success', label: 'Green' },
+    { value: 'warning', label: 'Amber' },
+    { value: 'error', label: 'Red' }
+  ];
+
   function StatusModal(p) {
     var row = p.row;
-    var others = store.collection('statusTransitions')
-      .filter(function (x) { return !row || x.id !== row.id; });
     var form = ui.useForm(row
-      ? { status: row.status, to: (row.to || []).slice(), note: row.note || '' }
-      : { status: '', to: [], note: '' });
+      ? { status: row.status, tone: ui.statusTone(row.status), note: row.note || '' }
+      : { status: '', tone: 'neutral', note: '' });
 
-    function toggle(name) {
-      var next = (form.values.to || []).slice();
-      var at = next.indexOf(name);
-      if (at < 0) next.push(name); else next.splice(at, 1);
-      form.set('to', next);
-    }
     function save() {
       var res = form.submit(function (v) {
         return ui.report(row ? act.updateEmployeeStatus(row.id, v) : act.createEmployeeStatus(v));
@@ -827,32 +831,30 @@
     }
 
     return h(ui.Modal, {
-      title: row ? 'Edit ' + row.status : 'Add a status',
-      description: 'Tick the statuses an employee on this one can be moved to. Leave them all clear '
-        + 'to make it terminal.',
+      title: row ? 'Edit ' + row.status : 'Add an employee status',
+      description: 'A status an employee record can hold, and the colour it is shown in everywhere.',
       onClose: p.onClose,
       footer: h(React.Fragment, null,
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
-        h(V.Button, { variant: 'primary', onClick: save }, row ? 'Save changes' : 'Add status'))
+        h(V.Button, { variant: 'primary', onClick: save }, row ? 'Save changes' : 'Add employee status'))
     },
       h(V.TextField, Object.assign({ label: 'Status name', required: true, placeholder: 'e.g. Garden Leave' },
         form.field('status'))),
       h('div', { className: 'stack gap-2' },
-        h('span', { className: 'eyebrow' }, 'Can move to'),
-        h('div', { className: 'checks' }, others.map(function (o) {
-          return h('div', { className: 'checks__row', key: o.id },
-            h(V.Checkbox, {
-              checked: (form.values.to || []).indexOf(o.status) >= 0,
-              'aria-label': 'Can move to ' + o.status,
-              onChange: function () { toggle(o.status); }
-            }),
-            h('div', { className: 'checks__main' },
-              h('span', { className: 'checks__name' }, o.status),
-              o.note ? h('span', { className: 'checks__note' }, o.note) : null));
-        }))),
+        h('span', { className: 'eyebrow' }, 'Colour'),
+        h('div', { className: 'tonepick' }, STATUS_TONES.map(function (t) {
+          return h(V.Chip, {
+            key: t.value, shape: 'tag', size: 'md', variant: 'soft', dot: true, tone: t.value,
+            selected: (form.values.tone || 'neutral') === t.value,
+            'aria-label': t.label, onClick: function () { form.set('tone', t.value); }
+          }, t.label);
+        })),
+        h('span', { className: 'list__meta' }, 'Shown as ',
+          h(V.Chip, { shape: 'tag', size: 'sm', variant: 'soft', dot: true, tone: form.values.tone || 'neutral' },
+            (form.values.status || 'Status name').trim() || 'Status name'))),
       h(V.TextArea, Object.assign({ label: 'What it means', rows: 2, placeholder: 'A line for whoever picks this status' },
         form.field('note'))),
-      looseErrors(form, ['status', 'to', 'note']));
+      looseErrors(form, ['status', 'tone', 'note']));
   }
 
   /* A refusal may key on something the form has no field for — a type still on
@@ -892,7 +894,7 @@
         value: tabSt[0], onChange: tabSt[1],
         items: [
           { value: 'types', label: 'Employee types', count: types.length },
-          { value: 'statuses', label: 'Statuses', count: transitions.length }
+          { value: 'statuses', label: 'Employee status', count: transitions.length }
         ]
       }),
 
@@ -901,7 +903,7 @@
         aside: h(V.Button, {
           variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { typeSt[1](false); }
-        }, 'Add type') },
+        }, 'Add employee type') },
         h(ui.DataTable, {
           exportName: 'employee-types', label: 'Employee types', rows: types, pageSize: 10,
           search: function (t) { return t.name + ' ' + t.code + ' ' + (t.description || ''); },
@@ -940,33 +942,25 @@
           emptyIcon: I.users, emptyTitle: 'No employee types yet',
           emptyBody: 'An employee needs a type before the record can be created.',
           emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
-            onClick: function () { typeSt[1](false); } }, 'Add type')
+            onClick: function () { typeSt[1](false); } }, 'Add employee type')
         })),
 
-      tabSt[0] !== 'statuses' ? null : h(Card, { title: 'Statuses and allowed transitions',
-        description: 'PRD 14.1: the Change status dialog only offers what a status points to here.',
+      tabSt[0] !== 'statuses' ? null : h(Card, { title: 'Employee status',
+        description: 'The statuses an employee record can hold, and the colour each one is shown in.',
         aside: h(V.Button, {
           variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { statusSt[1](false); }
-        }, 'Add status') },
+        }, 'Add employee status') },
         h(ui.DataTable, {
-          exportName: 'status-transitions', label: 'Statuses and transitions', rows: transitions, pageSize: 12,
-          search: function (r) { return r.status + ' ' + (r.note || '') + ' ' + (r.to || []).join(' '); },
-          searchPlaceholder: 'Search statuses',
+          exportName: 'employee-status', label: 'Employee status', rows: transitions, pageSize: 12,
+          search: function (r) { return r.status + ' ' + (r.note || ''); },
+          searchPlaceholder: 'Search employee status',
           columns: [
             { key: 'status', header: 'Status', csv: function (r) { return r.status; },
               cell: function (r) {
                 return h('div', { className: 'stack gap-1' },
                   h(ui.StatusChip, { status: r.status }),
                   r.note ? h('span', { className: 'list__meta' }, r.note) : null);
-              } },
-            { key: 'to', header: 'Can move to', csv: function (r) { return (r.to || []).join('; '); },
-              cell: function (r) {
-                return (r.to || []).length
-                  ? h('span', { className: 'row gap-2 wrap' }, r.to.map(function (t) {
-                      return h(V.Chip, { key: t, size: 'sm', shape: 'tag' }, t);
-                    }))
-                  : h('span', { className: 'muted' }, 'Terminal — no further transitions');
               } },
             { key: 'people', header: 'Employees', numeric: true, align: 'right', sortable: true,
               sortValue: function (r) { return statusCounts[r.status] || 0; },
@@ -981,10 +975,10 @@
                     disabled: !!statusCounts[r.status], onClick: function () { killStatusSt[1](r.id); } }));
               } }
           ],
-          emptyIcon: I.relate, emptyTitle: 'No statuses configured',
-          emptyBody: 'Without a status machine an employee record cannot move anywhere.',
+          emptyIcon: I.relate, emptyTitle: 'No employee status configured',
+          emptyBody: 'An employee record needs a status before it can be created.',
           emptyActions: h(V.Button, { variant: 'primary', iconStart: I.plus,
-            onClick: function () { statusSt[1](false); } }, 'Add status')
+            onClick: function () { statusSt[1](false); } }, 'Add employee status')
         })),
 
       typeSt[0] !== null ? h(EmployeeTypeModal, {
@@ -1013,7 +1007,7 @@
   HRMS.screens.register({
     'hr/people/all': employeesScreen({
       key: 'all', filter: function (e) { return e.status !== 'Exited'; },
-      title: 'All employees', description: 'The central employee record every other module references (PRD 4.1).',
+      title: 'All employees', description: 'The central employee record every other module references.',
       stats: function (s) {
         return [
           h(Stat, { key: 1, label: 'Total employees', value: s.headcount, sub: s.newJoiners + ' joined this month', tone: 'good' }),
@@ -1040,7 +1034,7 @@
     }),
     'hr/people/exited': employeesScreen({
       key: 'exited', filter: function (e) { return e.status === 'Exited'; },
-      title: 'Exited', description: 'Archived records, excluded from active headcount (PRD 14.1).',
+      title: 'Exited', description: 'Archived records, excluded from active headcount.',
       emptyTitle: 'No exited employees'
     }),
     'hr/config/structure': OrgStructure,

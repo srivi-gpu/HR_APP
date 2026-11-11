@@ -284,7 +284,7 @@
     return h(React.Fragment, null,
       h(PageHead, {
         title: 'Approval inbox',
-        description: 'One queue for every request type. Approving here updates the source record, as PRD 5.1 requires.'
+        description: 'One queue for every request type. Approving here updates the source record.'
       }),
       h('div', { className: 'row gap-2 wrap' }, Object.keys(byKind).map(function (k) {
         return h(V.Chip, { key: k, size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, k + ' · ' + byKind[k]);
@@ -389,7 +389,7 @@
     return h(React.Fragment, null,
       h(PageHead, {
         title: 'Module permissions',
-        description: 'The permission matrix in PRD section 10. Each level expands to the actions listed below.'
+        description: 'Every permission in the product. Each level expands to the actions listed below.'
       }),
       h(Card, null,
         h(V.Table, {
@@ -437,14 +437,14 @@
           ],
           rows: perms.matrix
         })),
-      h(Card, { title: 'Enforcement in this prototype', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 16.6') },
+      h(Card, { title: 'Enforcement in this prototype' },
         h('p', { className: 'muted', style: { fontSize: 14, lineHeight: 1.6 } },
           'Routes are gated on the matrix above: a deep link into a workspace you are not signed into, ',
           'or a module your role cannot view, lands on the access-denied screen. Try ',
           h('span', { className: 'mono code' }, '#/hr/payroll/dashboard'),
           ' while signed in as Employee.'),
         h('p', { className: 'muted', style: { fontSize: 14, lineHeight: 1.6 } },
-          'This is prototype-level access control only. PRD 16.6 is explicit that frontend permissions ' +
+          'This is prototype-level access control only. Frontend permissions ' +
           'are not production security — real authorization has to be enforced by a backend.')));
   }
 
@@ -649,18 +649,17 @@
           ]})),
         h(Card, { span: 5, title: 'Everything else' },
           h('p', { className: 'muted', style: { fontSize: 14, lineHeight: 1.6 } },
-            'Every other route resolves to a placeholder naming the screen and its PRD section, so the ' +
-            'information architecture can be reviewed against the document before any module is built deep. ' +
-            'PRD 18 sequences the remaining phases.'),
+            'Every other route resolves to a placeholder naming the screen and its section, so the ' +
+            'information architecture can be reviewed against the document before any module is built deep.'),
           h(V.Button, { variant: 'outline', iconStart: I.sitemap, onClick: function () { router.go('global/map'); } }, 'See the full screen map')),
-        h(Card, { span: 12, title: 'Sample figures', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 15') },
+        h(Card, { span: 12, title: 'Sample figures' },
           h('p', { className: 'muted', style: { fontSize: 13 } },
             'These are computed from the sample data, not written onto screens. The smoke test asserts them.'),
           h(V.Table, {
             density: 'compact', 'aria-label': 'Sample figures',
             columns: [
               { key: 'label', header: 'Figure' },
-              { key: 'target', header: 'PRD 15', numeric: true, align: 'right' },
+              { key: 'target', header: 'Target', numeric: true, align: 'right' },
               { key: 'actual', header: 'Computed', numeric: true, align: 'right',
                 cell: function (x) {
                   return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: x.actual === x.target ? 'success' : 'error', dot: true }, String(x.actual));
@@ -684,7 +683,7 @@
     return h(React.Fragment, null,
       h(PageHead, {
         title: 'Screen map',
-        description: HRMS.nav.count + ' routes across three workspaces, mapped from PRD sections 2 and 11. Opening a screen in another workspace switches account.'
+        description: HRMS.nav.count + ' routes across three workspaces. Opening a screen in another workspace switches account.'
       }),
       HRMS.nav.roles.map(function (role) {
         return h(Card, { key: role.id, title: role.label + ' workspace',
@@ -703,7 +702,7 @@
                         ? h('a', { className: 'link', href: item.href }, item.label)
                         : h('button', { className: 'link', type: 'button', onClick: function () { router.goAs(base); } }, item.label),
                       isBuilt || item.href ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Built') : null,
-                      h(V.Chip, { size: 'sm', shape: 'tag' }, 'PRD ' + item.section)),
+                      h(V.Chip, { size: 'sm', shape: 'tag' }, 'Section ' + item.section)),
                     kids.length ? h('span', { className: 'list__meta' }, kids.map(function (t) { return t.label; }).join(' · ')) : null));
               }));
           }));

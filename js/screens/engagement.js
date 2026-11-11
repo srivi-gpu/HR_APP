@@ -121,7 +121,7 @@
     if (!n) return null;
     return h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
       n + (n === 1 ? ' group is' : ' groups are') + ' withheld because fewer than ' + MIN_GROUP +
-      ' people answered. PRD 4.41 requires that an anonymous response cannot be traced back to ' +
+      ' people answered, so that an anonymous response cannot be traced back to ' +
       'an employee, and a group that small would identify them.');
   }
   /* The banner an anonymous survey carries wherever its responses are shown. */
@@ -133,7 +133,7 @@
         h('p', { className: 'ai-note__text' },
           p.name + ' was run anonymously. The respondent was never recorded against a response, so no ' +
           'answer here can be attributed to an employee — not by HR, and not by an administrator. ' +
-          'Group figures are shown only where at least ' + MIN_GROUP + ' people answered (PRD 4.41).')));
+          'Group figures are shown only where at least ' + MIN_GROUP + ' people answered.')));
   }
 
   /* Which survey the responses and analytics screens open on, so a row action in the
@@ -194,7 +194,7 @@
         })),
 
       h(Grid, null,
-        h(Card, { span: 7, title: 'Engagement score trend', description: 'Average rating score per survey, oldest first (PRD 4.42).' },
+        h(Card, { span: 7, title: 'Engagement score trend', description: 'Average rating score per survey, oldest first.' },
           h(ui.Bars, { rows: trend, emptyTitle: 'No scored responses yet' }),
           h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
             'Scores are computed from the stored responses, so they move as responses arrive. ' +
@@ -230,7 +230,7 @@
               }))
             : h(ui.Empty, { icon: I.target, title: 'Nothing open', body: 'Every action plan from a survey finding is complete.' })),
 
-        h(Card, { span: 5, title: 'Recent recognition', description: 'Peer recognition against the company values (PRD 4.42).' },
+        h(Card, { span: 5, title: 'Recent recognition', description: 'Peer recognition against the company values.' },
           recognition.length
             ? h('div', { className: 'list scroll-320' }, recognition.slice(0, 6).map(function (r) {
                 var to = emp(r.to), from = emp(r.from);
@@ -253,7 +253,7 @@
           ]}),
           h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
             'Feedback submitted anonymously carries no employee reference, so it is listed without a person ' +
-            'wherever it appears (PRD 4.41).'))));
+            'wherever it appears.'))));
   }
 
   /* ==================================================== Survey library (4.40) */
@@ -313,7 +313,7 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Survey library',
-        description: 'Every survey with its window, audience, anonymity and response rate (PRD 4.40).',
+        description: 'Every survey with its window, audience, anonymity and response rate.',
         aside: h(V.Button, {
           variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { router.goAs('hr/engagement/builder'); }
@@ -406,7 +406,7 @@
 
     return h(ui.Modal, {
       title: p.draft.isNew ? 'Add question' : 'Edit question',
-      description: 'PRD 4.40 lists six answer types. The type decides how the answer is reported.',
+      description: 'A question uses one of six answer types. The type decides how the answer is reported.',
       onClose: p.onClose,
       footer: h(React.Fragment, null,
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
@@ -556,7 +556,7 @@
               }))
             : h(ui.Empty, {
                 icon: I.forms, title: 'No questions yet',
-                body: 'A survey needs at least one question before it can be created (PRD 4.40).',
+                body: 'A survey needs at least one question before it can be created.',
                 actions: h(V.Button, { variant: 'primary', iconStart: I.plus, onClick: addDraft }, 'Add the first question')
               }),
           form.errors.questions
@@ -576,7 +576,7 @@
               onChange: function (v) { form.set('anonymous', v === 'yes'); },
               hint: form.values.anonymous === false
                 ? 'Responses name the respondent and can be filtered by person.'
-                : 'Responses are stored without the respondent and cannot be attributed (PRD 4.41).'
+                : 'Responses are stored without the respondent and cannot be attributed.'
             })),
           h(ui.FieldRow, null,
             h(V.DateField, Object.assign({ label: 'Opens', required: true }, form.field('from'))),
@@ -596,7 +596,7 @@
             'Exited and invited employees are excluded from the audience. An anonymous survey cannot be ' +
             'switched to attributed afterwards, because the responses it has already collected hold no respondent.')),
 
-        h(Card, { span: 12, title: 'Question bank', description: 'Reusable questions from the survey configuration (PRD 4.40).' },
+        h(Card, { span: 12, title: 'Question bank', description: 'Reusable questions from the survey configuration.' },
           h(ui.DataTable, {
             exportName: 'question-bank', label: 'Question bank', rows: questionBank(), pageSize: 10,
             search: function (q) { return q.text + ' ' + q.kind; }, searchPlaceholder: 'Search the question bank',
@@ -676,7 +676,7 @@
       return h(Card, { title: 'Responses' },
         h(ui.Empty, {
           icon: I.checklist, title: 'No surveys exist yet',
-          body: 'Build a survey to start collecting responses (PRD 4.40).',
+          body: 'Build a survey to start collecting responses.',
           actions: h(V.Button, { variant: 'primary', iconStart: I.plus, onClick: function () { router.goAs('hr/engagement/builder'); } }, 'Open the builder')
         }));
     }
@@ -785,7 +785,7 @@
       h(Grid, null,
         h(Card, { span: 12, title: 'Individual responses',
           description: s.anonymous
-            ? 'Responses to an anonymous survey are listed without a respondent, because none was ever recorded (PRD 4.41).'
+            ? 'Responses to an anonymous survey are listed without a respondent, because none was ever recorded.'
             : 'This survey is attributed, so each response names the employee who submitted it.' },
           h(ui.DataTable, {
             exportName: 'survey-responses-' + s.id, label: 'Responses to ' + s.name,
@@ -905,7 +905,7 @@
 
       h(Grid, null,
         h(Card, { span: 6, title: 'Score by department',
-          description: 'Groups below ' + MIN_GROUP + ' responses are withheld (PRD 4.41).' },
+          description: 'Groups below ' + MIN_GROUP + ' responses are withheld.' },
           h(ui.Bars, {
             rows: reportable(byDept).map(function (g) {
               return [g.key, g.score || 0, g.score != null && g.score < 3.2 ? 'warn' : null];
@@ -1020,7 +1020,7 @@
 
       tabSt[0] === 'feedback' ? h(Grid, null,
         h(Card, { span: 12, title: 'Continuous feedback',
-          description: 'Employee feedback outside a survey. Anonymous submissions carry no employee reference (PRD 4.41, 4.42).' },
+          description: 'Employee feedback outside a survey. Anonymous submissions carry no employee reference.' },
           h(ui.DataTable, {
             exportName: 'feedback', label: 'Continuous feedback', rows: shown, pageSize: 10,
             search: function (f) { return f.category + ' ' + f.note + ' ' + f.status; },
@@ -1056,7 +1056,7 @@
           })),
         h(Card, { span: 6, title: 'Feedback by category' },
           h(ui.Bars, { rows: categoryRows, emptyTitle: 'No feedback yet' })),
-        h(Card, { span: 6, title: 'How anonymous feedback is handled', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 4.41') },
+        h(Card, { span: 6, title: 'How anonymous feedback is handled' },
           h('p', { className: 'muted', style: { fontSize: 13, lineHeight: 1.6 } },
             'An anonymous submission is stored without an employee reference, so there is nothing to reveal ' +
             'later — not by widening a filter, not by exporting the table, and not by an administrator. HR can ' +
@@ -1070,7 +1070,7 @@
 
       tabSt[0] === 'recognition' ? h(Grid, null,
         h(Card, { span: 12, title: 'Recognition',
-          description: 'Peer-to-peer recognition against the company values (PRD 4.42).',
+          description: 'Peer-to-peer recognition against the company values.',
           aside: h(V.Button, {
             variant: 'primary', className: 'vi-btn--sm', iconStart: I.star,
             onClick: function () { recogSt[1](true); }
@@ -1151,7 +1151,7 @@
 
       h(Card, {
         title: 'Action plans',
-        description: 'Improvement actions raised from a survey finding, each with a single accountable owner (PRD 4.41).',
+        description: 'Improvement actions raised from a survey finding, each with a single accountable owner.',
         aside: h(V.Button, {
           variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); }
         }, 'New action plan')
@@ -1251,7 +1251,7 @@
 
     return h(Grid, null,
       h(Card, { span: 12, title: 'Question bank',
-        description: 'The reusable questions the builder draws from, with the answer types of PRD 4.40.' },
+        description: 'The reusable questions the builder draws from, with their answer types.' },
         h(ui.DataTable, {
           exportName: 'survey-question-bank', label: 'Question bank', rows: questionBank(), pageSize: 10,
           search: function (q) { return q.text + ' ' + q.kind; }, searchPlaceholder: 'Search questions',
@@ -1278,7 +1278,7 @@
           }, 'Open the builder')
         })),
 
-      h(Card, { span: 7, title: 'Answer types', description: 'The six types a question can use (PRD 4.40).' },
+      h(Card, { span: 7, title: 'Answer types', description: 'The six types a question can use.' },
         h(ui.DataTable, {
           exportName: 'survey-answer-types', label: 'Answer types',
           rows: QUESTION_TYPES.map(function (t) { return { id: t, type: t, note: TYPE_NOTE[t] }; }),
@@ -1288,10 +1288,10 @@
             { key: 'note', header: 'How it is reported' }
           ],
           emptyIcon: I.forms, emptyTitle: 'No answer types configured',
-          emptyBody: 'The six types in PRD 4.40 are built in.'
+          emptyBody: 'All six answer types are built in.'
         })),
 
-      h(Card, { span: 5, title: 'Anonymity defaults', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 4.41') },
+      h(Card, { span: 5, title: 'Anonymity defaults' },
         h('div', { className: 'checks' },
           [['New surveys are anonymous by default', true],
             ['Withhold any group smaller than the minimum', true],
@@ -1574,7 +1574,7 @@
     return h(React.Fragment, null,
       h(Grid, null,
         h(Card, { span: 12, title: 'Approval workflows',
-          description: 'A trigger, an approver chain, a sequence, an escalation and a rejection behaviour (PRD 6.2).',
+          description: 'A trigger, an approver chain, a sequence, an escalation and a rejection behaviour.',
           aside: h('div', { className: 'row gap-2' },
             h(V.Button, {
               variant: 'outline', className: 'vi-btn--sm', iconStart: I.tasks,

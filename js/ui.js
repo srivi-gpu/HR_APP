@@ -61,10 +61,25 @@
     /* Data export and import runs. */
     Ready: 'success', Queued: 'info', Running: 'info', 'Held for Review': 'warning'
   };
+  /* A status may be configured with a colour of its own in employee setup, and when
+     it is, that colour is what the status wears everywhere — not only on the screen
+     where it was chosen. The built-in map stays as the fallback, so every status that
+     shipped keeps the tone it has always had. */
+  function statusTone(name) {
+    var store = HRMS.store;
+    if (store) {
+      var rows = store.collection('statusTransitions') || [];
+      for (var i = 0; i < rows.length; i++) {
+        if (rows[i].status === name && rows[i].tone) return rows[i].tone;
+      }
+    }
+    return TONES[name] || 'neutral';
+  }
+
   function StatusChip(p) {
     return h(V.Chip, {
       shape: 'tag', size: p.size || 'sm', variant: 'soft', dot: true,
-      tone: TONES[p.status] || 'neutral'
+      tone: statusTone(p.status)
     }, p.status);
   }
 
@@ -356,7 +371,7 @@
       h('div', { className: 'stack gap-3 stub__body' },
         meta.note ? h('p', { className: 'stub__note' }, meta.note) : null,
         h('div', { className: 'row gap-2 wrap' },
-          meta.section ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD ' + meta.section) : null,
+          meta.section ? h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'Section ' + meta.section) : null,
           h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info', dot: true }, 'Not built yet'),
           h(V.Chip, { size: 'sm', shape: 'tag', icon: I.link }, '#/' + meta.path))));
   }
@@ -909,7 +924,7 @@
   HRMS.ui = {
     inr: inr, pct: pct, tones: TONES, dateLabel: dateLabel, shortDate: shortDate, relTime: relTime,
     PageHead: PageHead, PageActions: PageActions, Card: Card, Grid: Grid, Stat: Stat, Stats: Stats, KeyValue: KeyValue,
-    Person: Person, StatusChip: StatusChip, Empty: Empty, Done: Done, DoneArt: DoneArt, Stub: Stub, ModuleTabs: ModuleTabs,
+    Person: Person, StatusChip: StatusChip, statusTone: statusTone, Empty: Empty, Done: Done, DoneArt: DoneArt, Stub: Stub, ModuleTabs: ModuleTabs,
     DataTable: DataTable, Bars: Bars, Timeline: Timeline,
     Modal: Modal, Drawer: Drawer, Confirm: Confirm, portal: portal, Tip: Tip,
     useForm: useForm, FieldRow: FieldRow, FormSection: FormSection,
