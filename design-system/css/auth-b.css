@@ -78,19 +78,6 @@
 }
 .authb__note { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
 
-/* Wide provider buttons, one per row */
-.authb__sso { display: flex; flex-direction: column; gap: 10px; }
-.authb__ssobtn {
-  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 10px;
-  height: clamp(42px, 5.4vh, 48px); border: 1px solid var(--border-default); border-radius: var(--tl-round);
-  background: var(--bg-surface); color: var(--text-primary); font-size: 14.5px; cursor: pointer;
-}
-.authb__ssobtn:hover { background: var(--bg-hover); border-color: var(--border-strong, var(--border-default)); }
-.authb__ssobtn:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
-.authb__ssobtn[disabled] { opacity: .6; cursor: default; }
-.authb__ssobtn .auth-sso__mark svg,
-.authb__ssobtn svg { width: 20px; height: 20px; }
-
 /* ---- Right: what this is for ---- */
 .authb__pitch {
   position: relative; isolation: isolate; overflow: hidden; min-height: 0;

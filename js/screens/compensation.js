@@ -182,7 +182,7 @@
                 }, 'Open processing'))
             : h(ui.Empty, { icon: I.card, title: 'No payroll cycle yet', body: 'Start a run from the cycles screen.' })),
 
-        h(Card, { span: 6, title: 'Statutory & employer contributions', description: 'Per month, across the payroll. Rules are configurable per jurisdiction (PRD 4.34).' },
+        h(Card, { span: 6, title: 'Statutory & employer contributions', description: 'Per month, across the payroll. Rules are configurable per jurisdiction.' },
           h(ui.KeyValue, { rows: [
             ['Provident fund — employee', ui.inr(t.lines['Provident Fund'] || 0)],
             ['Provident fund — employer', ui.inr(t.employerPf)],
@@ -192,7 +192,7 @@
             ['Employer cost above gross', ui.inr(t.employerCost - t.gross)]
           ]}),
           h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.sliders,
-            onClick: function () { router.goAs('hr/config/payroll'); } }, 'Payroll configuration')),
+            onClick: function () { router.goAs('hr/payroll/configuration'); } }, 'Payroll configuration')),
 
         h(Card, { span: 12, title: 'Payroll history' },
           h(ui.DataTable, {
@@ -222,7 +222,7 @@
     }
     return h(ui.Modal, {
       title: 'Start a payroll run', onClose: p.onClose,
-      description: 'Step 1 of PRD 4.35. The run opens as a draft with inputs pending, so nothing is paid yet.',
+      description: 'Step 1 of the payroll run. It opens as a draft with inputs pending, so nothing is paid yet.',
       footer: h(React.Fragment, null,
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
         h(V.Button, { variant: 'primary', onClick: save }, 'Create run'))
@@ -341,7 +341,7 @@
 
       h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
         'Earnings and deductions are derived from the annual CTC of ' + ui.inr(e.ctc)
-          + ' through the assigned salary structure (PRD 4.38). Employer provident fund of '
+          + ' through the assigned salary structure. Employer provident fund of '
           + ui.inr(b.employerPf) + ' is a cost to the company and is not deducted from the employee.'));
   }
 
@@ -383,7 +383,7 @@
     var STEPS = [
       ['Initiate the run', 'Create the cycle with its cut-off and payment date.', done.initiate],
       ['Pull inputs and review', 'Approved attendance, leave and loss-of-pay rows are applied, then the run moves to review.', done.review],
-      ['Approve, finalize and lock', 'Finalizing locks the cycle. Later corrections go through an adjustment (PRD 14.6).', done.finalize],
+      ['Approve, finalize and lock', 'Finalizing locks the cycle. Later corrections go through an adjustment.', done.finalize],
       ['Generate and publish payslips', 'One payslip per employee in the run, published to the employee workspace.', done.publish]
     ];
 
@@ -392,7 +392,7 @@
         h(Card, {
           span: 7, title: 'Payroll run · ' + cycle.period,
           aside: h(ui.StatusChip, { status: cycle.status }),
-          description: 'The sequence in PRD 4.35. Each step refuses to run before the one before it.'
+          description: 'The payroll sequence. Each step refuses to run before the one before it.'
         },
           h(V.Select, {
             label: 'Cycle', value: cycle.id, onChange: pickSt[1],
@@ -488,7 +488,7 @@
               { key: 'source', header: 'Source', cell: function (x) { return h('span', { className: 'mono' }, x.source || '—'); } }
             ],
             emptyIcon: I.clock, emptyTitle: 'No manual inputs in this run',
-            emptyBody: 'Approving unpaid leave adds a loss-of-pay row here (PRD 5.1).'
+            emptyBody: 'Approving unpaid leave adds a loss-of-pay row here.'
           })),
 
         h(Card, { span: 12, title: 'Calculation preview', description: 'What each employee would be paid for ' + cycle.period + '.' },
@@ -578,14 +578,14 @@
             ['Deduction rate', ui.pct(t.deductions, t.gross) + '% of gross']
           ]}),
           h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
-            'PRD 14.6: a salary change needs an effective date, and the previous value stays in the '
+            'A salary change needs an effective date, and the previous value stays in the '
               + 'employment history rather than being overwritten.'),
           h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.right,
             onClick: function () { router.goAs('hr/payroll/components'); } }, 'Components'))),
 
       openSt[0] ? h(ui.Modal, {
         title: 'Create salary structure', onClose: function () { openSt[1](false); },
-        description: 'A structure needs an effective date, because salary changes are dated (PRD 14.6).',
+        description: 'A structure needs an effective date, because salary changes are dated.',
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { openSt[1](false); } }, 'Cancel'),
           h(V.Button, { variant: 'primary', onClick: save }, 'Create structure'))
@@ -741,7 +741,7 @@
         h(Stat, { label: 'Awaiting verification', value: pending, sub: 'Proofs to check before the next run', tone: pending ? 'warn' : null })),
 
       h(Grid, null,
-        h(Card, { span: 12, title: 'Tax declarations', description: 'Regime, declared amount, proofs and verification state for FY 2026-27 (PRD 4.37).' },
+        h(Card, { span: 12, title: 'Tax declarations', description: 'Regime, declared amount, proofs and verification state for FY 2026-27.' },
           h(ui.DataTable, {
             exportName: 'tax-declarations', label: 'Tax declarations', rows: rows, pageSize: 10,
             search: function (x) { return (emp(x.employee) ? emp(x.employee).name + ' ' + x.employee : '') + ' ' + x.regime; },
@@ -838,7 +838,7 @@
               ? rated.length + ' of ' + asm.length + ' assessments carry a rating. Compare teams on the calibration screen before publishing.'
               : 'A rating appears here as each manager review is submitted, and calibration compares the spread across departments before results are published.')),
 
-        h(Card, { span: 12, title: 'Goal progress by department', description: 'Goals and KPIs in the open cycle (PRD 4.46).' },
+        h(Card, { span: 12, title: 'Goal progress by department', description: 'Goals and KPIs in the open cycle.' },
           h(ui.DataTable, {
             exportName: 'goal-progress-by-department', label: 'Goal progress by department', rows: goalRows, pageSize: 10,
             search: function (r) { return deptName(r.department); }, searchPlaceholder: 'Search departments',
@@ -889,7 +889,7 @@
 
     return h(React.Fragment, null,
       h(Card, {
-        title: 'Appraisal cycles', description: 'Period, eligibility, reviewers and workflow for each cycle (PRD 4.44).',
+        title: 'Appraisal cycles', description: 'Period, eligibility, reviewers and workflow for each cycle.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
           onClick: function () { openSt[1](true); } }, 'Create cycle')
       },
@@ -936,7 +936,7 @@
 
       openSt[0] ? h(ui.Modal, {
         title: 'Create appraisal cycle', onClose: function () { openSt[1](false); },
-        description: 'Creating a cycle schedules it. Launching it generates the review tasks (PRD 5.1).',
+        description: 'Creating a cycle schedules it. Launching it generates the review tasks.',
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { openSt[1](false); } }, 'Cancel'),
           h(V.Button, { variant: 'primary', onClick: save }, 'Create cycle'))
@@ -973,7 +973,7 @@
     ].map(function (r) { return { id: r[0], score: r[0], label: r[1], meaning: r[2] }; });
 
     return h(Grid, null,
-      h(Card, { span: 7, title: 'Competencies', description: 'What every review scores, alongside the goals of PRD 4.46.' },
+      h(Card, { span: 7, title: 'Competencies', description: 'What every review scores, alongside the goals.' },
         h(ui.DataTable, {
           exportName: 'performance-competencies', label: 'Competencies', rows: rows, pageSize: 10,
           search: function (r) { return r.name; }, searchPlaceholder: 'Search competencies',
@@ -990,7 +990,7 @@
         }),
         h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
           'Weights are split evenly across the ' + seed.competencies.length
-            + ' competencies and are edited in performance configuration (PRD 4.43).')),
+            + ' competencies and are edited in performance configuration.')),
 
       h(Card, { span: 5, title: 'Rating scale', aside: h(V.Chip, { size: 'sm', shape: 'tag' }, cycle ? cycle.ratingScale : '1 – 5') },
         h(ui.DataTable, {
@@ -1008,7 +1008,7 @@
           ['Goal weighting', '60% of the final score'],
           ['Competency weighting', '40% of the final score'],
           ['Written summary', 'Required with every manager rating'],
-          ['Calibration', 'Compared by department before publishing (PRD 4.45)']
+          ['Calibration', 'Compared by department before publishing']
         ]})));
   }
 
@@ -1093,7 +1093,7 @@
 
       addSt[0] ? h(ui.Modal, {
         title: 'Add goal', onClose: function () { addSt[1](false); },
-        description: 'Goals carry a weight out of 100 and roll into the appraisal score (PRD 4.46).',
+        description: 'Goals carry a weight out of 100 and roll into the appraisal score.',
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { addSt[1](false); } }, 'Cancel'),
           h(V.Button, { variant: 'primary', onClick: saveGoal }, 'Add goal'))
@@ -1171,7 +1171,7 @@
         h('span', { className: 'ai-note__mark' }, I.warn),
         h('div', { className: 'ai-note__body' },
           h('span', { className: 'ai-note__eyebrow' }, 'This review will be refused'),
-          h('p', { className: 'ai-note__text' }, blocked + ' (PRD 14.7).'))) : null,
+          h('p', { className: 'ai-note__text' }, blocked + '.'))) : null,
 
       goals.length ? h(Card, { className: 'card--quiet', title: 'Goals under review' },
         h('div', { className: 'list' }, goals.slice(0, 6).map(function (g) {
@@ -1196,7 +1196,7 @@
             h('span', { className: 'checks__name' }, 'Submit as me'
               + (me ? ' (' + me.name + ')' : '') + ' instead of the assigned reviewer'),
             h('span', { className: 'checks__meta' },
-              'PRD 14.7 refuses a review from anyone other than the assigned reviewer. Leave this off to submit as '
+              'A review is refused from anyone other than the assigned reviewer. Leave this off to submit as '
                 + (reviewer ? reviewer.name : 'the assigned reviewer') + '.')))));
   }
 
@@ -1218,7 +1218,7 @@
         h(Stat, { label: 'Manager reviews in', value: mgrIn, sub: ui.pct(mgrIn, rows.length) + '% submitted' }),
         h(Stat, { label: 'Still open', value: rows.length - mgrIn, sub: 'Waiting on a reviewer', tone: rows.length - mgrIn ? 'warn' : 'good' })),
 
-      h(Card, { title: 'Reviews', description: 'Manager review progress for every employee in the cycle (PRD 4.45).' },
+      h(Card, { title: 'Reviews', description: 'Manager review progress for every employee in the cycle.' },
         h(ui.DataTable, {
           exportName: 'performance-reviews', label: 'Reviews', rows: rows, pageSize: 10,
           search: function (a) {
@@ -1329,7 +1329,7 @@
       h(Grid, null,
         h(Card, {
           span: 12, title: 'Calibration by department',
-          description: 'Compare the rating spread across teams before results are published, so one manager’s scale does not become the organization’s (PRD 4.45).'
+          description: 'Compare the rating spread across teams before results are published, so one manager’s scale does not become the organization’s.'
         },
           h(ui.DataTable, {
             exportName: 'performance-calibration', label: 'Calibration by department', rows: rows, pageSize: 10,
@@ -1371,7 +1371,7 @@
       h(Grid, null,
         h(Card, {
           span: 5, title: 'Publication', aside: cycle ? h(ui.StatusChip, { status: cycle.status }) : null,
-          description: 'Results are published to employees once every review is in (PRD 4.45).'
+          description: 'Results are published to employees once every review is in.'
         },
           h(V.Select, {
             label: 'Cycle', value: cycle ? cycle.id : '', onChange: cycleSt[1], options: perfOptions()
@@ -1466,12 +1466,12 @@
     var WORKFLOW = [
       ['Prepared by', 'HR Administrator', 'Pulls approved attendance, leave and one-time inputs for the period.'],
       ['Reviewed by', 'Finance Controller', 'Checks the variance against the previous cycle before approval.'],
-      ['Approved by', 'Organization Admin', 'Approval finalizes and locks the cycle (PRD 14.6).'],
+      ['Approved by', 'Organization Admin', 'Approval finalizes and locks the cycle.'],
       ['Published by', 'HR Administrator', 'Payslips are generated and published to the employee workspace.']
     ].map(function (r, i) { return { id: i, step: i + 1, role: r[1], stage: r[0], detail: r[2] }; });
 
     return h(Grid, null,
-      h(Card, { span: 7, title: 'Run settings', description: 'Frequency, cut-off and payment date for every cycle (PRD 4.34).' },
+      h(Card, { span: 7, title: 'Run settings', description: 'Frequency, cut-off and payment date for every cycle.' },
         h(ui.KeyValue, { rows: [
           ['Frequency', 'Monthly'],
           ['Attendance cut-off', '25th of the month'],
@@ -1500,11 +1500,11 @@
               h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
           })),
         h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
-          'PRD 14.6: once a cycle is finalized it cannot be edited. A correction is raised as an '
+          'Once a cycle is finalized it cannot be edited. A correction is raised as an '
             + 'adjustment in the next run, so the paid figures stay auditable.')),
 
       h(Card, { span: 12, title: 'Statutory rules',
-        description: 'PRD 4.34: statutory rules are configurable per jurisdiction and are not assumed to be universal.' },
+        description: 'Statutory rules are configurable per jurisdiction and are not assumed to be universal.' },
         h(ui.DataTable, {
           exportName: 'payroll-statutory-rules', label: 'Statutory rules', rows: STATUTORY, pageSize: 10,
           search: function (r) { return r.rule + ' ' + r.jurisdiction + ' ' + r.basis; },
@@ -1521,7 +1521,7 @@
         })),
 
       h(Card, { span: 12, title: 'Approval workflow',
-        description: 'Who prepares, reviews, approves and publishes a payroll run (PRD 4.34 and 6.3).' },
+        description: 'Who prepares, reviews, approves and publishes a payroll run.' },
         h(ui.DataTable, {
           exportName: 'payroll-approval-workflow', label: 'Payroll approval workflow', rows: WORKFLOW, pageSize: 10, onExport: false,
           search: function (r) { return r.stage + ' ' + r.role + ' ' + r.detail; },
@@ -1560,7 +1560,7 @@
     ].map(function (r, i) { return { id: i, step: i + 1, stage: r[0], owner: r[1], detail: r[2] }; });
 
     return h(Grid, null,
-      h(Card, { span: 6, title: 'Cycle defaults', description: 'Applied to every appraisal cycle created from here (PRD 4.43).' },
+      h(Card, { span: 6, title: 'Cycle defaults', description: 'Applied to every appraisal cycle created from here.' },
         h(ui.KeyValue, { rows: [
           ['Frequency', 'Half-yearly'],
           ['Open cycle', cycle ? cycle.name : null],
@@ -1607,7 +1607,7 @@
         h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.right,
           onClick: function () { router.goAs('hr/performance/criteria'); } }, 'Criteria')),
 
-      h(Card, { span: 5, title: 'Review hierarchy', description: 'The order a review moves through (PRD 4.45).' },
+      h(Card, { span: 5, title: 'Review hierarchy', description: 'The order a review moves through.' },
         h(ui.DataTable, {
           exportName: 'performance-review-hierarchy', label: 'Review hierarchy', rows: HIERARCHY, pageSize: 10, onExport: false,
           search: function (r) { return r.stage + ' ' + r.owner; }, searchPlaceholder: 'Search the hierarchy',
@@ -1645,7 +1645,7 @@
     'hr/performance/calibration': Calibration,
     'hr/performance/results': Results,
 
-    'hr/config/payroll': PayrollConfig,
+    'hr/payroll/configuration': PayrollConfig,
     'hr/config/performance': PerformanceConfig
   });
 

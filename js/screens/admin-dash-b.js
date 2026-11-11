@@ -140,7 +140,7 @@
   }
 
   var TL_TONE = { Security: 'bad', Permissions: 'warn', Configuration: 'info' };
-  var STEP_ROUTE = { 'Payroll configuration': 'hr/config/payroll', 'Integrations': 'admin/integrations', 'Payment method': 'admin/billing/billing' };
+  var STEP_ROUTE = { 'Payroll configuration': 'hr/payroll/configuration', 'Integrations': 'admin/integrations', 'Payment method': 'admin/billing/billing' };
   function plural(n, one, many) { return num(n) + ' ' + (n === 1 ? one : (many || one + 's')); }
   function actorName(id) { var e = store.employee(id); return e ? e.name : 'Someone'; }
   function ago(on) {

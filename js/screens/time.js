@@ -179,7 +179,7 @@
           })),
         h(Card, { span: 6, title: 'Working today by location' },
           h(ui.Bars, { rows: rowsOf(byLoc, 'info') })),
-        h(Card, { span: 4, title: 'Punch source', description: 'Where today’s punches came from (PRD 4.17).' },
+        h(Card, { span: 4, title: 'Punch source', description: 'Where today’s punches came from.' },
           h(ui.Bars, { rows: rowsOf(bySource, 'info') })),
 
         h(Card, {
@@ -195,7 +195,7 @@
               }))
             : h(ui.Empty, { icon: I.ok, title: 'Every punch is complete' })),
 
-        h(Card, { span: 12, title: 'Late arrivals today', description: 'PRD 4.16: late is measured against the shift start plus its grace period.' },
+        h(Card, { span: 12, title: 'Late arrivals today', description: 'Late is measured against the shift start plus its grace period.' },
           lateToday.length
             ? h('div', { className: 'list' }, lateToday.slice(0, 8).map(function (a) {
                 var e = emp(a.employee);
@@ -254,7 +254,7 @@
 
     return h(React.Fragment, null,
       h(Card, {
-        title: 'Daily attendance', description: 'Punches, hours and exceptions for a single day (PRD 4.19).',
+        title: 'Daily attendance', description: 'Punches, hours and exceptions for a single day.',
         aside: h('div', { className: 'row gap-2' },
           h(V.Chip, { size: 'sm', shape: 'tag', icon: I.calendar }, seed.todayLabel),
           h(V.Button, {
@@ -348,7 +348,7 @@
     var offsetSt = React.useState(0);
 
     function defaultEmployeeId() {
-      var featured = store.employeeByName('Ananya Rao');
+      var featured = store.employeeByName('Kavya Nair');
       if (featured) return featured.id;
       var list = workforce();
       return list.length ? list[0].id : null;
@@ -377,7 +377,7 @@
     return h(React.Fragment, null,
       h(Grid, null,
         h(Card, { span: 8, title: MONTHS[month] + ' ' + year,
-          description: who ? 'Derived from approved leave, the holiday calendar and the work week (PRD 4.19).' : null,
+          description: who ? 'Derived from approved leave, the holiday calendar and the work week.' : null,
           aside: h('div', { className: 'row gap-2' },
             h(V.IconButton, { icon: I.back, 'aria-label': 'Previous month', onClick: function () { offsetSt[1](offsetSt[0] - 1); } }),
             h(V.Button, { variant: 'outline', className: 'vi-btn--sm', disabled: offsetSt[0] === 0, onClick: function () { offsetSt[1](0); } }, 'This month'),
@@ -484,7 +484,7 @@
     return h(React.Fragment, null,
       h(Stats, { cols: 3 },
         h(Stat, { label: 'Pending corrections', value: pending.length, sub: 'Awaiting a decision', tone: pending.length ? 'warn' : 'good' }),
-        h(Stat, { label: 'Approved', value: all.filter(function (x) { return x.status === 'Approved'; }).length, sub: 'Original values retained (PRD 14.3)' }),
+        h(Stat, { label: 'Approved', value: all.filter(function (x) { return x.status === 'Approved'; }).length, sub: 'Original values retained' }),
         h(Stat, { label: 'Rejected', value: all.filter(function (x) { return x.status === 'Rejected'; }).length, sub: 'Each carries a reason' })),
 
       h(V.TabGroup, {
@@ -496,7 +496,7 @@
         ]
       }),
 
-      h(Card, { title: 'Attendance corrections', description: 'Approving writes the corrected punch while keeping the original on the record (PRD 14.3).' },
+      h(Card, { title: 'Attendance corrections', description: 'Approving writes the corrected punch while keeping the original on the record.' },
         h(ui.DataTable, {
           exportName: 'attendance-regularizations', label: 'Attendance corrections', rows: rows, pageSize: 10,
           /* Two avatars and a pair of decision buttons: heavier than seven columns
@@ -553,7 +553,7 @@
     });
 
     return h(React.Fragment, null,
-      h(Card, { title: 'Attendance policies', description: 'Working hours, grace period, late marking and overtime, per group of employees (PRD 4.16).' },
+      h(Card, { title: 'Attendance policies', description: 'Working hours, grace period, late marking and overtime, per group of employees.' },
         h(ui.DataTable, {
           exportName: 'attendance-policies', label: 'Attendance policies', rows: ATTENDANCE_POLICIES, pageSize: 10,
           search: function (p) { return p.name + ' ' + p.appliesTo; }, searchPlaceholder: 'Search policies',
@@ -580,7 +580,7 @@
             ['Half day', 'Fewer than 4 worked hours'],
             ['Absent', 'No punch and no approved leave'],
             ['Missing punch', 'One punch recorded, the other missing'],
-            ['Correction window', 'The last 30 days (PRD 14.3)'],
+            ['Correction window', 'The last 30 days'],
             ['Weekly off', seed.org.workWeek.join(', ') + ' are working days']
           ]})),
         h(Card, { span: 6, title: 'Options' },
@@ -714,7 +714,7 @@
               }))
             : h(ui.Empty, { icon: I.calendar, title: 'No approved leave ahead' })),
 
-        h(Card, { span: 12, title: 'Holidays ahead', description: 'Leave days are counted around these and the weekly offs (PRD 14.2).' },
+        h(Card, { span: 12, title: 'Holidays ahead', description: 'Leave days are counted around these and the weekly offs.' },
           holidaysAhead.length
             ? h('div', { className: 'row gap-2 wrap' }, holidaysAhead.map(function (hd) {
                 return h(V.Chip, {
@@ -811,7 +811,7 @@
 
       h(Card, {
         title: 'Leave requests',
-        description: 'Approving updates the balance, the attendance calendar and payroll inputs, as PRD 5.1 requires.'
+        description: 'Approving updates the balance, the attendance calendar and payroll inputs.'
       },
         h(ui.DataTable, {
           exportName: 'leave-requests', label: 'Leave requests', rows: rows, pageSize: 10,
@@ -922,7 +922,7 @@
 
     return h(React.Fragment, null,
       h(Card, {
-        title: 'Leave types', description: 'Entitlement, carry forward, notice and documentation rules per type (PRD 4.11).',
+        title: 'Leave types', description: 'Entitlement, carry forward, notice and documentation rules per type.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Create leave type')
       },
         h(ui.DataTable, {
@@ -962,7 +962,7 @@
 
       openSt[0] ? h(ui.Modal, {
         title: 'Create leave type', wide: true, onClose: function () { openSt[1](false); },
-        description: 'Every field here becomes a rule the leave application in PRD 14.2 is checked against.',
+        description: 'Every field here becomes a rule a leave application is checked against.',
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { openSt[1](false); } }, 'Cancel'),
           h(V.Button, { variant: 'primary', onClick: save }, 'Create leave type'))
@@ -979,7 +979,7 @@
             h(V.NumberField, Object.assign({ label: 'Max consecutive days', min: 0, step: 1,
               hint: '0 means no cap' }, form.field('maxConsecutive', { number: true })))),
           h(ui.FieldRow, null,
-            h(V.Switch, Object.assign({ label: 'Paid leave', description: 'Unpaid leave creates a loss-of-pay payroll input (PRD 5.1).' }, form.check('paid'))),
+            h(V.Switch, Object.assign({ label: 'Paid leave', description: 'Unpaid leave creates a loss-of-pay payroll input.' }, form.check('paid'))),
             h(V.Switch, Object.assign({ label: 'Carry forward allowed', description: 'Unused days move into the next leave year.' }, form.check('carry')))),
           /* The percentage only exists while something carries, so it appears with
              the switch rather than sitting disabled beside it. */
@@ -995,6 +995,24 @@
               hint: 'Checked when the employee applies' }, form.field('notice', { number: true }))),
             h(V.Switch, Object.assign({ label: 'Supporting document required', description: 'Enforced beyond two days.' }, form.check('docRequired'))))),
         form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null) : null);
+  }
+
+  /* Leave configuration is one tab with two inside it. A leave type and the policy
+     that hands it out are two halves of the same decision — you come here to change
+     what leave exists, or who gets it — so they are tabs of one screen rather than
+     two stops in a twelve-tab bar. Both halves are the screens that already existed,
+     rendered here unchanged, so the Leave module's own tabs still show the same thing. */
+  function LeaveConfig() {
+    var tabSt = React.useState('types');
+    return h(React.Fragment, null,
+      h(V.TabGroup, {
+        value: tabSt[0], onChange: tabSt[1],
+        items: [
+          { value: 'types', label: 'Leave types', count: store.collection('leaveTypes').length },
+          { value: 'policies', label: 'Leave policies', count: store.collection('leavePolicies').length }
+        ]
+      }),
+      tabSt[0] === 'types' ? h(LeaveTypes, null) : h(LeavePolicies, null));
   }
 
   /* ============================================================ Leave policies
@@ -1020,7 +1038,7 @@
 
     return h(React.Fragment, null,
       h(Card, {
-        title: 'Leave policies', description: 'Policies scoped by employee type, department, location and tenure (PRD 4.11).',
+        title: 'Leave policies', description: 'Policies scoped by employee type, department, location and tenure.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Create policy')
       },
         h(ui.DataTable, {
@@ -1056,7 +1074,7 @@
 
       openSt[0] ? h(ui.Modal, {
         title: 'Create leave policy', onClose: function () { openSt[1](false); },
-        description: 'PRD 14.2: an employee may only apply for a leave type their policy includes.',
+        description: 'An employee may only apply for a leave type their policy includes.',
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { openSt[1](false); } }, 'Cancel'),
           h(V.Button, { variant: 'primary', onClick: save }, 'Create policy'))
@@ -1112,7 +1130,7 @@
 
     return h(React.Fragment, null,
       h(Card, {
-        title: 'Shifts', description: 'Working hours per shift, with break, grace period and the night flag (PRD 4.20). Put people on one from the roster.',
+        title: 'Shifts', description: 'Working hours per shift, with break, grace period and the night flag. Put people on one from the roster.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Create shift')
       },
         h(ui.DataTable, {
@@ -1146,7 +1164,7 @@
 
       openSt[0] ? h(ui.Modal, {
         title: 'Create shift', onClose: function () { openSt[1](false); },
-        description: 'An end time before the start time is an overnight shift, which is legitimate (PRD 14.4).',
+        description: 'An end time before the start time is an overnight shift, which is legitimate.',
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { openSt[1](false); } }, 'Cancel'),
           h(V.Button, { variant: 'primary', onClick: save }, 'Create shift'))
@@ -1295,7 +1313,7 @@
         })),
 
       h(Card, {
-        title: 'Weekly roster', description: 'Assigning replaces any shift already published for that employee and date (PRD 14.4).',
+        title: 'Weekly roster', description: 'Assigning replaces any shift already published for that employee and date.',
         /* The week label and this week's holidays belong beside the week controls,
            not in a band of their own above the table. */
         aside: h('div', { className: 'row gap-2 wrap' },
@@ -1476,7 +1494,7 @@
         ]
       }),
 
-      h(Card, { title: 'Shift swap requests', description: 'Approving writes both halves of the swap into the roster (PRD 5.1).' },
+      h(Card, { title: 'Shift swap requests', description: 'Approving writes both halves of the swap into the roster.' },
         h(ui.DataTable, {
           exportName: 'shift-swaps', label: 'Shift swap requests', rows: rows, pageSize: 10,
           /* Two avatars and a pair of decision buttons: heavier than seven columns
@@ -1509,7 +1527,7 @@
               h('span', { className: 'ai-note__mark' }, I.warn),
               h('div', { className: 'ai-note__body' },
                 h('p', { className: 'ai-note__text' },
-                  empName(confirmSt[0].swap.with) + ' has not confirmed this swap yet (PRD 4.22).')))
+                  empName(confirmSt[0].swap.with) + ' has not confirmed this swap yet.')))
           : null) : null);
   }
 
@@ -1603,7 +1621,7 @@
             h('span', { className: 'checks__meta' },
               form.values.optional
                 ? 'Counted as a working day unless the employee takes it'
-                : 'Excluded when leave days are counted (PRD 14.2)')))));
+                : 'Excluded when leave days are counted')))));
   }
 
   /* ---------------------------------------------------------------- Sheet import
@@ -1966,14 +1984,14 @@
     'hr/shifts/roster': ShiftRoster,
     'hr/shifts/swaps': ShiftSwaps,
 
-    /* Admin's Configuration reaches the same four screens. These are settings — what
-       leave exists, who it applies to, what counts as a working day, what a shift is —
-       so the admin who owns the organisation's rules edits the same records HR does,
-       on the same screens, rather than on a second set that drifts from them. */
-    'admin/config/leave-types': LeaveTypes,
-    'admin/config/leave-policies': LeavePolicies,
-    'admin/config/attendance': AttendancePolicies,
-    'admin/config/shifts': ShiftTemplates,
+    /* The same four screens answer in Configuration. These are settings — what leave
+       exists, who it applies to, what counts as a working day, what a shift is — so
+       they are configured where the rest of the rules are, as well as read inside the
+       modules that use them. js/app.js mirrors each to admin's Configuration, which
+       carries the same tabs. */
+    'hr/config/leaves': LeaveConfig,
+    'hr/config/attendance': AttendancePolicies,
+    'hr/config/shifts': ShiftTemplates,
 
     'hr/holidays': Holidays,
 

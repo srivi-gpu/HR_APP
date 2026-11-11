@@ -9,6 +9,30 @@
 
   /* ------------------------------------------------------------------ ADMIN */
   /* --------------------------------------------------- ADMIN items */
+  /* ---------------------------------------------------- Configuration tabs
+     One list, carried by both workspaces. Configuration is the organisation's rules
+     rather than one workspace's work: the admin who owns them and the HR who applies
+     them look at the same settings, so they look at the same tabs, in the same order,
+     and at the same records behind them. Leave, attendance and shifts are settings
+     too — what leave exists, what counts as a working day, what a shift is — so they
+     sit here beside the rest rather than only inside the modules that use them. */
+  var CONFIG_TABS = [
+    { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments, designations and the teams people sit in.' },
+    { path: 'employee', label: 'Employee setup', section: '3.3', note: 'Employee types, statuses and the allowed status transitions.' },
+    /* One tab, because the two halves are read together: a policy is a set of leave
+       types, and a type means nothing until a policy hands it to somebody. They were
+       neighbours in a twelve-tab bar, which asked the reader to hold one in mind while
+       scrolling to the other. */
+    { path: 'leaves', label: 'Leaves', section: '4.11', note: 'Leave types with their entitlement and rules, and the policies that hand them to people.' },
+    { path: 'attendance', label: 'Attendance', section: '4.16', note: 'Working hours, grace period, overtime and work-from-home rules.' },
+    { path: 'shifts', label: 'Shifts', section: '4.20', note: 'Shift definitions with timing, break, grace period and the night flag.' },
+    { path: 'onboarding', label: 'Onboarding', section: '4.7', note: 'Templates, task categories, assignees and dependencies.' },
+    { path: 'offboarding', label: 'Offboarding', section: '4.48', note: 'Exit reasons, notice rules and clearance checklists.' },
+    { path: 'performance', label: 'Performance', section: '4.43', note: 'Cycles, competencies, rating scales and review hierarchy.' },
+    { path: 'surveys', label: 'Surveys', section: '4.40', note: 'Question banks, templates and anonymity defaults.' },
+    { path: 'workflows', label: 'Approval workflows', section: '6.2', note: 'The workflow engine: triggers, approver types, sequence and escalation.' }
+  ];
+
   var ADMIN_ITEMS = [
     { path: 'dashboard', label: 'Dashboard', icon: 'home', section: '9.1',
       note: 'Organization governance: headcount, setup progress, seat and AI usage, recent activity.' },
@@ -31,7 +55,6 @@
       { path: 'profile', label: 'Company', section: '3.2', note: 'Name, industry, website, company size and the registered address that goes on invoices and contracts.' },
       { path: 'locations', label: 'Locations', section: '11.2', note: 'Office locations with address, time zone, headcount and status.' },
       { path: 'org-tree', label: 'Org tree', section: '3.2', note: 'The reporting chart, pannable and zoomable, with a person’s team loaded from the directory on selection.' },
-      { path: 'teams', label: 'Teams', section: '3.2', note: 'A team’s roster, lead, composition and the actions that change it.' },
       { path: 'workweek', label: 'Working hours', section: '3.2', note: 'Working days, weekly offs, default hours and the holiday calendar locations inherit.' },
       { path: 'branding', label: 'Branding', section: '3.2', note: 'Accent colour, logo and the email header everyone sees.' },
       { path: 'emails', label: 'Email templates', section: '7.2', note: 'The messages the product sends, each previewable and editable.' }
@@ -140,18 +163,6 @@
        are settings — entitlements, working hours, shift patterns — not a case anyone
        works; the screens are HR's own, registered against these routes too, so there
        is one of each rather than a copy that drifts. */
-    { path: 'config', label: 'Configuration', icon: 'sliders', section: '2.2', tabs: [
-      { path: 'leave-types', label: 'Leave types', section: '4.11',
-        note: 'Casual, sick, earned and custom types with their entitlement, carry forward, notice and documentation rules.' },
-      { path: 'leave-policies', label: 'Leave policies', section: '4.11',
-        note: 'Which types apply to whom, scoped by employee type, department, location and tenure.' },
-      { path: 'attendance', label: 'Attendance', section: '4.16',
-        note: 'Working hours, grace period, overtime and work-from-home rules.' },
-      { path: 'shifts', label: 'Shifts', section: '4.20',
-        note: 'Shift definitions with timing, break, grace period and the night flag.' },
-      { path: 'workflows', label: 'Approval workflows', section: '6.2',
-        note: 'The workflow engine: triggers, approver types, sequence and escalation.' }
-    ]}
   ];
 
   /* --------------------------------------------------------------------- HR */
@@ -166,13 +177,13 @@
     { path: 'approvals', label: 'Approval inbox', icon: 'checklist', section: '6.5',
       note: 'One queue for every request type, with approve, reject and request-changes.' },
 
-    { path: 'people', label: 'Employees', icon: 'users', section: '4.2', tabs: [
-      { path: 'all', label: 'All employees', section: '4.2', note: 'The central employee table with search, filters, sorting and bulk actions.' },
-      { path: 'new', label: 'New joiners', section: '4.1', note: 'Employees who joined inside the current review window.' },
-      { path: 'probation', label: 'Probation', section: '3.3', note: 'Employees on probation, with confirmation dates approaching.' },
-      { path: 'notice', label: 'Notice period', section: '3.3', note: 'Employees serving notice, with last working day and clearance progress.' },
-      { path: 'exited', label: 'Exited', section: '14.1', note: 'Archived records, excluded from active headcount.' }
-    ]},
+    /* One table, no tabs. The five tabs were one list cut five ways by status, which
+       meant the same search, the same filters and the same columns five times over,
+       and no way to see probation and notice together. Status is a filter beside
+       department, location and type, drawn from the statuses employee setup
+       configures, so a status somebody adds there turns up here on its own. */
+    { path: 'people', label: 'Employees', icon: 'users', section: '4.2',
+      note: 'The central employee table with search, status and other filters, sorting and bulk actions.' },
 
     /* Who reports to whom is a question about the organisation rather than about any
        one record, so it is its own item rather than a sixth tab of Employees. The tree
@@ -248,7 +259,12 @@
       { path: 'run', label: 'Run payroll', section: '4.35', note: 'The open cycle through inputs, preview, approval, payment and filing, with every exception called out first.' },
       { path: 'statutory', label: 'Statutory', section: '4.36', note: 'PF, ESI, professional tax and TDS: what is owed, to whom, by when, and the rates behind each.' },
       { path: 'reimbursements', label: 'Reimbursements', section: '4.36', note: 'Expense claims across the organization and which ones the next cycle carries.' },
-      { path: 'loans', label: 'Loans & advances', section: '4.36', note: 'What the company has lent, what is outstanding and what each cycle recovers.' }
+      { path: 'loans', label: 'Loans & advances', section: '4.36', note: 'What the company has lent, what is outstanding and what each cycle recovers.' },
+      /* Payroll configuration was a tab of the Configuration module, where it sat
+         among settings that belong to no single module. Frequency, cut-off, statutory
+         rules and the payroll approval chain are payroll's own, and the screens that
+         link to it are all here, so it is a tab of payroll instead. */
+      { path: 'configuration', label: 'Configuration', section: '4.34', note: 'Frequency, cut-off, statutory rules and the approval workflow.' }
     ]},
 
     /* One place, no tabs. The five screens this replaced split one library across
@@ -295,17 +311,24 @@
       { path: 'offboarding', label: 'Offboarding', section: '8.2', note: 'Exit summary, attrition reasons, pending clearance and settlements.' }
     ]},
 
-    { path: 'config', label: 'Configuration', icon: 'sliders', section: '2.2', tabs: [
-      { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments and designations, with the job level each one sits at.' },
-      { path: 'employee', label: 'Employee setup', section: '3.3', note: 'Employee types, statuses and the allowed status transitions.' },
-      { path: 'payroll', label: 'Payroll configuration', section: '4.34', note: 'Frequency, cut-off, statutory rules and the approval workflow.' },
-      { path: 'onboarding', label: 'Onboarding', section: '4.7', note: 'Templates, task categories, assignees and dependencies.' },
-      { path: 'offboarding', label: 'Offboarding', section: '4.48', note: 'Exit reasons, notice rules and clearance checklists.' },
-      { path: 'performance', label: 'Performance', section: '4.43', note: 'Cycles, competencies, rating scales and review hierarchy.' },
-      { path: 'surveys', label: 'Surveys', section: '4.40', note: 'Question banks, templates and anonymity defaults.' },
-      { path: 'workflows', label: 'Approval workflows', section: '6.2', note: 'The workflow engine: triggers, approver types, sequence and escalation.' }
-    ]}
+    { path: 'config', label: 'Configuration', icon: 'sliders', section: '2.2', tabs: CONFIG_TABS }
   ];
+
+  /* ------------------------------------------- Admin carries HR's modules too
+     Admin owns the organisation, so it sees what the organisation does: the roster,
+     the lifecycle, time, pay, documents, performance, engagement and the reports, not
+     only the accounts and the platform underneath them.
+
+     The items are HR's own, so there is one definition of what a module is and what
+     tabs it has. A tab that names an absolute route is rebased to the workspace asking
+     for it (`rebase`), so admin's copy answers at admin/... and HR's keeps hr/...;
+     js/app.js registers the same screen against both. Where admin already has an item
+     of that name its own wins — its asset register is not HR's asset requests. */
+  (function adminTakesHrModules() {
+    var mine = {};
+    ADMIN_ITEMS.forEach(function (item) { mine[item.path] = true; });
+    HR_ITEMS.forEach(function (item) { if (!mine[item.path]) ADMIN_ITEMS.push(item); });
+  }());
 
   /* --------------------------------------------------------------- EMPLOYEE */
   /* ------------------------------------------------ EMPLOYEE items */
@@ -497,7 +520,7 @@
       { label: 'Onboarding', icon: 'person', path: 'onboarding' },
       /* HR's offboarding belongs beside onboarding; an employee's own exit does not.
          It is the last thing they will ever use here, so it sits at the bottom. */
-      { label: 'Offboarding', icon: 'logout', as: { hr: 'offboarding' } }
+      { label: 'Offboarding', icon: 'logout', as: { admin: 'offboarding', hr: 'offboarding' } }
     ]},
     { label: 'Time & attendance', slots: [
       { label: 'Attendance & leave', icon: 'clock', path: 'time' },
@@ -508,7 +531,11 @@
       { label: 'Payroll', icon: 'card', path: 'payroll' },
       /* An employee's own assets, and HR's requests for joiners. Admin's register is
          under Administration. */
-      { label: 'Assets', icon: 'package', as: { me: 'assets', team: 'assets', hr: 'assets' } }
+      /* Admin's register sits here too. It is the same subject as everyone else's
+         assets — what the company owns and who is holding it — and a reader looking
+         for assets should find them in one place in every workspace, rather than
+         under Administration in one and Compensation and resources in the rest. */
+      { label: 'Assets', icon: 'package', as: { admin: 'assets', me: 'assets', team: 'assets', hr: 'assets' } }
     ]},
     { label: 'Organization', slots: [
       { label: 'Organization', icon: 'building', path: 'org' },
@@ -524,7 +551,6 @@
     ]},
     { label: 'Administration', slots: [
       { label: 'Users', icon: 'users', path: 'users' },
-      { label: 'Assets', icon: 'package', as: { admin: 'assets' } },
       { label: 'Permissions', icon: 'shield', path: 'roles' },
       { label: 'Billing and usage', icon: 'card', path: 'billing' },
       { label: 'Integrations', icon: 'plug', path: 'integrations' },
@@ -590,20 +616,20 @@
     /* `persona` names the signed-in employee for the workspace. It is a name, not an ID,
        so regenerating the sample data cannot silently point it at someone else. */
     { id: 'admin', label: 'Admin', icon: 'shield', items: ADMIN_ITEMS, groups: build('admin', ADMIN_ITEMS), home: 'admin/dashboard',
-      persona: 'Rohit Khanna', blurb: 'Organization setup, users, permissions, billing and platform settings.' },
+      persona: 'Aarav Sharmal', blurb: 'Organization setup, users, permissions, billing and platform settings.' },
     { id: 'hr', label: 'HR', icon: 'users', items: HR_ITEMS, groups: build('hr', HR_ITEMS), home: 'hr/dashboard',
-      persona: 'Priya Sharma', blurb: 'People operations, policies, workflows and the employee lifecycle.' },
+      persona: 'Ananya Reddy', blurb: 'People operations, policies, workflows and the employee lifecycle.' },
     /* Both of the last two are team members. The difference between them is not what
        they can see about themselves — that is identical — but whether anybody reports
        to them, and so whether anything comes to them to approve. */
-    { id: 'me', label: 'Team member', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
-      persona: 'Ananya Rao', blurb: 'The end of a branch: nobody reports to Ananya, so she asks for leave and for assets and approves nothing.' },
+    { id: 'me', label: 'Employee', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
+      persona: 'Kavya Nair', blurb: 'The end of a branch: nobody reports to Kavya, so she asks for leave and for assets and approves nothing.' },
     /* The persona has to be somebody with reports, or the workspace would open on an
        approval inbox its own rule hides — and with enough waiting on them that the
-       inbox has something in it. Venkat Wadhwa leads sixteen people and has the most
+       inbox has something in it. Vihaan Mehta leads sixteen people and has the most
        requests pending of anyone who is not HR. */
     { id: 'team', label: 'Manager', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
-      persona: 'Venkat Wadhwa', blurb: 'The same workspace, one step up the tree: sixteen people report to Venkat, so their requests come to him.' }
+      persona: 'Vihaan Mehta', blurb: 'The same workspace, one step up the tree: sixteen people report to Vihaan, so their requests come to him.' }
   ];
 
   /* Flattened route table: 'role/item[/tab]' -> metadata.

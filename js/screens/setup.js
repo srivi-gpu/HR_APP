@@ -94,7 +94,7 @@
     else if (/tan|tds/.test(n)) { f.tan = ['HYDA12345B', 'high']; note = 'Tax deduction account number'; }
     else if (/incorp|coi|moa|constitution|certificate/.test(n)) {
       f.name = ['Aptagrim Technologies Pvt Ltd', 'high']; f.short = ['ATPL', 'med'];
-      f.signatory = ['Priya Sharma · Director', 'med']; f.address = ['Plot 42, HITEC City, Hyderabad 500081', 'high'];
+      f.signatory = ['Ananya Reddy · Director', 'med']; f.address = ['Plot 42, HITEC City, Hyderabad 500081', 'high'];
       note = 'Registered name, address, first director';
     } else if (/employee|master|roster|payroll|staff|people|headcount/.test(n)) {
       f.people = [248, 'high'];
@@ -107,10 +107,10 @@
         { name: 'Divya Menon', desig: 'HR Business Partner', dept: 'People & Culture', email: 'divya@aptagrim.com' },
         { name: 'Sana Qureshi', desig: 'HR Executive', dept: 'People & Culture', email: 'sana@aptagrim.com' },
         { name: 'Arjun Pillai', desig: 'Talent Acquisition Associate', dept: 'People & Culture', email: 'arjun@aptagrim.com' },
-        { name: 'Priya Sharma', desig: 'Managing Director', dept: 'Leadership', email: 'priya@aptagrim.com' },
+        { name: 'Ananya Reddy', desig: 'Managing Director', dept: 'Leadership', email: 'priya@aptagrim.com' },
         { name: 'Rohit Shetty', desig: 'Finance Controller', dept: 'Finance', email: 'rohit@aptagrim.com' },
         { name: 'Karthik Menon', desig: 'Engineering Manager', dept: 'Engineering', email: 'karthik@aptagrim.com' },
-        { name: 'Ananya Rao', desig: 'Product Designer', dept: 'Design', email: 'ananya@aptagrim.com' }
+        { name: 'Kavya Nair', desig: 'Product Designer', dept: 'Design', email: 'ananya@aptagrim.com' }
       ];
       note = '248 people · 5 departments · 3 offices';
     } else if (/logo|letterhead|brand/.test(n)) { f.letterhead = [true, 'high']; note = 'Letterhead artwork'; }
@@ -387,7 +387,7 @@
             h(Field, { k: 'short', ph: 'e.g. ATPL' }),
             h(Field, { k: 'tan', ph: 'e.g. HYDA12345B' }),
             h(Field, { k: 'address', wide: true, ph: 'Street, city, postcode' }),
-            h(Field, { k: 'signatory', wide: true, ph: 'e.g. Priya Sharma · Director' }))),
+            h(Field, { k: 'signatory', wide: true, ph: 'e.g. Ananya Reddy · Director' }))),
         pvEntity());
     }
 

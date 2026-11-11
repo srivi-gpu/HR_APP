@@ -221,7 +221,7 @@
     store.add('profileChanges', { id: id, employee: employeeId, fields: fields, requestedOn: today() });
     raiseApproval({
       id: id, kind: 'Profile Change', module: 'people', employee: employeeId,
-      detail: (label || 'Profile details') + ' updated', approver: hr, route: 'hr/people/all'
+      detail: (label || 'Profile details') + ' updated', approver: hr, route: 'hr/people'
     });
     store.log('requested a change to ' + (label || 'profile details').toLowerCase(), 'User activity');
     return done('Change submitted for HR approval', { id: id });
@@ -472,7 +472,7 @@
     var name = String(form.status).trim();
     store.add('statusTransitions', {
       id: store.nextId('statusTransitions', 'st-'), status: name,
-      to: form.to || [], note: form.note || ''
+      to: form.to || [], note: form.note || '', tone: form.tone || ''
     });
     store.log('added the employee status "' + name + '"', 'Configuration');
     return done(name + ' added');
@@ -486,7 +486,7 @@
     if (dup && !errors.status) errors.status = dup;
     if (rules.hasErrors(errors)) return fail(errors);
     var name = String(form.status).trim();
-    var to = (form.to || []).filter(function (t) { return t !== name; });
+    var to = (form.to || row.to || []).filter(function (t) { return t !== name; });
     if (name !== row.status) {
       /* Rename the status everywhere it is referenced: on employee records, and in
          every other row's target list, or those targets would dangle. */
@@ -499,7 +499,10 @@
         });
       });
     }
-    store.setOverride('statusTransitions', id, { status: name, to: to, note: form.note || '' });
+    store.setOverride('statusTransitions', id, {
+      status: name, to: to, note: form.note || '',
+      tone: form.tone == null ? (row.tone || '') : form.tone
+    });
     store.log('updated the employee status "' + name + '"', 'Configuration');
     return done(name + ' updated');
   }
@@ -541,16 +544,76 @@
     return done(form.name + ' created');
   }
 
-  function createLocation(form) {
-    var errors = rules.required([{ key: 'name', label: 'Location name' }, { key: 'address', label: 'Address' }], form);
-    if (rules.hasErrors(errors)) return fail(errors);
-    store.add('locations', {
-      id: 'loc-' + form.name.toLowerCase().replace(/[^a-z]/g, '').slice(0, 6),
-      name: form.name, label: form.name, entity: form.entity || seed.entities[0].id,
-      tz: form.tz || seed.org.timezone, address: form.address, headcount: 0, target: 0
+  /* An address is kept as the one line everything else reads — a card, a letter, the
+     offer template — but it is asked for in parts, because a single box is how an
+     address ends up without a postcode. */
+  function joinAddress(form) {
+    return [form.line1, form.line2, form.city, form.state, form.postcode, form.country]
+      .map(function (x) { return String(x == null ? '' : x).trim(); })
+      .filter(Boolean).join(', ');
+  }
+
+  /* Only one office can be the head office, so naming a new one demotes the old. */
+  function setHeadOffice(id) {
+    store.collection('locations').forEach(function (l) {
+      if (l.hq && l.id !== id) store.setOverride('locations', l.id, { hq: false, label: l.name });
     });
+    var loc = store.find('locations', id);
+    store.setOverride('locations', id, { hq: true, label: (loc ? loc.name : '') + ' (HQ)' });
+  }
+
+  function locationErrors(form) {
+    return rules.required([
+      { key: 'name', label: 'Location name' }, { key: 'line1', label: 'Address' },
+      { key: 'city', label: 'City' }, { key: 'postcode', label: 'Postal code' }
+    ], form);
+  }
+
+  function createLocation(form) {
+    var errors = locationErrors(form);
+    if (rules.hasErrors(errors)) return fail(errors);
+    var id = 'loc-' + form.name.toLowerCase().replace(/[^a-z]/g, '').slice(0, 6);
+    if (store.find('locations', id)) return fail({ name: 'There is already a location with that name' });
+    store.add('locations', {
+      id: id, name: form.name, label: form.name, entity: seed.entities[0].id,
+      tz: form.tz || seed.org.timezone, address: joinAddress(form),
+      line1: form.line1, line2: form.line2 || '', city: form.city, state: form.state || '',
+      postcode: form.postcode, country: form.country || 'India',
+      headcount: 0, target: 0
+    });
+    if (form.hq) setHeadOffice(id);
     store.log('added the ' + form.name + ' location', 'Configuration');
     return done(form.name + ' added');
+  }
+
+  function updateLocation(id, form) {
+    if (!store.find('locations', id)) return fail({ _: 'That location no longer exists' });
+    var errors = locationErrors(form);
+    if (rules.hasErrors(errors)) return fail(errors);
+    store.setOverride('locations', id, {
+      name: form.name, label: form.hq ? form.name + ' (HQ)' : form.name,
+      tz: form.tz, address: joinAddress(form),
+      line1: form.line1, line2: form.line2 || '', city: form.city, state: form.state || '',
+      postcode: form.postcode, country: form.country || 'India'
+    });
+    if (form.hq) setHeadOffice(id);
+    store.log('updated the ' + form.name + ' location', 'Configuration');
+    return done(form.name + ' saved');
+  }
+
+  /* An office with people in it is not deleted: the records would point at a place
+     that is not there any more, and nothing on this screen moves anybody. */
+  function deleteLocation(id) {
+    var loc = store.find('locations', id);
+    if (!loc) return fail({ _: 'That location no longer exists' });
+    var here = store.collection('employees').filter(function (e) {
+      return e.location === id && e.status !== 'Exited';
+    }).length;
+    if (here) return fail({ _: loc.name + ' still has ' + here + (here === 1 ? ' person' : ' people') + ' in it. Move them first.' });
+    if (loc.hq) return fail({ _: 'The head office cannot be deleted. Name another office the head office first.' });
+    store.remove('locations', id);
+    store.log('removed the ' + loc.name + ' location', 'Configuration');
+    return done(loc.name + ' removed');
   }
 
   function updateOrganization(fields) {
@@ -2180,7 +2243,8 @@
     deleteApprovalWorkflow: deleteApprovalWorkflow,
     createEmployeeStatus: createEmployeeStatus, updateEmployeeStatus: updateEmployeeStatus,
     deleteEmployeeStatus: deleteEmployeeStatus,
-    createLocation: createLocation, updateOrganization: updateOrganization,
+    createLocation: createLocation, updateLocation: updateLocation, deleteLocation: deleteLocation,
+    updateOrganization: updateOrganization,
     /* Users & roles */
     inviteUser: inviteUser, setUserStatus: setUserStatus, setUserRole: setUserRole, createRole: createRole,
     /* Leave */

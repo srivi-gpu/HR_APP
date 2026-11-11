@@ -115,7 +115,7 @@
         description: s.pendingApprovals + ' requests are waiting on you, and November payroll is open for review.',
         actions: [
           h(V.Button, { key: 'a', variant: 'outline', iconStart: I.download }, 'Export'),
-          h(V.Button, { key: 'b', variant: 'primary', iconStart: I.plus, onClick: function () { router.go('hr/people/all'); } }, 'Add employee')
+          h(V.Button, { key: 'b', variant: 'primary', iconStart: I.plus, onClick: function () { router.go('hr/people'); } }, 'Add employee')
         ]
       }),
 
@@ -284,7 +284,7 @@
     return h(React.Fragment, null,
       h(PageHead, {
         title: 'Approval inbox',
-        description: 'One queue for every request type. Approving here updates the source record, as PRD 5.1 requires.'
+        description: 'One queue for every request type. Approving here updates the source record.'
       }),
       h('div', { className: 'row gap-2 wrap' }, Object.keys(byKind).map(function (k) {
         return h(V.Chip, { key: k, size: 'sm', shape: 'tag', variant: 'soft', tone: 'warning', dot: true }, k + ' · ' + byKind[k]);
@@ -389,7 +389,7 @@
     return h(React.Fragment, null,
       h(PageHead, {
         title: 'Module permissions',
-        description: 'The permission matrix in PRD section 10. Each level expands to the actions listed below.'
+        description: 'Every permission in the product. Each level expands to the actions listed below.'
       }),
       h(Card, null,
         h(V.Table, {
@@ -437,14 +437,14 @@
           ],
           rows: perms.matrix
         })),
-      h(Card, { title: 'Enforcement in this prototype', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 16.6') },
+      h(Card, { title: 'Enforcement in this prototype' },
         h('p', { className: 'muted', style: { fontSize: 14, lineHeight: 1.6 } },
           'Routes are gated on the matrix above: a deep link into a workspace you are not signed into, ',
           'or a module your role cannot view, lands on the access-denied screen. Try ',
           h('span', { className: 'mono code' }, '#/hr/payroll/dashboard'),
           ' while signed in as Employee.'),
         h('p', { className: 'muted', style: { fontSize: 14, lineHeight: 1.6 } },
-          'This is prototype-level access control only. PRD 16.6 is explicit that frontend permissions ' +
+          'This is prototype-level access control only. Frontend permissions ' +
           'are not production security — real authorization has to be enforced by a backend.')));
   }
 
@@ -459,16 +459,6 @@
     h('path', { d: 'M2.5 12s3.6-6.2 9.5-6.2S21.5 12 21.5 12s-3.6 6.2-9.5 6.2S2.5 12 2.5 12Z', stroke: 'currentColor', strokeWidth: 1.5, strokeLinejoin: 'round' }),
     h('circle', { cx: 12, cy: 12, r: 3, stroke: 'currentColor', strokeWidth: 1.5 }),
     h('path', { d: 'M3.5 3.5l17 17', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }));
-
-  var GOOGLE = h('span', { className: 'auth-sso__mark' }, h('svg', { viewBox: '0 0 48 48', 'aria-hidden': 'true' },
-    h('path', { fill: '#EA4335', d: 'M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z' }),
-    h('path', { fill: '#4285F4', d: 'M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z' }),
-    h('path', { fill: '#FBBC05', d: 'M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z' }),
-    h('path', { fill: '#34A853', d: 'M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z' })));
-
-  var MICROSOFT = h('span', { className: 'auth-sso__mark' }, h('svg', { viewBox: '0 0 23 23', 'aria-hidden': 'true' },
-    h('path', { fill: '#F25022', d: 'M1 1h10v10H1z' }), h('path', { fill: '#7FBA00', d: 'M12 1h10v10H12z' }),
-    h('path', { fill: '#00A4EF', d: 'M1 12h10v10H1z' }), h('path', { fill: '#FFB900', d: 'M12 12h10v10H12z' })));
 
   /* The two ribbons over the wash. Stroked only, so no edge shows where they fade. */
   function AuthWaves() {
@@ -622,43 +612,7 @@
                   h('button', { type: 'button', className: 'link', onClick: function () { router.go('global/forgot'); } }, 'Forgot password?'))),
 
             h('div', { className: 'auth-full' },
-              h(V.Button, { type: 'submit', disabled: !!busySt[0], iconEnd: busySt[0] ? null : I.arrow }, submitLabel))),
-
-          h('div', { className: 'auth-or' }, h('span', null, 'or')),
-
-          /* Wide, labelled buttons rather than icon tiles: on a sign-in page the
-             provider's name is the thing being chosen, not a decoration. */
-          h('div', { className: 'authb__sso' },
-            /* Google opens the joiner's own onboarding rather than signing in: it is
-               the one way into that flow while the product has no mail transport to
-               send somebody a link, and a new joiner arriving with the credentials IT
-               issued is the case it demonstrates. The other two sign in normally. */
-            [['Continue with Google', GOOGLE, 'joiner'],
-             ['Continue with Microsoft', MICROSOFT, 'sso'],
-             ['Continue with company SSO', h('span', { className: 'auth-sso__mark' }, I.building), 'sso']]
-              .map(function (p) {
-                return h('button', {
-                  key: p[0], type: 'button', className: 'authb__ssobtn', disabled: !!busySt[0],
-                  'aria-label': p[2] === 'joiner' ? 'Continue as a new joiner' : p[0],
-                  onClick: function () {
-                    if (p[2] !== 'joiner') return enter('sso');
-                    /* Not signed in yet. The wizard draws the sign-in screen behind
-                       itself, the way the organisation wizard does, and signing in is
-                       what finishing it does. */
-                    router.go('global/joiner');
-                  }
-                }, p[1], h('span', null, p[0]));
-              })),
-
-          /* Signing up is the one path with no organisation behind it yet, so it marks
-             setup as outstanding and the console sends you to the wizard. */
-          h('p', { className: 'auth-switch' }, 'Setting up a new organisation? ',
-            h('button', { type: 'button', className: 'link', onClick: function () {
-              store.setPref('role', 'admin');
-              store.setPref('setupComplete', false);   /* in case setup was finished before */
-              store.setPref('signedIn', true);
-              router.go('global/setup');
-            } }, 'Sign up'))),
+              h(V.Button, { type: 'submit', disabled: !!busySt[0], iconEnd: busySt[0] ? null : I.arrow }, submitLabel)))),
 
         h('footer', { className: 'authb__foot' },
           h('span', null, '\u00a9 2026 ' + seed.org.name),
@@ -695,18 +649,17 @@
           ]})),
         h(Card, { span: 5, title: 'Everything else' },
           h('p', { className: 'muted', style: { fontSize: 14, lineHeight: 1.6 } },
-            'Every other route resolves to a placeholder naming the screen and its PRD section, so the ' +
-            'information architecture can be reviewed against the document before any module is built deep. ' +
-            'PRD 18 sequences the remaining phases.'),
+            'Every other route resolves to a placeholder naming the screen and its section, so the ' +
+            'information architecture can be reviewed against the document before any module is built deep.'),
           h(V.Button, { variant: 'outline', iconStart: I.sitemap, onClick: function () { router.go('global/map'); } }, 'See the full screen map')),
-        h(Card, { span: 12, title: 'Sample figures', aside: h(V.Chip, { size: 'sm', shape: 'tag', icon: I.file }, 'PRD 15') },
+        h(Card, { span: 12, title: 'Sample figures' },
           h('p', { className: 'muted', style: { fontSize: 13 } },
             'These are computed from the sample data, not written onto screens. The smoke test asserts them.'),
           h(V.Table, {
             density: 'compact', 'aria-label': 'Sample figures',
             columns: [
               { key: 'label', header: 'Figure' },
-              { key: 'target', header: 'PRD 15', numeric: true, align: 'right' },
+              { key: 'target', header: 'Target', numeric: true, align: 'right' },
               { key: 'actual', header: 'Computed', numeric: true, align: 'right',
                 cell: function (x) {
                   return h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: x.actual === x.target ? 'success' : 'error', dot: true }, String(x.actual));
@@ -730,7 +683,7 @@
     return h(React.Fragment, null,
       h(PageHead, {
         title: 'Screen map',
-        description: HRMS.nav.count + ' routes across three workspaces, mapped from PRD sections 2 and 11. Opening a screen in another workspace switches account.'
+        description: HRMS.nav.count + ' routes across three workspaces. Opening a screen in another workspace switches account.'
       }),
       HRMS.nav.roles.map(function (role) {
         return h(Card, { key: role.id, title: role.label + ' workspace',
@@ -749,7 +702,7 @@
                         ? h('a', { className: 'link', href: item.href }, item.label)
                         : h('button', { className: 'link', type: 'button', onClick: function () { router.goAs(base); } }, item.label),
                       isBuilt || item.href ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'success', dot: true }, 'Built') : null,
-                      h(V.Chip, { size: 'sm', shape: 'tag' }, 'PRD ' + item.section)),
+                      h(V.Chip, { size: 'sm', shape: 'tag' }, 'Section ' + item.section)),
                     kids.length ? h('span', { className: 'list__meta' }, kids.map(function (t) { return t.label; }).join(' · ')) : null));
               }));
           }));

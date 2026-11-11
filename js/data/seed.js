@@ -53,11 +53,11 @@
     { id: 'dep-eng', code: 'ENG', name: 'Engineering', target: 92, headName: 'Karthik Menon' },
     { id: 'dep-prd', code: 'PRD', name: 'Product', target: 24, headName: 'Deepak Joshi' },
     { id: 'dep-dsg', code: 'DSG', name: 'Design', target: 18, headName: 'Kavya Reddy' },
-    { id: 'dep-hr', code: 'HR', name: 'Human Resources', target: 14, headName: 'Priya Sharma' },
+    { id: 'dep-hr', code: 'HR', name: 'Human Resources', target: 14, headName: 'Ananya Reddy' },
     { id: 'dep-fin', code: 'FIN', name: 'Finance', target: 16, headName: 'Lakshmi Narayan' },
     { id: 'dep-mkt', code: 'MKT', name: 'Marketing', target: 22, headName: 'Shruti Deshpande' },
     { id: 'dep-sal', code: 'SAL', name: 'Sales', target: 38, headName: 'Vivek Chauhan' },
-    { id: 'dep-ops', code: 'OPS', name: 'Operations', target: 24, headName: 'Rohit Khanna' }
+    { id: 'dep-ops', code: 'OPS', name: 'Operations', target: 24, headName: 'Aarav Sharmal' }
   ];
 
   /* The designation list in PRD 15, with the job levels the hierarchy in 3.1 implies. */
@@ -104,9 +104,9 @@
     { id: 'tm-mob', name: 'Mobile', department: 'dep-eng', leadName: 'Rahul Verma', members: 9 },
     { id: 'tm-qa', name: 'Quality', department: 'dep-eng', leadName: null, members: 7 },
     { id: 'tm-brand', name: 'Brand', department: 'dep-dsg', leadName: 'Kavya Reddy', members: 6 },
-    { id: 'tm-prod', name: 'Product Design', department: 'dep-dsg', leadName: 'Ananya Rao', members: 8 },
+    { id: 'tm-prod', name: 'Product Design', department: 'dep-dsg', leadName: 'Kavya Nair', members: 8 },
     { id: 'tm-pay', name: 'Payroll ops', department: 'dep-fin', leadName: 'Lakshmi Narayan', members: 4 },
-    { id: 'tm-ta', name: 'Talent acquisition', department: 'dep-hr', leadName: 'Priya Sharma', members: 5 },
+    { id: 'tm-ta', name: 'Talent acquisition', department: 'dep-hr', leadName: 'Ananya Reddy', members: 5 },
     { id: 'tm-rev', name: 'Revenue', department: 'dep-sal', leadName: null, members: 11 }
   ];
 
@@ -122,8 +122,8 @@
      [name, dept, designation, type, status, location, months since joining]
   --------------------------------------------------------------------------- */
   var FEATURED = [
-    ['Rohit Khanna', 'dep-ops', 'Director', 'Full-Time', 'Active', 'loc-hyd', 78],
-    ['Priya Sharma', 'dep-hr', 'HR Manager', 'Full-Time', 'Active', 'loc-hyd', 62],
+    ['Aarav Sharmal', 'dep-ops', 'Director', 'Full-Time', 'Active', 'loc-hyd', 78],
+    ['Ananya Reddy', 'dep-hr', 'HR Manager', 'Full-Time', 'Active', 'loc-hyd', 62],
     ['Meera Iyer', 'dep-hr', 'Senior Executive', 'Full-Time', 'Active', 'loc-hyd', 26],
     ['Swati Jain', 'dep-hr', 'Executive', 'Full-Time', 'Onboarding', 'loc-hyd', 0],
     ['Karthik Menon', 'dep-eng', 'Engineering Manager', 'Full-Time', 'Active', 'loc-blr', 54],
@@ -141,7 +141,7 @@
     ['Sahil Bedi', 'dep-prd', 'Associate', 'Contract', 'Active', 'loc-pun', 6],
     ['Ishita Banerjee', 'dep-prd', 'Executive', 'Part-Time', 'Active', 'loc-hyd', 12],
     ['Kavya Reddy', 'dep-dsg', 'Team Lead', 'Full-Time', 'Active', 'loc-hyd', 36],
-    ['Ananya Rao', 'dep-dsg', 'Senior Executive', 'Full-Time', 'Active', 'loc-hyd', 44],
+    ['Kavya Nair', 'dep-dsg', 'Senior Executive', 'Full-Time', 'Active', 'loc-hyd', 44],
     ['Farhan Ali', 'dep-dsg', 'Executive', 'Full-Time', 'Active', 'loc-blr', 13],
     ['Riya Malhotra', 'dep-dsg', 'Associate', 'Intern', 'Probation', 'loc-hyd', 2],
     ['Aditya Ghosh', 'dep-dsg', 'Senior Executive', 'Full-Time', 'Notice Period', 'loc-blr', 32],
@@ -324,7 +324,7 @@
     }).map(function (e) { return e.id; });
   });
   employees.forEach(function (e) {
-    if (e.id === headOf[e.department]) { e.manager = id('Rohit Khanna') === e.id ? null : id('Rohit Khanna'); return; }
+    if (e.id === headOf[e.department]) { e.manager = id('Aarav Sharmal') === e.id ? null : id('Aarav Sharmal'); return; }
     var leads = leadsBy[e.department];
     e.manager = e.level >= 5 || !leads.length ? headOf[e.department] : leads[Math.floor(r() * leads.length)];
   });
@@ -335,6 +335,21 @@
   DEPARTMENTS.forEach(function (d) {
     d.headcount = employees.filter(function (e) { return e.department === d.id && e.status !== 'Exited'; }).length;
   });
+
+  /* The Manager workspace signs in as this person (it must match nav.js). They are a
+     generated record rather than one of the named few, because the workspace needs
+     somebody with real reports and real requests waiting — sixteen people and four
+     pending approvals — which only the generated tree produces. Named here, after
+     generation, so the name is a fact about the record rather than a lucky draw from
+     the pools, and so renaming the persona is one edit rather than a search for
+     whoever happens to lead a team this run. */
+  (function nameTheManager() {
+    var mgr = byId['NEX0053'];
+    if (!mgr) return;
+    mgr.name = 'Vihaan Mehta';
+    mgr.workEmail = 'vihaan.mehta@nexoratech.com';
+    mgr.personalEmail = 'vihaanmehta@gmail.com';
+  }());
 
   var live = employees.filter(function (e) { return e.status !== 'Exited'; });
 
@@ -444,17 +459,17 @@
       from: iso(from), to: iso(to), fromLabel: pretty(from), toLabel: pretty(to),
       days: days, halfDay: !!opts.halfDay,
       reason: opts.reason || pick(LEAVE_REASONS[typeId] || ['Personal']),
-      status: status, approver: byId[employee].manager || id('Priya Sharma'),
+      status: status, approver: byId[employee].manager || id('Ananya Reddy'),
       appliedOn: iso(addDays(from, -(1 + Math.floor(r() * 10)))),
       decidedOn: status === 'Pending Approval' ? null : iso(addDays(from, -1)),
-      decidedBy: status === 'Pending Approval' ? null : (byId[employee].manager || id('Priya Sharma'))
+      decidedBy: status === 'Pending Approval' ? null : (byId[employee].manager || id('Ananya Reddy'))
     });
   }
 
   /* The employee workspace signs in as this person (it must match nav.js). Their day is
      left un-punched and leave-free so the check-in and check-out flow of PRD 19 can
      actually be exercised, rather than being blocked by a seeded punch. */
-  var SELF_PERSONA = id('Ananya Rao');
+  var SELF_PERSONA = id('Kavya Nair');
 
   /* 1. Exactly 18 employees are on approved leave across today (PRD 15). */
   var ON_LEAVE_TODAY = 18;
@@ -505,7 +520,7 @@
         r() < 0.86 ? 'Approved' : 'Rejected');
     }
   });
-  addLeave(id('Ananya Rao'), 'lt-el', addDays(TODAY, -46), 4, 'Approved', { reason: 'Annual holiday' });
+  addLeave(id('Kavya Nair'), 'lt-el', addDays(TODAY, -46), 4, 'Approved', { reason: 'Annual holiday' });
   leaveRequests.sort(function (a, b) { return a.appliedOn < b.appliedOn ? 1 : -1; });
 
   /* -------------------------------------------------------------- Attendance */
@@ -577,7 +592,7 @@
       original: opts.original || pick(['— / 18:12', '09:48 / —', '10:22 / 18:05', '— / —']),
       corrected: opts.corrected || pick(['09:05 / 18:12', '09:10 / 18:30', '09:00 / 18:00']),
       reason: opts.reason || pick(['Forgot to punch out', 'Biometric did not register', 'Client visit, punched from site', 'System outage that morning']),
-      status: status, approver: byId[employee].manager || id('Priya Sharma')
+      status: status, approver: byId[employee].manager || id('Ananya Reddy')
     });
   }
   addReg(id('Vikram Desai'), -1, 'Pending Approval', { issue: 'Missing check-out', original: '09:02 / —', corrected: '09:02 / 18:20', reason: 'Forgot to punch out after the release call' });
@@ -608,7 +623,7 @@
     { id: 'wf-reg', name: 'Attendance regularization', module: 'attendance', trigger: 'An employee raises an attendance correction',
       stages: [{ type: 'manager', label: 'Reporting manager' }, { type: 'role', label: 'HR Administrator' }],
       sequence: 'Sequential', escalate: 2, escalateTo: 'HR Administrator', reject: 'Returned with a reason; the original punch is kept',
-      note: 'PRD 14.3: approval records the corrected time without overwriting the original.' },
+      note: 'Approval records the corrected time without overwriting the original.' },
     { id: 'wf-swap', name: 'Shift swap', module: 'shifts', trigger: 'Two employees agree a swap and submit it',
       stages: [{ type: 'manager', label: 'Reporting manager' }],
       sequence: 'Single', escalate: 1, escalateTo: 'Department head', reject: 'Both employees keep their original shifts',
@@ -616,27 +631,27 @@
     { id: 'wf-asset', name: 'Asset request', module: 'assets', trigger: 'An employee requests an asset category',
       stages: [{ type: 'user', label: 'IT Administrator' }, { type: 'role', label: 'HR Administrator' }],
       sequence: 'Sequential', escalate: 3, escalateTo: 'Organization Admin', reject: 'Closed with a reason; no inventory is reserved',
-      note: 'Approval fails if no asset of that category is available (PRD 14.5).' },
+      note: 'Approval fails if no asset of that category is available.' },
     { id: 'wf-profile', name: 'Profile change', module: 'people', trigger: 'An employee edits a restricted profile field',
       stages: [{ type: 'role', label: 'HR Administrator' }],
       sequence: 'Single', escalate: 5, escalateTo: 'HR Manager', reject: 'The field reverts and the employee is told why',
-      note: 'Bank, name and statutory fields always route here (PRD 4.5).' },
+      note: 'Bank, name and statutory fields always route here.' },
     { id: 'wf-doc', name: 'Document verification', module: 'documents', trigger: 'An employee uploads a document',
       stages: [{ type: 'role', label: 'HR Administrator' }],
       sequence: 'Single', escalate: 4, escalateTo: 'HR Manager', reject: 'Marked rejected with a reason; a re-upload is allowed',
-      note: 'Mandatory onboarding documents block activation until verified (PRD 14.1).' },
+      note: 'Mandatory onboarding documents block activation until verified.' },
     { id: 'wf-payroll', name: 'Payroll release', module: 'payroll', trigger: 'A payroll cycle is moved to review',
       stages: [{ type: 'user', label: 'Finance Controller' }, { type: 'role', label: 'Organization Admin' }],
       sequence: 'Sequential', escalate: 1, escalateTo: 'Organization Admin', reject: 'The cycle returns to Draft and inputs reopen',
-      note: 'A finalized cycle is locked; corrections go through an adjustment (PRD 14.6).' },
+      note: 'A finalized cycle is locked; corrections go through an adjustment.' },
     { id: 'wf-resign', name: 'Resignation', module: 'offboarding', trigger: 'An employee submits a resignation',
       stages: [{ type: 'manager', label: 'Reporting manager' }, { type: 'role', label: 'HR Administrator' }],
       sequence: 'Sequential', escalate: 3, escalateTo: 'Department head', reject: 'The employee stays active and is told why',
-      note: 'Approval starts the notice period and the clearance checklist (PRD 5.1).' },
+      note: 'Approval starts the notice period and the clearance checklist.' },
     { id: 'wf-review', name: 'Performance review', module: 'performance', trigger: 'A manager submits a review for publication',
       stages: [{ type: 'head', label: 'Department head' }, { type: 'group', label: 'Calibration panel' }],
       sequence: 'Parallel', escalate: 5, escalateTo: 'HR Administrator', reject: 'Returned to the reviewer before the employee sees it',
-      note: 'Ratings are calibrated across teams before results are published (PRD 4.45).' },
+      note: 'Ratings are calibrated across teams before results are published.' },
     { id: 'wf-action', name: 'Engagement action plan', module: 'engagement', trigger: 'An action plan is raised from a survey finding',
       stages: [{ type: 'role', label: 'HR Administrator' }],
       sequence: 'Single', escalate: 7, escalateTo: 'Department head', reject: 'Closed with a note on the finding',
@@ -767,15 +782,15 @@
     }, extra || {}));
   }
   addAssetRequest(id('Farhan Ali'), 'Monitor', 'Dual screen setup for research sessions', 'Pending Approval');
-  /* The Employee workspace opens as Ananya Rao, so she has to have asked for something:
+  /* The Employee workspace opens as Kavya Nair, so she has to have asked for something:
      a screen that can only ever be empty for the persona looking at it demonstrates
      nothing. One of each outcome, so the timeline has an approval, a refusal and a
      request still walking the line to show. */
-  addAssetRequest(id('Ananya Rao'), 'Laptop', 'Replacement \u2014 battery swells under load', 'Approved',
+  addAssetRequest(id('Kavya Nair'), 'Laptop', 'Replacement \u2014 battery swells under load', 'Approved',
     { decidedBy: 'Sandeep Rao', decidedOn: iso(addDays(TODAY, -6)),
       decidedWhy: 'Over the cap and not a like-for-like swap, so it came to IT. Approved on the service report.' });
-  addAssetRequest(id('Ananya Rao'), 'Docking Station', 'Two screens at the Bengaluru desk', 'Pending Approval');
-  addAssetRequest(id('Ananya Rao'), 'Mobile Phone', 'On-call rotation starting next month', 'Rejected',
+  addAssetRequest(id('Kavya Nair'), 'Docking Station', 'Two screens at the Bengaluru desk', 'Pending Approval');
+  addAssetRequest(id('Kavya Nair'), 'Mobile Phone', 'On-call rotation starting next month', 'Rejected',
     { decidedBy: 'Sandeep Rao', decidedOn: iso(addDays(TODAY, -4)),
       decidedWhy: 'The on-call rota has not started. Raise it again in the week it does.' });
   /* Two that Ara's rule takes, because a rule nothing in the data ever meets cannot
@@ -862,7 +877,7 @@
         return {
           name: t,
           done: waiting ? (t !== 'IT setup' && ti <= done) : ti < done,
-          assignee: /IT|Asset/.test(t) ? id('Sandeep Rao') : /Manager|Department/.test(t) ? byId[e.id].manager : id('Priya Sharma'),
+          assignee: /IT|Asset/.test(t) ? id('Sandeep Rao') : /Manager|Department/.test(t) ? byId[e.id].manager : id('Ananya Reddy'),
           due: iso(addDays(new Date(e.joined + 'T00:00'), ti + 1)),
           mandatory: ti < 8
         };
@@ -907,7 +922,7 @@
       tasks: ONB_TASKS.map(function (t, ti) {
         return {
           name: t, done: true,
-          assignee: /IT|Asset/.test(t) ? id('Sandeep Rao') : /Manager|Department/.test(t) ? byId[e.id].manager : id('Priya Sharma'),
+          assignee: /IT|Asset/.test(t) ? id('Sandeep Rao') : /Manager|Department/.test(t) ? byId[e.id].manager : id('Ananya Reddy'),
           due: iso(addDays(joinedDate, -(total - ti))),
           completedOn: iso(addDays(joinedDate, -(total - ti))),
           mandatory: ti < 8
@@ -982,7 +997,7 @@
       clearance: Math.round((done / OFB_TASKS.length) * 100),
       assetsOutstanding: isExited ? 0 : assets.filter(function (a) { return a.assignedTo === e.id; }).length,
       settlement: isExited ? 'Paid' : 'Pending',
-      tasks: OFB_TASKS.map(function (t, ti) { return { name: t, done: ti < done, owner: /Asset|Access/.test(t) ? id('Sandeep Rao') : id('Priya Sharma') }; })
+      tasks: OFB_TASKS.map(function (t, ti) { return { name: t, done: ti < done, owner: /Asset|Access/.test(t) ? id('Sandeep Rao') : id('Ananya Reddy') }; })
     });
   });
   /* Scenario 13: Aditya Ghosh is the live offboarding case. */
@@ -1008,7 +1023,7 @@
     assetsOutstanding: assets.filter(function (a) { return a.assignedTo === PENDING_EXIT; }).length,
     settlement: 'Pending',
     tasks: OFB_TASKS.map(function (t) {
-      return { name: t, done: false, owner: /Asset|Access/.test(t) ? id('Sandeep Rao') : id('Priya Sharma') };
+      return { name: t, done: false, owner: /Asset|Access/.test(t) ? id('Sandeep Rao') : id('Ananya Reddy') };
     })
   });
 
@@ -1165,24 +1180,24 @@
     { label: 'Integrations', done: false }, { label: 'Payment method', done: false }
   ];
   var AUDIT = [
-    ['Rohit Khanna', 'raised the minimum password length to 12 characters', '2026-10-29T16:12', 'Security'],
+    ['Aarav Sharmal', 'raised the minimum password length to 12 characters', '2026-10-29T16:12', 'Security'],
     ['Sandeep Rao', 'published Information Security Policy v5.0', '2026-10-28T14:02', 'Configuration'],
-    ['Rohit Khanna', 'created the custom role "Payroll Reviewer"', '2026-10-27T10:15', 'Permissions'],
-    ['Priya Sharma', 'invited Pranav Hegde to the Engineering team', '2026-10-27T09:40', 'User activity'],
-    ['Rohit Khanna', 'connected the Google Workspace calendar integration', '2026-10-22T15:55', 'Configuration'],
-    ['Priya Sharma', 'published Leave Policy v3.1', '2026-10-20T11:30', 'Configuration'],
+    ['Aarav Sharmal', 'created the custom role "Payroll Reviewer"', '2026-10-27T10:15', 'Permissions'],
+    ['Ananya Reddy', 'invited Pranav Hegde to the Engineering team', '2026-10-27T09:40', 'User activity'],
+    ['Aarav Sharmal', 'connected the Google Workspace calendar integration', '2026-10-22T15:55', 'Configuration'],
+    ['Ananya Reddy', 'published Leave Policy v3.1', '2026-10-20T11:30', 'Configuration'],
     ['Suresh Babu', 'finalised October 2026 payroll', '2026-10-28T18:40', 'User activity'],
-    ['Rohit Khanna', 'suspended one user account', '2026-10-18T12:05', 'Security']
+    ['Aarav Sharmal', 'suspended one user account', '2026-10-18T12:05', 'Security']
   ].map(function (a, n) {
     return { id: 'AUD' + (5000 + n), actor: id(a[0]), action: a[1], on: a[2], category: a[3] };
   });
 
   var ANNOUNCEMENTS = [
-    { id: 'an-1', title: 'Diwali holidays — 8 and 9 November', body: 'Offices are closed on Sunday 8 and Monday 9 November. The payroll cut-off stays at 25 November.', byName: 'Priya Sharma', on: '2026-10-29', pinned: true },
+    { id: 'an-1', title: 'Diwali holidays — 8 and 9 November', body: 'Offices are closed on Sunday 8 and Monday 9 November. The payroll cut-off stays at 25 November.', byName: 'Ananya Reddy', on: '2026-10-29', pinned: true },
     { id: 'an-2', title: 'Information Security Policy v5.0 published', body: 'Everyone must acknowledge the updated policy by 15 November.', byName: 'Sandeep Rao', on: '2026-10-28' },
-    { id: 'an-3', title: 'H2 performance cycle opens 15 November', body: 'Manager reviews open on 15 November and close on 30 November.', byName: 'Priya Sharma', on: '2026-10-24' },
+    { id: 'an-3', title: 'H2 performance cycle opens 15 November', body: 'Manager reviews open on 15 November and close on 30 November.', byName: 'Ananya Reddy', on: '2026-10-24' },
     { id: 'an-4', title: 'New Bengaluru office floor', body: 'The Bengaluru team moves to the 7th floor from 10 November. Access cards are being reissued.', byName: 'Neha Choudhary', on: '2026-10-20' },
-    { id: 'an-5', title: 'Nexora wins Best SaaS Workplace 2026', body: 'Thank you to everyone who took part in the engagement survey that earned us the listing.', byName: 'Rohit Khanna', on: '2026-10-14' }
+    { id: 'an-5', title: 'Nexora wins Best SaaS Workplace 2026', body: 'Thank you to everyone who took part in the engagement survey that earned us the listing.', byName: 'Aarav Sharmal', on: '2026-10-14' }
   ].map(function (a) { return Object.assign({}, a, { by: id(a.byName) }); });
 
   /* Reactions and comments on announcements (PRD 4.39). One reaction row per person
@@ -1190,21 +1205,21 @@
      Comments are their own collection for the same reason: a new one is an add, and
      nothing has to rewrite the announcement it hangs off. */
   var ANNOUNCEMENT_REACTIONS = [
-    { id: 'ar-1', announcement: 'an-1', byName: 'Ananya Rao', emoji: '🎉' },
+    { id: 'ar-1', announcement: 'an-1', byName: 'Kavya Nair', emoji: '🎉' },
     { id: 'ar-2', announcement: 'an-1', byName: 'Vikram Desai', emoji: '🎉' },
     { id: 'ar-3', announcement: 'an-1', byName: 'Sneha Kulkarni', emoji: '👍' },
     { id: 'ar-4', announcement: 'an-1', byName: 'Rahul Verma', emoji: '❤️' },
-    { id: 'ar-5', announcement: 'an-3', byName: 'Ananya Rao', emoji: '👍' },
+    { id: 'ar-5', announcement: 'an-3', byName: 'Kavya Nair', emoji: '👍' },
     { id: 'ar-6', announcement: 'an-4', byName: 'Pooja Agarwal', emoji: '👍' },
-    { id: 'ar-7', announcement: 'an-5', byName: 'Ananya Rao', emoji: '👏' },
+    { id: 'ar-7', announcement: 'an-5', byName: 'Kavya Nair', emoji: '👏' },
     { id: 'ar-8', announcement: 'an-5', byName: 'Sneha Kulkarni', emoji: '👏' },
     { id: 'ar-9', announcement: 'an-5', byName: 'Vikram Desai', emoji: '🎉' },
     { id: 'ar-10', announcement: 'an-5', byName: 'Rahul Verma', emoji: '👏' }
   ].map(function (r) { return Object.assign({}, r, { employee: id(r.byName) }); });
 
   var ANNOUNCEMENT_COMMENTS = [
-    { id: 'ac-1', announcement: 'an-1', byName: 'Ananya Rao', body: 'Does the Bengaluru office follow the same two days?', on: '2026-10-29T11:20' },
-    { id: 'ac-2', announcement: 'an-1', byName: 'Priya Sharma', body: 'Yes — all three locations are closed on both days.', on: '2026-10-29T12:05' },
+    { id: 'ac-1', announcement: 'an-1', byName: 'Kavya Nair', body: 'Does the Bengaluru office follow the same two days?', on: '2026-10-29T11:20' },
+    { id: 'ac-2', announcement: 'an-1', byName: 'Ananya Reddy', body: 'Yes — all three locations are closed on both days.', on: '2026-10-29T12:05' },
     { id: 'ac-3', announcement: 'an-4', byName: 'Pooja Agarwal', body: 'Will the access cards be handed out at the desk or by post?', on: '2026-10-21T09:40' },
     { id: 'ac-4', announcement: 'an-5', byName: 'Vikram Desai', body: 'Well deserved. Congratulations everyone.', on: '2026-10-14T18:12' }
   ].map(function (c) { return Object.assign({}, c, { by: id(c.byName) }); });
@@ -1232,12 +1247,12 @@
      and the register only issues against what Tracklivo has cleared. */
   approvals.push(
     { id: 'PC9501', kind: 'Profile Change', module: 'people', employee: id('Pooja Agarwal'),
-      detail: 'Bank account details updated', submitted: '2026-10-31', approver: id('Priya Sharma'), status: 'Pending Approval', route: 'hr/people/all' },
+      detail: 'Bank account details updated', submitted: '2026-10-31', approver: id('Ananya Reddy'), status: 'Pending Approval', route: 'hr/people' },
     /* The id must be the offboarding case's own, since decideApproval looks the case
        up by it to start the notice period. */
     { id: 'OFB200', kind: 'Resignation', module: 'offboarding', employee: PENDING_EXIT,
       detail: 'Last working day ' + pretty(pendingLast), submitted: iso(addDays(TODAY, -2)),
-      approver: id('Priya Sharma'), status: 'Pending Approval', route: 'hr/offboarding/resignations' },
+      approver: id('Ananya Reddy'), status: 'Pending Approval', route: 'hr/offboarding/resignations' },
     { id: 'DV9503', kind: 'Document Verification', module: 'onboarding', employee: id('Pranav Hegde'),
       detail: '3 documents awaiting verification', submitted: '2026-11-02', approver: id('Meera Iyer'), status: 'Pending Approval', route: 'hr/onboarding/verification' },
     { id: 'SW9504', kind: 'Shift Swap', module: 'shifts', employee: id('Ravi Shankar'),
@@ -1267,7 +1282,7 @@
     { id: 'n8', kind: 'Payslip Published', title: 'Your October 2026 payslip is ready', body: 'Net pay credited on 31 Oct 2026', on: '2026-10-31T18:00', read: true, route: 'me/payroll/payslips', roles: ['me'] },
     { id: 'n9', kind: 'Survey Invitation', title: 'Q4 engagement pulse is open', body: '6 questions · closes 14 Nov 2026', on: '2026-10-30T10:00', read: false, route: 'me/engagement/surveys', roles: ['me'] },
     { id: 'n10', kind: 'Performance Review', title: 'H2 FY2026 review opens 15 November', body: 'Closes 30 November', on: '2026-10-24T09:30', read: true, route: 'me/performance/goals', roles: ['me'] },
-    { id: 'n11', kind: 'Security Event', title: 'Password policy changed', body: 'Minimum length raised to 12 characters by Rohit Khanna', on: '2026-10-29T16:12', read: true, route: 'admin/audit/security', roles: ['admin'] },
+    { id: 'n11', kind: 'Security Event', title: 'Password policy changed', body: 'Minimum length raised to 12 characters by Aarav Sharmal', on: '2026-10-29T16:12', read: true, route: 'admin/audit/security', roles: ['admin'] },
     { id: 'n12', kind: 'Subscription', title: 'Seat usage at ' + Math.round((live.length / SUBSCRIPTION.seats) * 100) + '%', body: live.length + ' of ' + SUBSCRIPTION.seats + ' seats used', on: '2026-10-28T09:00', read: true, route: 'admin/billing/billing', roles: ['admin'] },
     { id: 'n13', kind: 'Resignation Request', title: 'Aditya Ghosh has submitted a resignation', body: 'Awaiting HR decision', on: '2026-10-12T15:20', read: true, route: 'hr/offboarding/resignations', roles: ['hr'] }
   ];
@@ -1484,7 +1499,7 @@
     });
   }
   var ACTION_PLANS = [
-    { id: 'AP1', survey: 'sv-3', title: 'Clarify career progression', owner: id('Priya Sharma'), due: '2026-12-15', status: 'In Progress', finding: 'Only 61% agreed that progression is clear' },
+    { id: 'AP1', survey: 'sv-3', title: 'Clarify career progression', owner: id('Ananya Reddy'), due: '2026-12-15', status: 'In Progress', finding: 'Only 61% agreed that progression is clear' },
     { id: 'AP2', survey: 'sv-3', title: 'Fix evening-shift VPN stability', owner: id('Sandeep Rao'), due: '2026-11-30', status: 'In Progress', finding: 'Raised in 14 free-text responses' },
     { id: 'AP3', survey: 'sv-3', title: 'Review meeting load in Engineering', owner: id('Karthik Menon'), due: '2026-11-20', status: 'Completed', finding: 'Workload sustainability scored lowest in Engineering' }
   ];
@@ -1494,7 +1509,7 @@
      on IT has neither, which is why they are in the admin's joiner queue rather than
      in this list showing a blank address. */
   var users = live.filter(function (e) { return e.workEmail; }).map(function (e) {
-    var role = e.id === id('Rohit Khanna') ? 'admin'
+    var role = e.id === id('Aarav Sharmal') ? 'admin'
       : e.department === 'dep-hr' && e.level >= 4 ? 'hr'
         : e.level >= 5 ? 'manager' : 'me';
     return {
@@ -1610,7 +1625,7 @@
         + 'to: an account is created when onboarding starts and suspended on the last working day.',
       can: ['Single sign-on (SAML and OIDC)', 'Account provisioning and suspension', 'Group to role mapping'],
       imports: ['Employees', 'Departments and designations', 'Reporting lines'],
-      opts: { label: 'Microsoft 365 tenant', value: 'nexoratech.onmicrosoft.com', by: 'Rohit Khanna', every: '60' }
+      opts: { label: 'Microsoft 365 tenant', value: 'nexoratech.onmicrosoft.com', by: 'Aarav Sharmal', every: '60' }
     }),
     provider({
       id: 'okta', name: 'Okta', mark: 'okta',
@@ -1681,7 +1696,7 @@
       summary: 'Delivers approvals, announcements and birthday and anniversary notes into Slack, and lets '
         + 'an approver act on a leave or regularisation request without leaving the channel.',
       can: ['Approvals in channel', 'Announcement broadcast', 'Joiner and leaver notices'],
-      opts: { label: 'Slack workspace', value: 'nexoratech', by: 'Rohit Khanna', every: '15', provision: false }
+      opts: { label: 'Slack workspace', value: 'nexoratech', by: 'Aarav Sharmal', every: '15', provision: false }
     }),
     provider({
       id: 'teams', name: 'Microsoft Teams', by: 'Microsoft', mark: 'teams',
@@ -1710,7 +1725,7 @@
       can: ['Onboarding and exit tasks as issues', 'Worklog hours into timesheets',
         'Project and assignment sync', 'Asset and access requests as issues'],
       imports: ['Projects', 'Worklog hours'],
-      opts: { label: 'Atlassian site', value: 'nexoratech.atlassian.net', by: 'Rohit Khanna', every: '15', provision: false }
+      opts: { label: 'Atlassian site', value: 'nexoratech.atlassian.net', by: 'Aarav Sharmal', every: '15', provision: false }
     }),
     provider({
       id: 'confluence', name: 'Confluence', by: 'Atlassian', mark: 'atlassian',
@@ -2037,16 +2052,16 @@
      top of a list that already reads like one. */
   var DATA_JOBS = [
     { id: 'JOB4', direction: 'Export', what: 'Payroll runs and payslips', target: 'CSV, password protected',
-      rows: 41088, status: 'Ready', on: '2026-11-02T18:20', by: 'Rohit Khanna',
+      rows: 41088, status: 'Ready', on: '2026-11-02T18:20', by: 'Aarav Sharmal',
       detail: 'payroll-2026-11-02.zip · 18.4 MB · expires in 5 days' },
     { id: 'JOB3', direction: 'Import', what: 'Employees · Departments and designations · Reporting lines',
       target: 'Microsoft Entra ID', rows: 1284, status: 'Completed', on: '2026-08-04T09:05',
-      by: 'Rohit Khanna', detail: '1,284 matched · 0 created · 12 fields mapped' },
+      by: 'Aarav Sharmal', detail: '1,284 matched · 0 created · 12 fields mapped' },
     { id: 'JOB2', direction: 'Import', what: 'Employees · Leave balances · Attendance history',
       target: 'Darwinbox', rows: 1284, status: 'Completed', on: '2026-07-19T22:40',
-      by: 'Rohit Khanna', detail: '1,284 created · 31 skipped as duplicates · 9 warnings' },
+      by: 'Aarav Sharmal', detail: '1,284 created · 31 skipped as duplicates · 9 warnings' },
     { id: 'JOB1', direction: 'Export', what: 'Audit and sign-in logs', target: 'JSON',
-      rows: 48210, status: 'Expired', on: '2026-06-30T07:15', by: 'Rohit Khanna',
+      rows: 48210, status: 'Expired', on: '2026-06-30T07:15', by: 'Aarav Sharmal',
       detail: 'Download window closed. Request it again to get a fresh file.' }
   ];
 
@@ -2089,7 +2104,7 @@
 
   var BILLING_CARDS = [
     { id: 'c1', brand: 'Visa', last: '4417', exp: '08 / 29', name: 'Nexora Technologies Pvt Ltd', def: true },
-    { id: 'c2', brand: 'Mastercard', last: '7701', exp: '02 / 28', name: 'Rohit Khanna', def: false }
+    { id: 'c2', brand: 'Mastercard', last: '7701', exp: '02 / 28', name: 'Aarav Sharmal', def: false }
   ];
 
   var BILLING_PAYMENTS = [
@@ -2223,7 +2238,7 @@
       /* A revision effective on the first of the open month is being paid for the
          first time in it, so it carries no arrears; one backdated does. */
       arrears: n < 4 ? 0 : (n < 9 ? Math.round((e.ctc - from) / 12) : 0),
-      approvedBy: id('Priya Sharma')
+      approvedBy: id('Ananya Reddy')
     });
   });
 
@@ -2251,7 +2266,7 @@
     salaryRevisions.unshift({
       id: 'SR99001', employee: self.id,
       from: Math.round(self.ctc / 1.12 / 1000) * 1000, to: self.ctc, pct: 12,
-      effective: '2026-07-01', reason: 'Annual review', arrears: 0, approvedBy: id('Priya Sharma')
+      effective: '2026-07-01', reason: 'Annual review', arrears: 0, approvedBy: id('Ananya Reddy')
     });
   })();
 
@@ -2267,7 +2282,7 @@
       principal: principal, months: months, emi: emi,
       paidInstalments: paid, outstanding: Math.max(0, principal - emi * paid),
       status: n > 18 ? 'Settled' : 'Running',
-      started: iso(addDays(TODAY, -(paid * 30 + 10))), approvedBy: id('Priya Sharma')
+      started: iso(addDays(TODAY, -(paid * 30 + 10))), approvedBy: id('Ananya Reddy')
     });
   });
 

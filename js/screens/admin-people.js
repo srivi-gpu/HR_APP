@@ -63,7 +63,7 @@
   /* ---------- Data ---------- */
   /* Exits are Ara's to close. Confirmations change pay, so a person signs them off. */
   var LIFE_SEED = [
-    { id: 'x1', kind: 'exit', who: 'Ananya Rao', what: 'Exiting · Design', when: 'Nov 04', state: 'new' },
+    { id: 'x1', kind: 'exit', who: 'Kavya Nair', what: 'Exiting · Design', when: 'Nov 04', state: 'new' },
     { id: 'x2', kind: 'exit', who: '2 people in Sales', what: 'Exiting', when: 'Nov 04', state: 'new' },
     { id: 'p1', kind: 'probation', who: '4 people', what: 'Probation ends', when: 'Nov 07', state: 'new', approver: 'Meera Nair (HR Head)' },
     { id: 'p2', kind: 'probation', who: 'Arjun Pillai', what: 'Probation ends', when: 'Nov 12', state: 'new', approver: 'Meera Nair (HR Head)' }
@@ -773,8 +773,95 @@
     lifecycle: 'Lifecycle', access: 'Access requests'
   };
 
+  /* ---------------------------------------------------- Teams, as a panel
+     The team view was a tab of admin's People module. It is a piece of the
+     organisation's structure — who is on which team, and under whom — so it lives in
+     Configuration beside departments and designations now. It is the same view: the
+     component moved out whole, and it owns the three bits of state the tab held for
+     it, so there is one Teams and not a copy. */
+  function TeamsPanel() {
+    var teamSt = useState('Product Design'), focusSt = useState('Ananya Reddy');
+    var actSt = useState(null);
+    return h(React.Fragment, null,
+      (function () {
+        var T = TEAM, total = T.composition.reduce(function (a, c) { return a + c[1]; }, 0);
+        var C = 2 * Math.PI * 62, off = 0;
+        return h('div', { className: 'teamfit' },
+          h('div', { className: 'thead' },
+            h('div', { className: 'thead__pick' },
+              h('small', null, 'Team'),
+              h(V.Select, { 'aria-label': 'Team', value: teamSt[0], onChange: teamSt[1],
+                options: ['Product Design', 'Platform', 'Mobile', 'Payroll ops'] })),
+
+            /* everyone on the team, up front */
+            h('div', { className: 'thead__roster' },
+              h('div', { className: 'faces' },
+                ALL_MEMBERS.slice(0, 9).map(function (m) {
+                  var st = statusOf(m.n);
+                  return h('span', {
+                    className: 'faces__f' + (focusSt[0] === m.n ? ' is-on' : ''), key: m.n,
+                    title: m.n + ' · ' + m.r + (st ? ' · ' + st.t + ' ' + st.d : ''),
+                    onClick: function () { focusSt[1](m.n); }
+                  },
+                    h(V.Avatar, { name: m.n, size: 'md' }),
+                    st ? h('span', { className: 'faces__b faces__b--' + st.k }, st.k === 'prob' ? 'P' : 'N')
+                       : (m.n2 ? h('span', { className: 'faces__b faces__b--n' }, m.n2) : null));
+                }),
+                ALL_MEMBERS.length > 9 ? h('span', { className: 'faces__more' }, '+' + (ALL_MEMBERS.length - 9)) : null)),
+
+            h('div', { className: 'thead__acts' },
+              h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus,
+                onClick: function () { actSt[1]({ kind: 'add' }); } }, 'Add member'),
+              h(ExportMenu, { onPick: function (kind) {
+                var cols = ['Team member', 'Role', 'Reporting to', 'Join date', 'Status', 'Standing'];
+                var rows = ALL_MEMBERS.map(function (m) {
+                  var st = statusOf(m.n);
+                  return [m.n, m.r, m.to || T.lead, m.j || '—', 'Active', st ? st.t + ' · ' + st.d : 'Confirmed'];
+                });
+                if (kind === 'xls') { exportExcel('aptaHR-' + teamSt[0].replace(/\s+/g, '-') + '-team', 'Team', cols, rows); toast('Workbook downloaded.'); }
+                else { exportPDF(teamSt[0] + ' team', cols, rows) || toast('Allow pop-ups to print to PDF.'); }
+              } }))),
+
+          h('div', { className: 'teamfit__map' },
+            h(TeamMap, { team: T, toast: toast, go: router.go, onAction: function (k) { actSt[1]({ kind: k, who: null }); } })),
+
+          h('div', { className: 'agrid' },
+            h(Card, { span: 'c7', title: 'Team overview' },
+              h('div', { className: 'teamfit__scroll' },
+              h(Table, { rows: T.roster, cols: [
+                { h: 'Team member', cell: function (r) { return h('span', { className: 'who2' },
+                    h('span', { style: { color: r.star ? 'var(--warning-fg)' : 'var(--border-default)', display: 'flex' } }, I.star),
+                    h(V.Avatar, { name: r.n, size: 'sm' }), h('span', null, h('strong', null, r.n))); } },
+                { h: 'Role', cell: function (r) { return h('span', { className: 'muted-s' }, r.r); } },
+                { h: 'Reporting to', cell: function (r) { return h('span', { className: 'muted-s' }, r.to); } },
+                { h: 'Join date', cell: function (r) { return h('span', { className: 'muted-s' }, r.j); } },
+                { h: 'Status', cell: function (r) { return h('span', { className: 'tag2 tag2--ok' }, r.s); } }
+              ] }))),
+            h(Card, { span: 'c5', title: 'Team composition' },
+              h('div', { className: 'donut' },
+                h('div', { className: 'donut__svg' },
+                  h('svg', { viewBox: '0 0 168 168', 'aria-hidden': 'true' }, T.composition.map(function (c, i) {
+                    var len = (c[1] / total) * C, d = Math.max(len - 4, 2), o = off; off += len;
+                    return h('circle', { key: c[0], cx: 84, cy: 84, r: 62, fill: 'none', stroke: RAMP[Math.min(i, RAMP.length - 1)],
+                      strokeWidth: 20, strokeDasharray: d + ' ' + (C - d), strokeDashoffset: -o });
+                  })),
+                  h('span', { className: 'donut__mid' }, h('span', null, h('b', null, total), h('span', null, 'Team members')))),
+                h('div', { className: 'donut__key' }, T.composition.map(function (c, i) {
+                  return h('div', { className: 'donut__row', key: c[0] },
+                    h('span', { className: 'donut__dot', style: { background: RAMP[Math.min(i, RAMP.length - 1)] } }),
+                    h('span', { className: 'donut__lbl' }, c[0]),
+                    h('span', { className: 'donut__n' }, c[1]));
+                }))))));
+      }()),
+      actSt[0] ? h(TeamAction, {
+        kind: actSt[0].kind, team: TEAM,
+        onClose: function () { actSt[1](null); },
+        onDone: function (msg) { actSt[1](null); toast(msg); }
+      }) : null);
+  }
+
   function PeopleModule(p) {
-    var teamSt = useState('Product Design'), focusSt = useState('Priya Sharma');
+    var teamSt = useState('Product Design'), focusSt = useState('Ananya Reddy');
     var openSt = useState({ 'Engineering': true, 'People & Culture': true });
     var loadedSt = useState(1), teamRowsSt = useState({ loading: true, rows: [] }), panelSt = useState('team');
     var lifeSt = useState(LIFE_SEED.map(function (r) { return Object.assign({}, r); }));
@@ -985,76 +1072,7 @@
                 h(V.Button, { iconStart: EYE2, onClick: function () { sheetSt[1](false); router.go('admin/users/all'); } }, 'Open record')))) : null);
       }
 
-      if (t === 'Teams') {
-        var T = TEAM, total = T.composition.reduce(function (a, c) { return a + c[1]; }, 0);
-        var C = 2 * Math.PI * 62, off = 0;
-        return h('div', { className: 'teamfit' },
-          h('div', { className: 'thead' },
-            h('div', { className: 'thead__pick' },
-              h('small', null, 'Team'),
-              h(V.Select, { 'aria-label': 'Team', value: teamSt[0], onChange: teamSt[1],
-                options: ['Product Design', 'Platform', 'Mobile', 'Payroll ops'] })),
-
-            /* everyone on the team, up front */
-            h('div', { className: 'thead__roster' },
-              h('div', { className: 'faces' },
-                ALL_MEMBERS.slice(0, 9).map(function (m) {
-                  var st = statusOf(m.n);
-                  return h('span', {
-                    className: 'faces__f' + (focusSt[0] === m.n ? ' is-on' : ''), key: m.n,
-                    title: m.n + ' · ' + m.r + (st ? ' · ' + st.t + ' ' + st.d : ''),
-                    onClick: function () { focusSt[1](m.n); }
-                  },
-                    h(V.Avatar, { name: m.n, size: 'md' }),
-                    st ? h('span', { className: 'faces__b faces__b--' + st.k }, st.k === 'prob' ? 'P' : 'N')
-                       : (m.n2 ? h('span', { className: 'faces__b faces__b--n' }, m.n2) : null));
-                }),
-                ALL_MEMBERS.length > 9 ? h('span', { className: 'faces__more' }, '+' + (ALL_MEMBERS.length - 9)) : null)),
-
-            h('div', { className: 'thead__acts' },
-              h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus,
-                onClick: function () { actSt[1]({ kind: 'add' }); } }, 'Add member'),
-              h(ExportMenu, { onPick: function (kind) {
-                var cols = ['Team member', 'Role', 'Reporting to', 'Join date', 'Status', 'Standing'];
-                var rows = ALL_MEMBERS.map(function (m) {
-                  var st = statusOf(m.n);
-                  return [m.n, m.r, m.to || T.lead, m.j || '—', 'Active', st ? st.t + ' · ' + st.d : 'Confirmed'];
-                });
-                if (kind === 'xls') { exportExcel('aptaHR-' + teamSt[0].replace(/\s+/g, '-') + '-team', 'Team', cols, rows); toast('Workbook downloaded.'); }
-                else { exportPDF(teamSt[0] + ' team', cols, rows) || toast('Allow pop-ups to print to PDF.'); }
-              } }))),
-
-          h('div', { className: 'teamfit__map' },
-            h(TeamMap, { team: T, toast: toast, go: router.go, onAction: function (k) { actSt[1]({ kind: k, who: null }); } })),
-
-          h('div', { className: 'agrid' },
-            h(Card, { span: 'c7', title: 'Team overview' },
-              h('div', { className: 'teamfit__scroll' },
-              h(Table, { rows: T.roster, cols: [
-                { h: 'Team member', cell: function (r) { return h('span', { className: 'who2' },
-                    h('span', { style: { color: r.star ? 'var(--warning-fg)' : 'var(--border-default)', display: 'flex' } }, I.star),
-                    h(V.Avatar, { name: r.n, size: 'sm' }), h('span', null, h('strong', null, r.n))); } },
-                { h: 'Role', cell: function (r) { return h('span', { className: 'muted-s' }, r.r); } },
-                { h: 'Reporting to', cell: function (r) { return h('span', { className: 'muted-s' }, r.to); } },
-                { h: 'Join date', cell: function (r) { return h('span', { className: 'muted-s' }, r.j); } },
-                { h: 'Status', cell: function (r) { return h('span', { className: 'tag2 tag2--ok' }, r.s); } }
-              ] }))),
-            h(Card, { span: 'c5', title: 'Team composition' },
-              h('div', { className: 'donut' },
-                h('div', { className: 'donut__svg' },
-                  h('svg', { viewBox: '0 0 168 168', 'aria-hidden': 'true' }, T.composition.map(function (c, i) {
-                    var len = (c[1] / total) * C, d = Math.max(len - 4, 2), o = off; off += len;
-                    return h('circle', { key: c[0], cx: 84, cy: 84, r: 62, fill: 'none', stroke: RAMP[Math.min(i, RAMP.length - 1)],
-                      strokeWidth: 20, strokeDasharray: d + ' ' + (C - d), strokeDashoffset: -o });
-                  })),
-                  h('span', { className: 'donut__mid' }, h('span', null, h('b', null, total), h('span', null, 'Team members')))),
-                h('div', { className: 'donut__key' }, T.composition.map(function (c, i) {
-                  return h('div', { className: 'donut__row', key: c[0] },
-                    h('span', { className: 'donut__dot', style: { background: RAMP[Math.min(i, RAMP.length - 1)] } }),
-                    h('span', { className: 'donut__lbl' }, c[0]),
-                    h('span', { className: 'donut__n' }, c[1]));
-                })))))); 
-      }
+      if (t === 'Teams') return h(TeamsPanel);
 
       if (t === 'Lifecycle') {
         var L = lifeSt[0];
@@ -1136,9 +1154,11 @@
      The old `admin/people/*` paths are not registered. The router resolves a route from
      the nav tree rather than from this registry, so a path the nav no longer declares
      reaches the not-found screen whatever is registered against it. */
+  /* Shared with Configuration, which is where Teams is now. */
+  HRMS.screens.TeamsPanel = TeamsPanel;
+
   HRMS.screens.register({
     'admin/org/org-tree': PeopleModule,
-    'admin/org/teams': PeopleModule,
     'admin/users/access': PeopleModule,
     /* The same reporting chart in HR's and the employee's Organization item — four
        readings of one reporting line, rather than a second, poorer tree of their own

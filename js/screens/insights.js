@@ -232,7 +232,7 @@
         h(Card, { span: 4, title: 'By employment type' }, h(ui.Bars, { rows: pairs(byType) })),
         h(Card, { span: 4, title: 'By job level' },
           h(ui.Bars, { rows: ordered(byLevel, ['L7', 'L6', 'L5', 'L4', 'L3', 'L2', 'L1']) })),
-        h(Card, { span: 4, title: 'Status breakdown', description: 'Across all records, archived included (PRD 14.1).' },
+        h(Card, { span: 4, title: 'Status breakdown', description: 'Across all records, archived included.' },
           h(ui.Bars, { rows: pairs(byStatus) })),
 
         h(Card, { span: 7, title: 'Joiners and exits by month' },
@@ -245,7 +245,7 @@
             : h(ui.Empty, { icon: I.calendar, title: 'Window too short for a trend', body: 'Choose a range covering at least two months.' })),
 
         h(Card, { span: 5, title: 'How attrition is calculated',
-          description: 'PRD 8.2 names the figure but not the formula, so the working is shown.' },
+          description: 'Attrition can be computed several ways, so the working is shown.' },
           h(ui.KeyValue, { rows: [
             ['Window', f.rangeLabel + ' (' + f.days + ' days)'],
             ['Opening headcount', Math.round(opening)],
@@ -257,7 +257,7 @@
           ]}),
           h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
             'Exits ÷ average headcount × 365 ÷ window days. Invited and onboarding records count ' +
-            'towards headcount because they consume a seat (PRD 4.1).'))),
+            'towards headcount because they consume a seat.'))),
 
       h(Card, { title: 'Employee records', description: 'Every record behind the figures above, exported as shown.' },
         h(ui.DataTable, Object.assign({
@@ -501,7 +501,7 @@
             : h(ui.Empty, { icon: I.calendar, title: 'Window too short for a trend', body: 'Choose a range covering at least two months.' })),
 
         h(Card, { span: 5, title: 'How the liability is calculated',
-          description: 'PRD 8.2 calls unused paid leave a cost, so it is priced here.' },
+          description: 'Unused paid leave is a cost, so it is priced here.' },
           h(ui.KeyValue, { rows: [
             ['Encashable types', typeRows.filter(function (r) { return r.paid && r.carry; }).map(function (r) { return r.name; }).join(', ') || 'None'],
             ['Lapsing types', typeRows.filter(function (r) { return r.paid && !r.carry; }).map(function (r) { return r.name; }).join(', ') || 'None'],
@@ -511,7 +511,7 @@
           ]}),
           h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
             'Casual and sick leave lapse at the year end, so they are shown as utilisation only. ' +
-            'Earned leave carries forward and is therefore a cash liability (PRD 4.11).'))),
+            'Earned leave carries forward and is therefore a cash liability.'))),
 
       h(Card, { title: 'Utilisation per leave type' },
         h(ui.DataTable, Object.assign({
@@ -536,7 +536,7 @@
               cell: function (r) { return r.carry ? ui.inr(r.liability) : h('span', { className: 'muted' }, 'Lapses'); } }
           ],
           emptyIcon: I.calendar, emptyTitle: 'No leave policy applies to this selection',
-          emptyBody: 'Interns and contractors hold a reduced set of leave types (PRD 4.11).'
+          emptyBody: 'Interns and contractors hold a reduced set of leave types.'
         }))),
 
       h(Card, { title: 'Department comparison', description: 'Days taken against headcount, so a large department is not flattered.' },
@@ -624,7 +624,7 @@
         h(Stat, { label: 'Employer cost', value: ui.inr(gross + employerPf, { short: true }), sub: 'Gross plus ' + ui.inr(employerPf, { short: true }) + ' employer PF' })),
 
       h(Grid, null,
-        h(Card, { span: 6, title: 'Salary distribution by band', description: 'Annual CTC across the bands in PRD 4.35.' },
+        h(Card, { span: 6, title: 'Salary distribution by band', description: 'Annual CTC across the salary bands.' },
           h(ui.Bars, { rows: ordered(byBand, BAND_LABELS) })),
         h(Card, { span: 6, title: 'Deduction summary' },
           h(ui.Bars, { rows: pairs(deductionTotals).map(function (r) { return [r[0], Math.round(r[1] / 1000), 'warning']; }),
@@ -633,7 +633,7 @@
           h(ui.KeyValue, { rows: Object.keys(deductionTotals).map(function (k) { return [k, ui.inr(deductionTotals[k])]; })
             .concat([['Total', h('strong', null, ui.inr(deductions))]]) }),
           h('p', { className: 'muted', style: { fontSize: 12, lineHeight: 1.6 } },
-            'Every figure here is the sum of the components on the payslips themselves (PRD 4.38), ' +
+            'Every figure here is the sum of the components on the payslips themselves, ' +
             'so a total always reconciles with the payslip it came from. A cycle\'s own recorded ' +
             'deduction figure is a provision taken at cut-off and can differ from this sum.')),
 
@@ -673,7 +673,7 @@
           }, noRows('payroll cycles'))))),
 
       h(Card, { title: 'Cost per employee',
-        description: 'Payroll is confidential (PRD 10), so this view follows the payroll permission rather than the people one.' },
+        description: 'Payroll is confidential, so this view follows the payroll permission rather than the people one.' },
         h(ui.DataTable, Object.assign({
           exportName: 'report-payroll', label: 'Payroll report', rows: payable, pageSize: 10,
           search: function (e) { return e.name + ' ' + e.id + ' ' + deptName(e.department); },
@@ -833,7 +833,7 @@
               cell: function (a) { return a.rating == null ? h('span', { className: 'muted' }, '—') : a.rating; } }
           ],
           emptyIcon: I.target, emptyTitle: 'No appraisals in this window',
-          emptyBody: 'A cycle has to be launched before appraisals exist (PRD 4.44).'
+          emptyBody: 'A cycle has to be launched before appraisals exist.'
         }))));
   }
 

@@ -162,7 +162,7 @@
             ['Salary credited to', m.bank && m.bank.name ? m.bank.name + ' ' + m.bank.account : null]
           ]}),
           h('p', { className: 'muted', style: { fontSize: 12 } },
-            'PRD 4.5: bank details are sensitive, so a change here raises a request for HR to approve rather than updating the record directly.'));
+            'Bank details are sensitive, so a change here raises a request for HR to approve rather than updating the record directly.'));
       }
 
       function fields() {
@@ -460,7 +460,7 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Regularization requests',
-        description: 'Correct a missing or wrong punch. Both the original and the corrected value are kept (PRD 14.3).',
+        description: 'Correct a missing or wrong punch. Both the original and the corrected value are kept.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Raise a correction')
       },
         h(ui.DataTable, {
@@ -535,7 +535,7 @@
           ? h(V.Checkbox, Object.assign({ label: 'Half day' }, form.check('halfDay'))) : null,
         h(V.TextArea, Object.assign({ label: 'Reason', required: true, rows: 3 }, form.field('reason'))),
         h(V.TextField, Object.assign({ label: 'Supporting document', placeholder: 'File name, if required',
-          hint: form.errors.document || 'Sick leave over two days needs a document (PRD 4.11)' }, form.field('document'))),
+          hint: form.errors.document || 'Sick leave over two days needs a document' }, form.field('document'))),
         notice ? h('p', { style: { fontSize: 12, color: 'var(--warning-fg)' } }, notice + '. You can still apply.') : null,
         h('div', { className: 'row gap-2' },
           h(V.Button, { variant: 'primary', onClick: save }, 'Submit application'),
@@ -563,7 +563,7 @@
                 : null)
           : h(ui.Empty, { icon: I.calendar, title: 'Choose a date range', body: 'The day count, exclusions and balance appear here.' }),
         h('p', { className: 'muted', style: { fontSize: 12 } },
-          'Weekly offs and holidays are excluded automatically, overlapping requests are detected, and the balance is checked before the request is created (PRD 14.2).')));
+          'Weekly offs and holidays are excluded automatically, overlapping requests are detected, and the balance is checked before the request is created.')));
   }
 
   function LeaveBalance() {
@@ -667,7 +667,7 @@
       cancelSt[0] ? h(ui.Confirm, {
         title: 'Cancel ' + cancelSt[0].id + '?',
         body: cancelSt[0].status === 'Approved'
-          ? 'The days are returned to your balance (PRD 14.2).'
+          ? 'The days are returned to your balance.'
           : 'The request is withdrawn before approval.',
         confirmLabel: 'Cancel request', tone: 'danger',
         onClose: function () { cancelSt[1](null); },
@@ -720,7 +720,7 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Shift swap requests',
-        description: 'Swaps need the replacement colleague to agree and your manager to approve (PRD 4.22).',
+        description: 'Swaps need the replacement colleague to agree and your manager to approve.',
         aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'Request a swap')
       },
         h(ui.DataTable, {
@@ -905,7 +905,7 @@
           ['Paid to', m.bank && m.bank.name ? m.bank.name + ' ' + m.bank.account : null]
         ]}),
         h('p', { className: 'muted', style: { fontSize: 12 } },
-          'PRD 10: payroll is a confidential module. You see your own figures only.')));
+          'Payroll is a confidential module. You see your own figures only.')));
   }
 
   function MyPayslips() {
@@ -1010,7 +1010,7 @@
           ['Submitted on', existing && existing.submittedOn ? ui.dateLabel(existing.submittedOn) : null]
         ]}),
         h('p', { className: 'muted', style: { fontSize: 12 } },
-          'PRD 4.34: tax and statutory calculations are configurable per jurisdiction and are not assumed to be universal.')));
+          'Tax and statutory calculations are configurable per jurisdiction and are not assumed to be universal.')));
   }
 
   function MyPayments() {
@@ -1218,7 +1218,7 @@
       openSt[0] ? h(ui.Modal, {
         title: openSt[0].name, wide: true,
         description: openSt[0].anonymous
-          ? 'This survey is anonymous. Your answers are not linked to your name (PRD 4.41).'
+          ? 'This survey is anonymous. Your answers are not linked to your name.'
           : 'Your name is recorded against your answers.',
         onClose: function () { openSt[1](null); },
         footer: h(React.Fragment, null,
