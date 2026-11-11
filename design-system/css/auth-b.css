@@ -1,6 +1,6 @@
-/* Sign-in, option B: a lavender page with soft waves and one centred card that holds the
-   pitch on the left and the form on the right. Shares the field, button and tab rules with
-   option A (auth.css); only the frame around them differs. */
+/* Sign-in: two panes edge to edge. The form on the left on the page's own surface, and
+   on the right a brand-coloured pane carrying what the product is for. Shares the field,
+   button and tab rules with auth.css; only the frame around them differs. */
 @layer tl {
 
 :root {
@@ -9,9 +9,17 @@
   --authb-g1-a:#dfd4f8; --authb-g1-b:#e7e0fa;
   --authb-g2-a:#d9ccf6; --authb-g2-b:#e6dff9;
   --authb-g3:#eae4fb;
-  --authb-wave:#ffffff; --authb-wave-op:.75; --authb-wave-op-2:.6;
+  --authb-wave:#ffffff; --authb-wave-op:.22; --authb-wave-op-2:.14;
   --authb-glow:#d9cefa66;
   --authb-shadow: 0 2px 6px #2a1a5e0f, 0 24px 60px -12px #2a1a5e24;
+  /* The right pane, in the brand's own violet rather than the reference's teal. */
+  --authb-pitch-1:#3d2496; --authb-pitch-2:#5733c1; --authb-pitch-3:#2a1a5e;
+  --authb-pitch-glow:#7b5ce066;
+  /* The pane is a deep violet in both themes, so its ink is white in both: reading it
+     off a brand token would flip it to dark the moment the theme does, over a panel
+     that did not. */
+  --authb-pitch-ink:#ffffff;
+  --authb-chip-bg:#ffffff1f; --authb-chip-border:#ffffff38;
 }
 /* Dark follows the OS unless the theme is pinned, the same two-rule shape the tokens use. */
 @media (prefers-color-scheme: dark) {
@@ -21,9 +29,13 @@
     --authb-g1-a:#2a2340; --authb-g1-b:#221d33;
     --authb-g2-a:#2a2340; --authb-g2-b:#1f1a2e;
     --authb-g3:#241f36;
-    --authb-wave:#a993f0; --authb-wave-op:.14; --authb-wave-op-2:.09;
+    --authb-wave:#c4b2ff; --authb-wave-op:.16; --authb-wave-op-2:.10;
     --authb-glow:#a993f029;
     --authb-shadow: 0 2px 6px #00000052, 0 24px 60px -12px #00000085;
+    --authb-pitch-1:#2a1f52; --authb-pitch-2:#3b2a77; --authb-pitch-3:#17142a;
+    --authb-pitch-glow:#6b56b05c;
+    --authb-pitch-ink:#f1eefc;
+    --authb-chip-bg:#ffffff14; --authb-chip-border:#ffffff2b;
   }
 }
 :root[data-theme="dark"] {
@@ -32,82 +44,106 @@
     --authb-g1-a:#2a2340; --authb-g1-b:#221d33;
     --authb-g2-a:#2a2340; --authb-g2-b:#1f1a2e;
     --authb-g3:#241f36;
-    --authb-wave:#a993f0; --authb-wave-op:.14; --authb-wave-op-2:.09;
+    --authb-wave:#c4b2ff; --authb-wave-op:.16; --authb-wave-op-2:.10;
     --authb-glow:#a993f029;
     --authb-shadow: 0 2px 6px #00000052, 0 24px 60px -12px #00000085;
+    --authb-pitch-1:#2a1f52; --authb-pitch-2:#3b2a77; --authb-pitch-3:#17142a;
+    --authb-pitch-glow:#6b56b05c;
+    --authb-pitch-ink:#f1eefc;
+    --authb-chip-bg:#ffffff14; --authb-chip-border:#ffffff2b;
 }
 
 .authb {
-  /* Exactly the viewport, never more: the sign-in page fills the screen and the document
-     itself does not scroll. `min-height` grew the element past the viewport instead, which
-     is what put a scrollbar on the page — and with `overflow: hidden` here, a taller
-     element could only ever have been clipped or scrolled the document.
-     The middle row is `minmax(0, 1fr)` so it may shrink below the card's content height;
-     a plain `1fr` floors at min-content and pushes the page open again. Vertical rhythm is
-     viewport-relative so the card keeps fitting as the screen gets shorter. */
+  /* Exactly the viewport, never more: the sign-in page fills the screen and the
+     document itself does not scroll. Two columns, the form first so a reader on a
+     narrow screen meets it before the pitch. */
   position: relative; isolation: isolate; height: 100vh; height: 100dvh;
-  display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: clamp(10px, 2vh, 24px);
-  padding: clamp(14px, 2.6vh, 28px) clamp(20px, 4vw, 48px) clamp(12px, 2.2vh, 24px);
-  overflow: hidden;
-  /* Washes rather than shapes: no edge can show where a gradient fades out */
-  background:
-    radial-gradient(1100px 620px at 102% -8%, var(--authb-g1-a) 0%, var(--authb-g1-b) 38%, transparent 68%),
-    radial-gradient(1000px 560px at 108% 106%, var(--authb-g2-a) 0%, var(--authb-g2-b) 40%, transparent 70%),
-    radial-gradient(760px 520px at -8% 96%, var(--authb-g3) 0%, transparent 62%),
-    var(--authb-wash);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  overflow: hidden; background: var(--authb-card);
 }
-/* Two ribbons over the wash, stroked only, so they read as curves and never as blocks */
+
+/* ---- Left: the form ---- */
+/* `overflow-y: auto` is the safety valve, not the plan: the clamps keep the column
+   inside the viewport down to roughly a 700px-tall screen, and only something shorter
+   than its own controls starts this pane scrolling. The page never scrolls either way. */
+.authb__form {
+  display: flex; flex-direction: column; gap: clamp(14px, 3vh, 30px);
+  padding: clamp(22px, 4vh, 48px) clamp(24px, 5vw, 76px);
+  min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  background: var(--authb-card);
+}
+.authb__brand { flex: none; }
+/* The form sits in the middle of whatever height is left over, with the brand above it
+   and the footer below, as in the reference. */
+.authb__body {
+  flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: center;
+  gap: clamp(10px, 1.8vh, 18px); width: min(420px, 100%); margin: 0 auto;
+}
+.authb__note { font-size: 13.5px; line-height: 1.6; color: var(--text-secondary); margin: 0; }
+
+/* Wide provider buttons, one per row */
+.authb__sso { display: flex; flex-direction: column; gap: 10px; }
+.authb__ssobtn {
+  all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 10px;
+  height: clamp(42px, 5.4vh, 48px); border: 1px solid var(--border-default); border-radius: var(--tl-round);
+  background: var(--bg-surface); color: var(--text-primary); font-size: 14.5px; cursor: pointer;
+}
+.authb__ssobtn:hover { background: var(--bg-hover); border-color: var(--border-strong, var(--border-default)); }
+.authb__ssobtn:focus-visible { outline: 2px solid var(--brand-solid); outline-offset: 2px; }
+.authb__ssobtn[disabled] { opacity: .6; cursor: default; }
+.authb__ssobtn .auth-sso__mark svg,
+.authb__ssobtn svg { width: 20px; height: 20px; }
+
+/* ---- Right: what this is for ---- */
+.authb__pitch {
+  position: relative; isolation: isolate; overflow: hidden; min-height: 0;
+  display: flex; align-items: center;
+  padding: clamp(28px, 5vh, 64px) clamp(28px, 4.5vw, 72px);
+  color: var(--authb-pitch-ink);
+  background:
+    radial-gradient(900px 600px at 88% 8%, var(--authb-pitch-glow) 0%, transparent 62%),
+    linear-gradient(152deg, var(--authb-pitch-1) 0%, var(--authb-pitch-2) 58%, var(--authb-pitch-3) 100%);
+}
+.authb__pitchin { display: flex; flex-direction: column; gap: clamp(18px, 3.4vh, 38px); width: 100%; max-width: 520px; }
+.authb__h {
+  font-family: var(--font-flex); font-size: clamp(28px, 2.9vw, 42px); line-height: 1.2;
+  font-weight: 500; color: inherit; margin: 0;
+}
+
+/* The quotation */
+.authq { margin: 0; display: flex; flex-direction: column; gap: 14px; position: relative; }
+/* The mark belongs to the sentence under it, so it sits on the quote rather than
+   floating as a row of its own. */
+.authq__mark { font-family: var(--font-flex); font-size: 46px; line-height: .55; opacity: .45; margin-bottom: -12px; }
+.authq__text { margin: 0; font-size: clamp(15px, 1.2vw, 18px); line-height: 1.65; opacity: .92; }
+.authq__by { display: flex; align-items: center; gap: 12px; }
+.authq__who { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.authq__who span { font-size: 13px; opacity: .78; }
+
+/* What is inside, in place of a wall of other companies' logos */
+.authb__inside { display: flex; flex-direction: column; gap: 12px; }
+.authb__insideh {
+  display: flex; align-items: center; gap: 14px; white-space: nowrap;
+  font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .75;
+}
+.authb__insideh::after { content: ""; flex: 1; height: 1px; background: currentColor; opacity: .35; }
+.authb__chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.authb__chip {
+  display: inline-flex; align-items: center; height: 30px; padding: 0 12px;
+  border: 1px solid var(--authb-chip-border); border-radius: var(--tl-radius-pill);
+  background: var(--authb-chip-bg); font-size: 13px;
+}
+
+.authb__foot { flex: none; display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
+.authb__foot a { color: inherit; text-decoration: none; }
+.authb__foot a:hover { color: var(--text-primary); }
+
+/* Two ribbons over the pitch, stroked only, so they read as curves and never as blocks */
 .authb__waves { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
 .authb__waves svg { position: absolute; width: 150%; height: auto; stroke: var(--authb-wave); fill: none; opacity: var(--authb-wave-op); }
 .authb__waves svg:first-child { top: -6%; right: -30%; }
 .authb__waves svg:last-child { bottom: -8%; right: -24%; opacity: var(--authb-wave-op-2); }
 
-.authb__top { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-.authb__foot { display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
-.authb__foot a { color: inherit; text-decoration: none; }
-.authb__foot a:hover { color: var(--text-primary); }
-
-/* The card */
-.authb__card {
-  place-self: center; width: min(1060px, 100%); max-height: 100%;
-  display: grid; grid-template-columns: minmax(0, 0.84fr) minmax(0, 1fr);
-  background: var(--authb-card); border-radius: 28px; overflow: hidden;
-  box-shadow: var(--authb-shadow);
-}
-
-/* Left: the pitch, a glass illustration, and what people do here. It is an inset panel,
-   so the white card frames it on three sides. */
-.authb__aside {
-  position: relative; overflow: hidden; display: flex; flex-direction: column; gap: clamp(10px, 2vh, 20px);
-  min-height: 0; margin: clamp(8px, 1.4vh, 14px); border-radius: 22px;
-  padding: clamp(20px, 3.6vh, 34px) clamp(22px, 2.4vw, 32px) clamp(16px, 2.8vh, 26px);
-  background: var(--authb-aside);
-}
-.authb__aside::after {
-  content: ""; position: absolute; inset: auto 0 0 0; height: 56%; pointer-events: none;
-  background: radial-gradient(120% 90% at 25% 100%, var(--authb-glow), transparent 72%);
-}
-.authb__h { font-family: var(--font-flex); font-size: clamp(27px, 2.5vw, 33px); line-height: 1.22; font-weight: 600; color: var(--text-primary); }
-.authb__h em { font-style: normal; color: var(--brand-solid); }
-.authb__p { font-size: 15px; line-height: 1.6; color: var(--text-secondary); max-width: 34ch; }
-/* The illustration is the one thing here that can give up height without losing meaning,
-   so it yields first as the screen gets shorter. */
-.authb__art { position: relative; align-self: center; width: 100%; max-width: 300px; margin: 2px 0 6px;
-  min-height: 0; flex: 0 1 auto; }
-.authb__art svg { width: 100%; height: 100%; max-height: 26vh; display: block; object-fit: contain; }
-
-.authb__uses { position: relative; margin-top: auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
-.authb__use { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px 6px 0; text-align: center; font-size: 13px; line-height: 1.35; color: var(--text-secondary); }
-.authb__use + .authb__use { border-left: 1px solid var(--border-subtle); }
-.authb__use svg { width: 20px; height: 20px; color: var(--text-primary); }
-
-/* Right: the form */
-/* `overflow-y: auto` is the safety valve, not the plan: the clamps below keep the form
-   inside the card down to roughly a 700px-tall viewport, and only something shorter than
-   its own controls can start the pane scrolling. The page never scrolls either way. */
-.authb__form { display: flex; flex-direction: column; justify-content: center;
-  gap: clamp(9px, 1.6vh, 18px); padding: clamp(18px, 3.0vh, 44px) clamp(28px, 3.4vw, 48px);
-  min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .authb__title { font-family: var(--font-flex); font-size: clamp(24px, 3.4vh, 34px); line-height: 1.15; font-weight: 600; color: var(--text-primary); }
 .authb__lede { font-size: 15px; color: var(--text-secondary); margin-top: 4px; }
 /* The one filled button on the page carries a soft violet gradient */
@@ -121,14 +157,15 @@
 .authb__form .vi-btn--primary:hover { background: linear-gradient(100deg, #5f3ccb 0%, #4e2cb0 52%, #6e4dd8 100%); }
 
 @media (max-width: 920px) {
-  .authb__card { grid-template-columns: minmax(0, 1fr); }
-  .authb__aside { display: none; }
-  .authb__form { padding: 36px 24px; }
+  /* One column. The pitch goes rather than stacking: on a phone it would be a screen's
+     worth of scrolling between the brand and the only thing there is to do here. */
+  .authb { grid-template-columns: minmax(0, 1fr); }
+  .authb__pitch { display: none; }
+  .authb__form { padding: 32px 24px; }
 }
-@media (max-height: 820px) {
-  .authb { padding-block: 18px 16px; gap: 16px; }
-  .authb__aside, .authb__form { padding-block: 32px; }
-  .authb__art { max-width: 250px; }
+@media (max-height: 760px) {
+  .authb__form { padding-block: 24px; gap: 16px; }
+  .authb__pitchin { gap: 20px; }
 }
 }
 
