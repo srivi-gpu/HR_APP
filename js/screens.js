@@ -510,13 +510,14 @@
        console configured for nobody; everyone else goes straight to their workspace. */
     function enter(how) {
       busySt[1](how);
-      /* Organisation setup is what follows signing in, until it is done. It is an admin
-         wizard, so it opens in the Admin workspace whatever workspace was last used;
-         finishing it lands you there. */
-      var toSetup = store.pref('setupComplete') === false;
-      store.setPref('role', toSetup ? 'admin' : roleSt[0]);
+      /* Signing in opens the workspace, whichever way you proved it was you. It used to
+         divert to the organisation wizard while setup was outstanding, which put a
+         five-step form in front of everybody who only wanted to look at their own
+         dashboard — and setup is outstanding by default. The wizard is still one click
+         from the admin dashboard, and signing up still goes straight to it. */
+      store.setPref('role', roleSt[0]);
       store.setPref('signedIn', true);
-      setTimeout(function () { router.go(toSetup ? 'global/setup' : activeRole.home); }, 420);
+      setTimeout(function () { router.go(activeRole.home); }, 420);
     }
 
     function switchMode(m) {
