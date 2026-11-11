@@ -997,6 +997,24 @@
         form.errors._ ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13 } }, form.errors._) : null) : null);
   }
 
+  /* Leave configuration is one tab with two inside it. A leave type and the policy
+     that hands it out are two halves of the same decision — you come here to change
+     what leave exists, or who gets it — so they are tabs of one screen rather than
+     two stops in a twelve-tab bar. Both halves are the screens that already existed,
+     rendered here unchanged, so the Leave module's own tabs still show the same thing. */
+  function LeaveConfig() {
+    var tabSt = React.useState('types');
+    return h(React.Fragment, null,
+      h(V.TabGroup, {
+        value: tabSt[0], onChange: tabSt[1],
+        items: [
+          { value: 'types', label: 'Leave types', count: store.collection('leaveTypes').length },
+          { value: 'policies', label: 'Leave policies', count: store.collection('leavePolicies').length }
+        ]
+      }),
+      tabSt[0] === 'types' ? h(LeaveTypes, null) : h(LeavePolicies, null));
+  }
+
   /* ============================================================ Leave policies
      PRD 4.11: a policy scopes a set of leave types to a group of employees. */
   function LeavePolicies() {
@@ -1971,8 +1989,7 @@
        they are configured where the rest of the rules are, as well as read inside the
        modules that use them. js/app.js mirrors each to admin's Configuration, which
        carries the same tabs. */
-    'hr/config/leave-types': LeaveTypes,
-    'hr/config/leave-policies': LeavePolicies,
+    'hr/config/leaves': LeaveConfig,
     'hr/config/attendance': AttendancePolicies,
     'hr/config/shifts': ShiftTemplates,
 

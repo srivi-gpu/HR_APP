@@ -19,8 +19,11 @@
   var CONFIG_TABS = [
     { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments, designations and the teams people sit in.' },
     { path: 'employee', label: 'Employee setup', section: '3.3', note: 'Employee types, statuses and the allowed status transitions.' },
-    { path: 'leave-types', label: 'Leave types', section: '4.11', note: 'Casual, sick, earned and custom types with their entitlement, carry forward, notice and documentation rules.' },
-    { path: 'leave-policies', label: 'Leave policies', section: '4.11', note: 'Which types apply to whom, scoped by employee type, department, location and tenure.' },
+    /* One tab, because the two halves are read together: a policy is a set of leave
+       types, and a type means nothing until a policy hands it to somebody. They were
+       neighbours in a twelve-tab bar, which asked the reader to hold one in mind while
+       scrolling to the other. */
+    { path: 'leaves', label: 'Leaves', section: '4.11', note: 'Leave types with their entitlement and rules, and the policies that hand them to people.' },
     { path: 'attendance', label: 'Attendance', section: '4.16', note: 'Working hours, grace period, overtime and work-from-home rules.' },
     { path: 'shifts', label: 'Shifts', section: '4.20', note: 'Shift definitions with timing, break, grace period and the night flag.' },
     { path: 'payroll', label: 'Payroll configuration', section: '4.34', note: 'Frequency, cut-off, statutory rules and the approval workflow.' },
