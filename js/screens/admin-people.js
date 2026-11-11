@@ -135,7 +135,7 @@
     return ui.portal(h('div', { className: 'modal__scrim', onClick: function (e) { if (e.target === e.currentTarget) p.onClose(); } },
       h('div', { className: 'modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': cfg.t, style: { width: 'min(520px, 100%)' } },
         h('div', { className: 'modal__head' },
-          h('h2', { style: { fontFamily: 'var(--font-flex)', fontSize: 20, fontWeight: 600 } }, cfg.t),
+          h('h2', { style: { fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 600 } }, cfg.t),
           h(V.IconButton, { icon: I.close, 'aria-label': 'Close', style: { marginLeft: 'auto' }, onClick: p.onClose })),
         h('div', { className: 'modal__body' },
           h('p', { className: 'muted-s' }, cfg.d),

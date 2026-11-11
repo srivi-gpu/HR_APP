@@ -811,7 +811,7 @@
 
   function SimpleAuth(p) {
     return h('div', { className: 'card', style: { maxWidth: 420, margin: '6vh auto' } },
-      h('h1', { style: { font: '500 22px/1.3 var(--font-flex)' } }, p.title),
+      h('h1', { style: { font: '500 22px/1.3 var(--font-display)' } }, p.title),
       h('p', { className: 'muted' }, p.body),
       h(V.TextField, { label: p.field, placeholder: p.placeholder }),
       h(V.Button, { variant: 'primary', onClick: function () { router.go('global/login'); } }, p.cta),

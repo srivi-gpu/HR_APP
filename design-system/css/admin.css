@@ -24,12 +24,12 @@
 .ring__bar.is-done { stroke: var(--success-fg); }
 .ring__mid { position: absolute; inset: 0; display: grid; place-items: center; }
 .ring__wrap { position: relative; width: 92px; height: 92px; flex: none; }
-.ring__pct { font-family: var(--font-flex); font-size: 22px; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ring__pct { font-family: var(--font-display); font-size: 22px; font-weight: 450; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ring__t { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .ring__t strong { font-size: 15px; font-weight: 600; color: var(--text-primary); }
 .ring__t span { font-size: 13px; color: var(--text-secondary); }
 @media (prefers-reduced-motion: reduce) { .ring__bar { transition: none; } }
-.org__title { font-family: var(--font-flex); font-size: 30px; line-height: 1.2; font-weight: 600; color: var(--text-primary); }
+.org__title { font-family: var(--font-display); font-size: 30px; line-height: 1.2; font-weight: 600; color: var(--text-primary); }
 .org__sub { font-size: 15px; color: var(--text-secondary); margin-top: 4px; max-width: 70ch; }
 .org__acts { display: flex; align-items: center; gap: 10px; }
 
@@ -58,7 +58,7 @@
 .ai__mark { flex: none; width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--brand-solid); color: var(--brand-on-solid); }
 .ai__mark svg { width: 20px; height: 20px; }
 .ai__ttl { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.ai__ttl strong { font-family: var(--font-flex); font-size: 17px; font-weight: 600; color: var(--text-primary); }
+.ai__ttl strong { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--text-primary); }
 .ai__ttl span { font-size: 13px; color: var(--text-secondary); }
 .ai__list { display: flex; flex-direction: column; background: var(--bg-surface); border-top: 1px solid var(--brand-border); }
 .ai__row { display: flex; align-items: center; gap: 12px; padding: 13px 20px; border-top: 1px solid var(--border-subtle); min-width: 0; }
@@ -103,7 +103,7 @@
 /* A section of the module */
 .panelx { display: flex; flex-direction: column; gap: 16px; padding: 22px; border-radius: var(--tl-radius-card); border: 1px solid var(--border-subtle); background: var(--bg-surface); box-shadow: var(--tl-elevation-1); min-width: 0; }
 .panelx__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.panelx__head h2 { font-family: var(--font-flex); font-size: 20px; font-weight: 600; color: var(--text-primary); }
+.panelx__head h2 { font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--text-primary); }
 .panelx__head p { font-size: 14px; color: var(--text-secondary); margin-top: 2px; max-width: 72ch; }
 
 /* Entity cards */
