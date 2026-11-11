@@ -1937,7 +1937,7 @@
   function EmailPreview(p) {
     var o = org();
     var t = p.t;
-    var fill = function (x) { return String(x).replace(/\{\{org\}\}/g, o.name).replace(/\{\{name\}\}/g, 'Ananya'); };
+    var fill = function (x) { return String(x).replace(/\{\{org\}\}/g, o.name).replace(/\{\{name\}\}/g, 'Kavya'); };
     var lines = fill(t.body).split('\n');
     return h(ui.Modal, {
       title: t.name, description: t.when,

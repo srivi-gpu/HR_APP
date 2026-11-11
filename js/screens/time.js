@@ -348,7 +348,7 @@
     var offsetSt = React.useState(0);
 
     function defaultEmployeeId() {
-      var featured = store.employeeByName('Ananya Rao');
+      var featured = store.employeeByName('Kavya Nair');
       if (featured) return featured.id;
       var list = workforce();
       return list.length ? list[0].id : null;

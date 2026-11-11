@@ -63,7 +63,7 @@
   /* ---------- Data ---------- */
   /* Exits are Ara's to close. Confirmations change pay, so a person signs them off. */
   var LIFE_SEED = [
-    { id: 'x1', kind: 'exit', who: 'Ananya Rao', what: 'Exiting · Design', when: 'Nov 04', state: 'new' },
+    { id: 'x1', kind: 'exit', who: 'Kavya Nair', what: 'Exiting · Design', when: 'Nov 04', state: 'new' },
     { id: 'x2', kind: 'exit', who: '2 people in Sales', what: 'Exiting', when: 'Nov 04', state: 'new' },
     { id: 'p1', kind: 'probation', who: '4 people', what: 'Probation ends', when: 'Nov 07', state: 'new', approver: 'Meera Nair (HR Head)' },
     { id: 'p2', kind: 'probation', who: 'Arjun Pillai', what: 'Probation ends', when: 'Nov 12', state: 'new', approver: 'Meera Nair (HR Head)' }
@@ -774,7 +774,7 @@
   };
 
   function PeopleModule(p) {
-    var teamSt = useState('Product Design'), focusSt = useState('Priya Sharma');
+    var teamSt = useState('Product Design'), focusSt = useState('Ananya Reddy');
     var openSt = useState({ 'Engineering': true, 'People & Culture': true });
     var loadedSt = useState(1), teamRowsSt = useState({ loading: true, rows: [] }), panelSt = useState('team');
     var lifeSt = useState(LIFE_SEED.map(function (r) { return Object.assign({}, r); }));

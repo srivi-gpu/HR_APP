@@ -607,20 +607,20 @@
     /* `persona` names the signed-in employee for the workspace. It is a name, not an ID,
        so regenerating the sample data cannot silently point it at someone else. */
     { id: 'admin', label: 'Admin', icon: 'shield', items: ADMIN_ITEMS, groups: build('admin', ADMIN_ITEMS), home: 'admin/dashboard',
-      persona: 'Rohit Khanna', blurb: 'Organization setup, users, permissions, billing and platform settings.' },
+      persona: 'Aarav Sharmal', blurb: 'Organization setup, users, permissions, billing and platform settings.' },
     { id: 'hr', label: 'HR', icon: 'users', items: HR_ITEMS, groups: build('hr', HR_ITEMS), home: 'hr/dashboard',
-      persona: 'Priya Sharma', blurb: 'People operations, policies, workflows and the employee lifecycle.' },
+      persona: 'Ananya Reddy', blurb: 'People operations, policies, workflows and the employee lifecycle.' },
     /* Both of the last two are team members. The difference between them is not what
        they can see about themselves — that is identical — but whether anybody reports
        to them, and so whether anything comes to them to approve. */
-    { id: 'me', label: 'Team member', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
-      persona: 'Ananya Rao', blurb: 'The end of a branch: nobody reports to Ananya, so she asks for leave and for assets and approves nothing.' },
+    { id: 'me', label: 'Employee', icon: 'person', items: ME_ITEMS, groups: build('me', ME_ITEMS), home: 'me/dashboard',
+      persona: 'Kavya Nair', blurb: 'The end of a branch: nobody reports to Kavya, so she asks for leave and for assets and approves nothing.' },
     /* The persona has to be somebody with reports, or the workspace would open on an
        approval inbox its own rule hides — and with enough waiting on them that the
-       inbox has something in it. Venkat Wadhwa leads sixteen people and has the most
+       inbox has something in it. Vihaan Mehta leads sixteen people and has the most
        requests pending of anyone who is not HR. */
     { id: 'team', label: 'Manager', icon: 'users', items: TEAM_ITEMS, groups: build('team', TEAM_ITEMS), home: 'team/dashboard',
-      persona: 'Venkat Wadhwa', blurb: 'The same workspace, one step up the tree: sixteen people report to Venkat, so their requests come to him.' }
+      persona: 'Vihaan Mehta', blurb: 'The same workspace, one step up the tree: sixteen people report to Vihaan, so their requests come to him.' }
   ];
 
   /* Flattened route table: 'role/item[/tab]' -> metadata.

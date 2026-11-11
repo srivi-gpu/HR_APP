@@ -460,16 +460,6 @@
     h('circle', { cx: 12, cy: 12, r: 3, stroke: 'currentColor', strokeWidth: 1.5 }),
     h('path', { d: 'M3.5 3.5l17 17', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }));
 
-  var GOOGLE = h('span', { className: 'auth-sso__mark' }, h('svg', { viewBox: '0 0 48 48', 'aria-hidden': 'true' },
-    h('path', { fill: '#EA4335', d: 'M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z' }),
-    h('path', { fill: '#4285F4', d: 'M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z' }),
-    h('path', { fill: '#FBBC05', d: 'M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z' }),
-    h('path', { fill: '#34A853', d: 'M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z' })));
-
-  var MICROSOFT = h('span', { className: 'auth-sso__mark' }, h('svg', { viewBox: '0 0 23 23', 'aria-hidden': 'true' },
-    h('path', { fill: '#F25022', d: 'M1 1h10v10H1z' }), h('path', { fill: '#7FBA00', d: 'M12 1h10v10H12z' }),
-    h('path', { fill: '#00A4EF', d: 'M1 12h10v10H1z' }), h('path', { fill: '#FFB900', d: 'M12 12h10v10H12z' })));
-
   /* The two ribbons over the wash. Stroked only, so no edge shows where they fade. */
   function AuthWaves() {
     return h('div', { className: 'authb__waves', 'aria-hidden': 'true' },
@@ -622,43 +612,7 @@
                   h('button', { type: 'button', className: 'link', onClick: function () { router.go('global/forgot'); } }, 'Forgot password?'))),
 
             h('div', { className: 'auth-full' },
-              h(V.Button, { type: 'submit', disabled: !!busySt[0], iconEnd: busySt[0] ? null : I.arrow }, submitLabel))),
-
-          h('div', { className: 'auth-or' }, h('span', null, 'or')),
-
-          /* Wide, labelled buttons rather than icon tiles: on a sign-in page the
-             provider's name is the thing being chosen, not a decoration. */
-          h('div', { className: 'authb__sso' },
-            /* Google opens the joiner's own onboarding rather than signing in: it is
-               the one way into that flow while the product has no mail transport to
-               send somebody a link, and a new joiner arriving with the credentials IT
-               issued is the case it demonstrates. The other two sign in normally. */
-            [['Continue with Google', GOOGLE, 'joiner'],
-             ['Continue with Microsoft', MICROSOFT, 'sso'],
-             ['Continue with company SSO', h('span', { className: 'auth-sso__mark' }, I.building), 'sso']]
-              .map(function (p) {
-                return h('button', {
-                  key: p[0], type: 'button', className: 'authb__ssobtn', disabled: !!busySt[0],
-                  'aria-label': p[2] === 'joiner' ? 'Continue as a new joiner' : p[0],
-                  onClick: function () {
-                    if (p[2] !== 'joiner') return enter('sso');
-                    /* Not signed in yet. The wizard draws the sign-in screen behind
-                       itself, the way the organisation wizard does, and signing in is
-                       what finishing it does. */
-                    router.go('global/joiner');
-                  }
-                }, p[1], h('span', null, p[0]));
-              })),
-
-          /* Signing up is the one path with no organisation behind it yet, so it marks
-             setup as outstanding and the console sends you to the wizard. */
-          h('p', { className: 'auth-switch' }, 'Setting up a new organisation? ',
-            h('button', { type: 'button', className: 'link', onClick: function () {
-              store.setPref('role', 'admin');
-              store.setPref('setupComplete', false);   /* in case setup was finished before */
-              store.setPref('signedIn', true);
-              router.go('global/setup');
-            } }, 'Sign up'))),
+              h(V.Button, { type: 'submit', disabled: !!busySt[0], iconEnd: busySt[0] ? null : I.arrow }, submitLabel)))),
 
         h('footer', { className: 'authb__foot' },
           h('span', null, '\u00a9 2026 ' + seed.org.name),
