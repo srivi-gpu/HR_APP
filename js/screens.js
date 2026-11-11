@@ -449,19 +449,16 @@
   }
 
   /* ========================================================= GLOBAL SCREENS */
-  /* ---------- Sign in (option B) ----------
-     The lavender page from the sign-in prototype: the pitch on the left of one centred
-     card, the form on the right. Email or mobile, a password, four SSO tiles, and a row
-     that picks which workspace the prototype opens in. */
+  /* ---------- Sign in ----------
+     Two panes, edge to edge: the form on the left, what the product is for on the
+     right. One identity — the work email the organisation issued — proved either with
+     a password or with a one-time code sent to it. The mobile number is gone: it was a
+     second thing to keep current, for no gain. */
 
   var EYE_OFF = h('svg', { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', 'aria-hidden': 'true' },
     h('path', { d: 'M2.5 12s3.6-6.2 9.5-6.2S21.5 12 21.5 12s-3.6 6.2-9.5 6.2S2.5 12 2.5 12Z', stroke: 'currentColor', strokeWidth: 1.5, strokeLinejoin: 'round' }),
     h('circle', { cx: 12, cy: 12, r: 3, stroke: 'currentColor', strokeWidth: 1.5 }),
     h('path', { d: 'M3.5 3.5l17 17', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }));
-
-  var PHONE = h('svg', { viewBox: '0 0 24 24', width: 20, height: 20, fill: 'none', 'aria-hidden': 'true' },
-    h('rect', { x: 6, y: 2.5, width: 12, height: 19, rx: 2.5, stroke: 'currentColor', strokeWidth: 1.5 }),
-    h('path', { d: 'M10.5 18.5h3', stroke: 'currentColor', strokeWidth: 1.5, strokeLinecap: 'round' }));
 
   var GOOGLE = h('span', { className: 'auth-sso__mark' }, h('svg', { viewBox: '0 0 48 48', 'aria-hidden': 'true' },
     h('path', { fill: '#EA4335', d: 'M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z' }),
@@ -484,55 +481,29 @@
         h('path', { d: 'M-50 268C170 348 320 208 500 232 660 254 800 352 950 330', strokeWidth: 1.5, opacity: .7 })));
   }
 
-  /* A glass stack: the employee record, a calendar chip, a chart chip and a done mark. */
-  function AuthArt() {
-    return h('div', { className: 'authb__art', 'aria-hidden': 'true' },
-      h('svg', { viewBox: '0 0 320 230', fill: 'none' },
-        h('defs', null,
-          h('linearGradient', { id: 'authg1', x1: 0, y1: 0, x2: 1, y2: 1 },
-            h('stop', { offset: 0, stopColor: '#ffffff', stopOpacity: .95 }), h('stop', { offset: 1, stopColor: '#ede7fb', stopOpacity: .9 })),
-          h('linearGradient', { id: 'authg2', x1: 0, y1: 0, x2: 1, y2: 1 },
-            h('stop', { offset: 0, stopColor: '#ffffff', stopOpacity: .7 }), h('stop', { offset: 1, stopColor: '#e3daf9', stopOpacity: .75 })),
-          h('filter', { id: 'authsh', x: '-20%', y: '-20%', width: '150%', height: '150%' },
-            h('feDropShadow', { dx: 0, dy: 10, stdDeviation: 12, floodColor: '#4a2e9e', floodOpacity: .16 }))),
-        h('g', { filter: 'url(#authsh)' },
-          h('rect', { x: 52, y: 44, width: 196, height: 122, rx: 20, fill: 'url(#authg2)' }),
-          h('rect', { x: 40, y: 56, width: 196, height: 122, rx: 20, fill: 'url(#authg1)', stroke: '#ffffff', strokeWidth: 1.4 })),
-        h('circle', { cx: 74, cy: 92, r: 13, fill: '#5733c1', opacity: .16 }),
-        h('path', { d: 'M74 88.5a4.2 4.2 0 1 0 0-8.4 4.2 4.2 0 0 0 0 8.4Zm8 12c-.8-4.6-4-7.6-8-7.6s-7.2 3-8 7.6Z', fill: '#5733c1' }),
-        h('g', { fill: '#5733c1', opacity: .22 },
-          h('rect', { x: 96, y: 84, width: 104, height: 8, rx: 4 }),
-          h('rect', { x: 96, y: 100, width: 72, height: 8, rx: 4 })),
-        h('g', { fill: '#5733c1', opacity: .13 },
-          h('rect', { x: 60, y: 126, width: 150, height: 8, rx: 4 }),
-          h('rect', { x: 60, y: 144, width: 110, height: 8, rx: 4 })),
-        h('g', { filter: 'url(#authsh)' }, h('rect', { x: 212, y: 18, width: 62, height: 62, rx: 18, fill: 'url(#authg1)', stroke: '#fff', strokeWidth: 1.4 })),
-        h('g', { stroke: '#5733c1', strokeWidth: 1.8, strokeLinecap: 'round', fill: 'none' },
-          h('rect', { x: 229, y: 36, width: 28, height: 26, rx: 6 }), h('path', { d: 'M236 32v7M250 32v7M229 46h28' })),
-        h('g', { filter: 'url(#authsh)' }, h('rect', { x: 226, y: 118, width: 62, height: 62, rx: 18, fill: 'url(#authg1)', stroke: '#fff', strokeWidth: 1.4 })),
-        h('g', { fill: '#5733c1' },
-          h('rect', { x: 241, y: 150, width: 7, height: 15, rx: 3 }), h('rect', { x: 253, y: 140, width: 7, height: 25, rx: 3 }), h('rect', { x: 265, y: 132, width: 7, height: 33, rx: 3 })),
-        h('g', { filter: 'url(#authsh)' }, h('circle', { cx: 52, cy: 178, r: 24, fill: '#3ec46a' })),
-        h('path', { d: 'M42 178.5l7 7 14-14', stroke: '#fff', strokeWidth: 3.2, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' })));
-  }
-
   function Login() {
     var roles = HRMS.nav.roles;
     var roleSt = React.useState(store.pref('role') || 'admin');
     var activeRole = roles.filter(function (r) { return r.id === roleSt[0]; })[0] || roles[0];
     var persona = who(activeRole.persona);
 
-    var modeSt = React.useState('email');
+    /* How you prove it is you: a password, or a one-time code sent to the same work
+       email. The mobile number is gone — the organisation issues the email, and a
+       number is one more thing to keep current for no gain. */
+    var modeSt = React.useState('password');
     var emailSt = React.useState(persona ? persona.workEmail : '');
-    var phoneSt = React.useState('98765 43210');
     var pwSt = React.useState('prototype');
+    var codeSt = React.useState('');
+    var sentSt = React.useState(false);
     var showSt = React.useState(false);
     var rememberSt = React.useState(true);
     var busySt = React.useState(null);
     var idErr = React.useState(null);
     var pwErr = React.useState(null);
     var alertSt = React.useState(null);
-    var mobile = modeSt[0] === 'mobile';
+    var otp = modeSt[0] === 'otp';
+
+    function validEmail() { return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailSt[0]); }
 
     /* Signing in is the only place the workspace is chosen, so write it before leaving.
        An admin whose organisation has not been set up goes to the wizard rather than to a
@@ -541,151 +512,183 @@
       busySt[1](how);
       /* Organisation setup is what follows signing in, until it is done. It is an admin
          wizard, so it opens in the Admin workspace whatever workspace was last used;
-         finishing it lands you there.
-
-         This used to be gated on the signed-in role being admin, which stopped working
-         the moment the prototype's workspace tiles left the sign-in page: the stored
-         role defaults to HR, so the admin-only branch could no longer be reached and
-         setup never ran. Switching workspace later does not ask again, because that is
-         looking around rather than signing up. */
+         finishing it lands you there. */
       var toSetup = store.pref('setupComplete') === false;
       store.setPref('role', toSetup ? 'admin' : roleSt[0]);
       store.setPref('signedIn', true);
       setTimeout(function () { router.go(toSetup ? 'global/setup' : activeRole.home); }, 420);
     }
 
-    function switchMode(m) { modeSt[1](m); idErr[1](null); alertSt[1](null); }
+    function switchMode(m) {
+      modeSt[1](m); idErr[1](null); pwErr[1](null); alertSt[1](null);
+      sentSt[1](false); codeSt[1]('');
+    }
+
+    function sendCode() {
+      if (!validEmail()) { idErr[1]('Enter your work email address.'); return; }
+      sentSt[1](true); pwErr[1](null); alertSt[1](null);
+      ui.toast('Code sent to ' + emailSt[0], 'success');
+    }
 
     function submit(e) {
       e.preventDefault();
       if (busySt[0]) return;
       var bad = false;
-      if (mobile) {
-        if (phoneSt[0].replace(/\D/g, '').length < 10) { idErr[1]('Enter a 10-digit mobile number.'); bad = true; }
-      } else if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailSt[0])) {
-        idErr[1]('Enter your work email address.'); bad = true;
+      if (!validEmail()) { idErr[1]('Enter your work email address.'); bad = true; }
+      if (otp) {
+        /* The first press sends the code; the second signs you in with it. */
+        if (!sentSt[0]) { if (!bad) sendCode(); return; }
+        if (codeSt[0].replace(/\D/g, '').length !== 6) { pwErr[1]('Enter the six-digit code.'); bad = true; }
+      } else if (!pwSt[0]) {
+        pwErr[1]('Enter your password.'); bad = true;
       }
-      if (!pwSt[0]) { pwErr[1]('Enter your password.'); bad = true; }
       if (bad) { alertSt[1]('Check the highlighted fields and try again.'); return; }
-      enter('password');
+      enter(otp ? 'otp' : 'password');
     }
 
-    var idField = mobile
-      ? h(V.TextField, {
-          id: 'b-mobile', label: 'Mobile number', required: true, type: 'tel', iconStart: PHONE, value: phoneSt[0],
-          placeholder: '98765 43210', autoComplete: 'tel', status: idErr[0] ? 'error' : 'default', hint: idErr[0] || undefined,
-          onChange: function (e) { phoneSt[1](e.target.value); if (idErr[0]) idErr[1](null); }
-        })
-      : h(V.TextField, {
-          id: 'b-email', label: 'Work email', required: true, type: 'email', iconStart: I.mail, value: emailSt[0],
-          placeholder: 'name@aptagrim.com', autoComplete: 'email', status: idErr[0] ? 'error' : 'default', hint: idErr[0] || undefined,
-          onChange: function (e) { emailSt[1](e.target.value); if (idErr[0]) idErr[1](null); }
-        });
+    var submitLabel = busySt[0]
+      ? 'Signing in\u2026'
+      : otp ? (sentSt[0] ? 'Verify and sign in' : 'Send one-time code') : 'Sign in';
 
     return h('div', { className: 'authb' },
-      h(AuthWaves),
-      h('header', { className: 'authb__top' },
-        h('span', { className: 'brand' },
+
+      /* ---- Left: the form ---- */
+      h('div', { className: 'authb__form' },
+        h('span', { className: 'brand authb__brand' },
           h('span', { className: 'brand__mark' }, 'A'),
-          h('span', { className: 'brand__name' }, 'Aptagrim HR'))),
+          h('span', { className: 'brand__name' }, 'Aptagrim HR')),
 
-      h('div', { className: 'authb__card' },
-        h('div', { className: 'authb__aside' },
-          h('div', { className: 'stack gap-3' },
-            h('h2', { className: 'authb__h' }, 'People, work and growth ', h('em', null, 'in one place.')),
-            h('p', { className: 'authb__p' }, 'A modern HRMS for your people, their work and the workplace — simply and smarter.')),
-          h(AuthArt),
-          h('div', { className: 'authb__uses' },
-            h('span', { className: 'authb__use' }, I.calendar, 'Manage leave'),
-            h('span', { className: 'authb__use' }, I.users, 'Track attendance'),
-            h('span', { className: 'authb__use' }, I.card, 'Access payslips'))),
-
-        h('div', { className: 'authb__form' },
+        h('div', { className: 'authb__body' },
           h('div', null,
-            h('h1', { className: 'authb__title' }, 'Sign in'),
-            h('p', { className: 'authb__lede' }, 'Welcome back. Use your work email or mobile number.')),
+            h('h1', { className: 'authb__title' }, 'Welcome back'),
+            h('p', { className: 'authb__lede' },
+              'Sign in to your workspace \u2014 your leave, attendance, payslips and the people you look after.')),
+
           alertSt[0] ? h('div', { className: 'auth-alert', role: 'alert' }, I.warn, h('span', null, alertSt[0])) : null,
+
           h('form', { className: 'auth-fields', onSubmit: submit, noValidate: true },
             h('div', { className: 'auth-switcher', role: 'group', 'aria-label': 'Sign in with' },
-              ['email', 'mobile'].map(function (m) {
+              [['password', 'Password', I.lock], ['otp', 'One-time code', I.mail]].map(function (m) {
                 return h('button', {
-                  key: m, type: 'button', className: 'auth-switcher__tab' + (modeSt[0] === m ? ' is-on' : ''),
-                  'aria-pressed': modeSt[0] === m ? 'true' : 'false', onClick: function () { switchMode(m); }
-                }, h('span', { className: 'auth-switcher__icon' }, m === 'email' ? I.mail : PHONE), m === 'email' ? 'Email' : 'Mobile');
+                  key: m[0], type: 'button', className: 'auth-switcher__tab' + (modeSt[0] === m[0] ? ' is-on' : ''),
+                  'aria-pressed': modeSt[0] === m[0] ? 'true' : 'false', onClick: function () { switchMode(m[0]); }
+                }, h('span', { className: 'auth-switcher__icon' }, m[2]), m[1]);
               })),
-            idField,
-            h('div', { className: 'stack gap-3' },
-              h('div', { className: 'auth-pw' },
-                h(V.TextField, {
-                  id: 'b-pw', label: 'Password', required: true, type: showSt[0] ? 'text' : 'password', iconStart: I.lock,
-                  value: pwSt[0], autoComplete: 'current-password', placeholder: 'Enter your password',
-                  status: pwErr[0] ? 'error' : 'default', hint: pwErr[0] || undefined,
-                  onChange: function (e) { pwSt[1](e.target.value); if (pwErr[0]) pwErr[1](null); }
-                }),
-                h('button', {
-                  type: 'button', className: 'auth-pw__eye', onClick: function () { showSt[1](!showSt[0]); },
-                  'aria-label': showSt[0] ? 'Hide password' : 'Show password', 'aria-pressed': showSt[0] ? 'true' : 'false'
-                }, showSt[0] ? EYE_OFF : I.eye)),
-              h('div', { className: 'auth-pwrow' },
-                h(V.Checkbox, { label: 'Keep me signed in', checked: rememberSt[0], onChange: function (e) { rememberSt[1](e.target.checked); } }),
-                h('button', { type: 'button', className: 'link', onClick: function () { router.go('global/forgot'); } }, 'Forgot password?'))),
-            h('div', { className: 'auth-full' },
-              h(V.Button, { type: 'submit', disabled: !!busySt[0], iconEnd: busySt[0] === 'password' ? null : I.arrow },
-                busySt[0] === 'password' ? 'Signing in…' : 'Sign in'))),
 
-          h('div', { className: 'auth-or' }, h('span', null, 'or continue with')),
-          h('div', { className: 'auth-sso' },
+            h(V.TextField, {
+              id: 'b-email', label: 'Work email', required: true, type: 'email', iconStart: I.mail, value: emailSt[0],
+              placeholder: 'name@aptagrim.com', autoComplete: 'email', status: idErr[0] ? 'error' : 'default',
+              hint: idErr[0] || undefined,
+              onChange: function (e) { emailSt[1](e.target.value); if (idErr[0]) idErr[1](null); }
+            }),
+
+            otp
+              /* Before the code is sent there is nothing to type into, so the field is
+                 not drawn: an empty box with a disabled button beside it asks a question
+                 the page has not come to yet. */
+              ? (sentSt[0]
+                ? h('div', { className: 'stack gap-3' },
+                    h(V.TextField, {
+                      id: 'b-otp', label: 'One-time code', required: true, inputMode: 'numeric', maxLength: 6,
+                      value: codeSt[0], placeholder: '6-digit code', autoComplete: 'one-time-code',
+                      iconStart: I.shield,
+                      status: pwErr[0] ? 'error' : 'default',
+                      hint: pwErr[0] || ('Sent to ' + emailSt[0] + '. It lasts ten minutes.'),
+                      onChange: function (e) {
+                        codeSt[1](e.target.value.replace(/\D/g, '').slice(0, 6));
+                        if (pwErr[0]) pwErr[1](null);
+                      }
+                    }),
+                    h('div', { className: 'auth-pwrow' },
+                      h('span', { className: 'muted', style: { fontSize: 13 } }, 'Did not arrive?'),
+                      h('button', { type: 'button', className: 'link', onClick: sendCode }, 'Send it again')))
+                : h('p', { className: 'authb__note' },
+                    'We will email a six-digit code to that address. No password needed.'))
+              : h('div', { className: 'stack gap-3' },
+                h('div', { className: 'auth-pw' },
+                  h(V.TextField, {
+                    id: 'b-pw', label: 'Password', required: true, type: showSt[0] ? 'text' : 'password', iconStart: I.lock,
+                    value: pwSt[0], autoComplete: 'current-password', placeholder: 'Enter your password',
+                    status: pwErr[0] ? 'error' : 'default', hint: pwErr[0] || undefined,
+                    onChange: function (e) { pwSt[1](e.target.value); if (pwErr[0]) pwErr[1](null); }
+                  }),
+                  h('button', {
+                    type: 'button', className: 'auth-pw__eye', onClick: function () { showSt[1](!showSt[0]); },
+                    'aria-label': showSt[0] ? 'Hide password' : 'Show password', 'aria-pressed': showSt[0] ? 'true' : 'false'
+                  }, showSt[0] ? EYE_OFF : I.eye)),
+                h('div', { className: 'auth-pwrow' },
+                  h(V.Checkbox, { label: 'Keep me signed in', checked: rememberSt[0], onChange: function (e) { rememberSt[1](e.target.checked); } }),
+                  h('button', { type: 'button', className: 'link', onClick: function () { router.go('global/forgot'); } }, 'Forgot password?'))),
+
+            h('div', { className: 'auth-full' },
+              h(V.Button, { type: 'submit', disabled: !!busySt[0], iconEnd: busySt[0] ? null : I.arrow }, submitLabel))),
+
+          h('div', { className: 'auth-or' }, h('span', null, 'or')),
+
+          /* Wide, labelled buttons rather than icon tiles: on a sign-in page the
+             provider's name is the thing being chosen, not a decoration. */
+          h('div', { className: 'authb__sso' },
             /* Google opens the joiner's own onboarding rather than signing in: it is
                the one way into that flow while the product has no mail transport to
                send somebody a link, and a new joiner arriving with the credentials IT
                issued is the case it demonstrates. The other two sign in normally. */
-            [['Google', GOOGLE, 'joiner'], ['Microsoft', MICROSOFT, 'sso'],
-             ['Company SSO', h('span', { className: 'auth-sso__mark' }, I.building), 'sso']].map(function (p) {
-              return h('button', {
-                key: p[0], type: 'button', className: 'auth-sso__btn', title: p[0],
-                'aria-label': p[2] === 'joiner' ? 'Continue as a new joiner' : 'Continue with ' + p[0],
-                disabled: !!busySt[0],
-                onClick: function () {
-                  if (p[2] !== 'joiner') return enter('sso');
-                  /* Not signed in yet. The wizard draws the sign-in screen behind
-                     itself, the way the organisation wizard does, and signing in is
-                     what finishing it does — setting the flag here put an HR sidebar
-                     behind a joiner's first five minutes. */
-                  router.go('global/joiner');
-                }
-              }, p[1]);
-            }),
-            h('button', {
-              type: 'button', className: 'auth-sso__btn', disabled: !!busySt[0], onClick: function () { enter('otp'); },
-              title: mobile ? 'One-time code by SMS' : 'One-time code by email',
-              'aria-label': mobile ? 'Send a one-time code by SMS' : 'Email me a one-time code'
-            }, h('span', { className: 'auth-sso__mark' }, mobile ? PHONE : I.mail))),
+            [['Continue with Google', GOOGLE, 'joiner'],
+             ['Continue with Microsoft', MICROSOFT, 'sso'],
+             ['Continue with company SSO', h('span', { className: 'auth-sso__mark' }, I.building), 'sso']]
+              .map(function (p) {
+                return h('button', {
+                  key: p[0], type: 'button', className: 'authb__ssobtn', disabled: !!busySt[0],
+                  'aria-label': p[2] === 'joiner' ? 'Continue as a new joiner' : p[0],
+                  onClick: function () {
+                    if (p[2] !== 'joiner') return enter('sso');
+                    /* Not signed in yet. The wizard draws the sign-in screen behind
+                       itself, the way the organisation wizard does, and signing in is
+                       what finishing it does. */
+                    router.go('global/joiner');
+                  }
+                }, p[1], h('span', null, p[0]));
+              })),
 
-          /* The workspace this sign-in opens is the last one used, and the workspace
-             switcher in the app changes it. The three prototype tiles that used to pick
-             it here are gone, so this reads as a sign-in page rather than a demo menu. */
-          h('div', { className: 'authrole' },
-            /* Signing up is the one path with no organisation behind it yet, so it marks
-               setup as outstanding and the console sends you to the wizard. */
-            h('p', { className: 'auth-switch' }, 'Setting up a new organisation? ',
-              h('button', { type: 'button', className: 'link', onClick: function () {
-                /* Signing up is the admin path by definition — it is the person
-                   standing the organisation up — so it opens the Admin workspace and
-                   goes straight to onboarding.
+          /* Signing up is the one path with no organisation behind it yet, so it marks
+             setup as outstanding and the console sends you to the wizard. */
+          h('p', { className: 'auth-switch' }, 'Setting up a new organisation? ',
+            h('button', { type: 'button', className: 'link', onClick: function () {
+              store.setPref('role', 'admin');
+              store.setPref('setupComplete', false);   /* in case setup was finished before */
+              store.setPref('signedIn', true);
+              router.go('global/setup');
+            } }, 'Sign up'))),
 
-                   It also has to sign you in. Without that the wizard rendered over a
-                   sign-in page that was still the live screen underneath it: closing
-                   the wizard put you back on the front door, having apparently signed
-                   up for nothing. */
-                store.setPref('role', 'admin');
-                store.setPref('setupComplete', false);   /* in case setup was finished before */
-                store.setPref('signedIn', true);
-                router.go('global/setup');
-              } }, 'Sign up')))))
-      ,
-      h('footer', { className: 'authb__foot' },
-        h('span', null, '© 2026 ' + seed.org.name),
-        h('a', { href: '#' }, 'Privacy'), h('a', { href: '#' }, 'Terms'), h('a', { href: '#' }, 'Help')));
+        h('footer', { className: 'authb__foot' },
+          h('span', null, '\u00a9 2026 ' + seed.org.name),
+          h('a', { href: '#' }, 'Privacy'), h('a', { href: '#' }, 'Terms'), h('a', { href: '#' }, 'Help'))),
+
+      /* ---- Right: what this is for ---- */
+      h('div', { className: 'authb__pitch' },
+        h(AuthWaves),
+        h('div', { className: 'authb__pitchin' },
+          h('h2', { className: 'authb__h' }, 'One place for your people, their work and their pay.'),
+
+          h('figure', { className: 'authq' },
+            h('span', { className: 'authq__mark', 'aria-hidden': 'true' }, '\u201c'),
+            h('blockquote', { className: 'authq__text' },
+              'Leave, attendance and payroll used to live in three different spreadsheets. '
+                + 'The whole month now closes before the first coffee.'),
+            h('figcaption', { className: 'authq__by' },
+              h(V.Avatar, { name: 'Priya Sharma', size: 'md' }),
+              h('span', { className: 'authq__who' },
+                h('strong', null, 'Priya Sharma'),
+                h('span', null, 'HR Manager at ' + seed.org.name)))),
+
+          /* Not a wall of other companies' logos: this is what the product does, which
+             is both true and the thing somebody signing in actually wants to know. */
+          h('div', { className: 'authb__inside' },
+            h('span', { className: 'authb__insideh' }, 'What is inside'),
+            h('div', { className: 'authb__chips' },
+              ['Onboarding', 'Attendance & leave', 'Payroll', 'Performance',
+               'Documents & policies', 'Assets', 'Engagement', 'Offboarding'].map(function (t) {
+                return h('span', { className: 'authb__chip', key: t }, t);
+              })))))); 
   }
 
   function Help() {
