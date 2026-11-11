@@ -14,41 +14,39 @@
   /* Tracklivo's Company page: who the company is, then the address that goes on
      anything official. The registered address is the head office's unless it is given
      one of its own, which is the usual case and saves typing the same lines twice. */
+  /* The registered address was a section of its own beside the company's details,
+     which split one answer — who this company is, on paper — across two cards and two
+     Edit buttons. It is the same card now, and the same one Save. */
   function CompanyProfile() {
     var o = org();
     var editSt = React.useState(false);
-    var addrSt = React.useState(false);
     var head = headOffice();
     var reg = store.pref('regAddress') || {};
 
-    var form = ui.useForm(o, function (v) {
+    function addrDefaults() {
+      return {
+        line1: reg.line1 || (head ? head.address : ''),
+        country: reg.country || 'India',
+        gst: reg.gst || seed.entities[0].reg
+      };
+    }
+
+    var form = ui.useForm(Object.assign({}, o, addrDefaults()), function (v) {
       return HRMS.rules.required([{ key: 'name', label: 'Organization name' }, { key: 'industry', label: 'Industry' }], v);
-    });
-    var addr = ui.useForm({
-      line1: reg.line1 || (head ? head.address : ''),
-      country: reg.country || 'India',
-      gst: reg.gst || seed.entities[0].reg
     });
 
     function save() {
-      form.submit(function (v) {
+      var res = form.submit(function (v) {
+        store.setPref('regAddress', { line1: v.line1, country: v.country, gst: v.gst });
         return ui.report(act.updateOrganization({
-          name: v.name, industry: v.industry, website: v.website, size: v.size, founded: v.founded, email: v.email
+          name: v.name, industry: v.industry, website: v.website, size: v.size, email: v.email
         }));
       });
-      editSt[1](false);
-    }
-    function saveAddr() {
-      addr.submit(function (v) {
-        store.setPref('regAddress', v);
-        store.log('updated the registered address', 'Organization');
-        return { ok: true, message: 'Registered address saved' };
-      });
-      addrSt[1](false);
+      if (res && res.ok) editSt[1](false);
     }
     function useHead() {
       if (!head) return;
-      addr.setMany({ line1: head.address });
+      form.setMany({ line1: head.address });
       ui.toast('Copied the ' + head.name + ' office address', 'success');
     }
 
@@ -57,10 +55,10 @@
     return h(React.Fragment, null,
       h(Card, {
         title: 'Company',
-        description: 'Who you are. This shows on offer letters, payslips and anything the product sends out.',
+        description: 'Who you are, and where you are registered. This shows on offer letters, payslips, invoices and anything the product sends out.',
         aside: h(V.Button, {
           variant: editSt[0] ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.pencil,
-          onClick: function () { form.reset(org()); editSt[1](!editSt[0]); }
+          onClick: function () { form.reset(Object.assign({}, org(), addrDefaults())); editSt[1](!editSt[0]); }
         }, editSt[0] ? 'Cancel' : 'Edit')
       },
         editSt[0]
@@ -71,9 +69,21 @@
               h(ui.FieldRow, null,
                 h(V.TextField, Object.assign({ label: 'Website' }, form.field('website'))),
                 h(V.TextField, Object.assign({ label: 'Company email', type: 'email' }, form.field('email')))),
-              h(ui.FieldRow, null,
-                h(V.TextField, Object.assign({ label: 'Company size' }, form.field('size'))),
-                h(V.TextField, Object.assign({ label: 'Founded' }, form.field('founded')))),
+              h(V.TextField, Object.assign({ label: 'Company size' }, form.field('size'))),
+
+              h(ui.FormSection, { title: 'Registered address', description: 'Used on invoices and contracts.' },
+                head && !sameAsHead
+                  ? h(Nudge, {
+                      title: 'Use the ' + head.name + ' office address',
+                      why: 'It is already filled in under Locations, as the head office.',
+                      label: 'Copy it', apply: useHead
+                    })
+                  : null,
+                h(V.TextArea, Object.assign({ label: 'Address', rows: 3 }, form.field('line1'))),
+                h(ui.FieldRow, null,
+                  h(V.TextField, Object.assign({ label: 'Country' }, form.field('country'))),
+                  h(V.TextField, Object.assign({ label: 'Tax or GST number' }, form.field('gst'))))),
+
               h('div', { className: 'row gap-2' },
                 h(V.Button, { variant: 'primary', onClick: save }, 'Save changes'),
                 h(V.Button, { variant: 'outline', onClick: function () { editSt[1](false); } }, 'Cancel')))
@@ -83,36 +93,7 @@
               ['Website', o.website],
               ['Company email', o.email || ('hello@' + String(o.website || 'example.com').replace(/^https?:\/\//, ''))],
               ['Company size', o.size],
-              ['Founded', o.founded]
-            ]})),
-
-      h(Card, {
-        title: 'Registered address',
-        aside: h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
-          h('span', { className: 'muted' }, 'Used on invoices and contracts'),
-          h(V.Button, {
-            variant: addrSt[0] ? 'ghost' : 'outline', className: 'vi-btn--sm', iconStart: I.pencil,
-            onClick: function () { addrSt[1](!addrSt[0]); }
-          }, addrSt[0] ? 'Cancel' : 'Edit'))
-      },
-        addrSt[0]
-          ? h('div', { className: 'stack gap-4' },
-              head && !sameAsHead
-                ? h(Nudge, {
-                    title: 'Use the ' + head.name + ' office address',
-                    why: 'It is already filled in under Locations, as the head office.',
-                    label: 'Copy it', apply: useHead
-                  })
-                : null,
-              h(V.TextArea, Object.assign({ label: 'Address', rows: 3 }, addr.field('line1'))),
-              h(ui.FieldRow, null,
-                h(V.TextField, Object.assign({ label: 'Country' }, addr.field('country'))),
-                h(V.TextField, Object.assign({ label: 'Tax or GST number' }, addr.field('gst')))),
-              h('div', { className: 'row gap-2' },
-                h(V.Button, { variant: 'primary', onClick: saveAddr }, 'Save address'),
-                h(V.Button, { variant: 'outline', onClick: function () { addrSt[1](false); } }, 'Cancel')))
-          : h(ui.KeyValue, { rows: [
-              ['Address', reg.line1 || (head ? head.address : '—')],
+              ['Registered address', reg.line1 || (head ? head.address : '—')],
               ['Country', reg.country || 'India'],
               ['Tax or GST number', reg.gst || seed.entities[0].reg],
               ['Registered entity', seed.entities[0].name],
@@ -195,18 +176,48 @@
   function dayEnd(l) { return (l && l.end) || org().dayEnd || '18:00'; }
 
   function Locations() {
+    /* null | { mode: 'new' } | { mode: 'edit', id } */
     var openSt = React.useState(null);
-    var form = ui.useForm({ entity: seed.entities[0].id, tz: seed.org.timezone });
+    var killSt = React.useState(null);
+    var blank = { tz: seed.org.timezone, country: 'India', hq: false };
+    var form = ui.useForm(blank);
     var rows = offices();
 
-    function save() {
-      var res = form.submit(function (v) { return ui.report(act.createLocation(v)); });
-      if (res && res.ok) { openSt[1](null); form.reset({ entity: seed.entities[0].id, tz: seed.org.timezone }); }
+    /* An office keeps one address line for everything that prints it, and the parts
+       behind it once it has been edited here. An older record has only the line, so
+       its first edit reads what it can and asks for the rest. */
+    function partsOf(l) {
+      if (!l) return blank;
+      var bits = String(l.address || '').split(',').map(function (x) { return x.trim(); });
+      return {
+        name: l.name,
+        line1: l.line1 != null ? l.line1 : (bits[0] || ''),
+        line2: l.line2 != null ? l.line2 : (bits.length > 3 ? bits[1] : ''),
+        city: l.city != null ? l.city : (bits.length > 2 ? bits[bits.length - 2] : ''),
+        state: l.state || '',
+        postcode: l.postcode != null ? l.postcode : ((String(l.address || '').match(/\b\d{5,6}\b/) || [''])[0]),
+        country: l.country || 'India',
+        tz: l.tz || seed.org.timezone,
+        hq: !!l.hq
+      };
     }
+
+    function openNew() { form.reset(blank); openSt[1]({ mode: 'new' }); }
+    function openEdit(l) { form.reset(partsOf(l)); openSt[1]({ mode: 'edit', id: l.id }); }
+
+    function save() {
+      var editing = openSt[0] && openSt[0].mode === 'edit';
+      var res = form.submit(function (v) {
+        return ui.report(editing ? act.updateLocation(openSt[0].id, v) : act.createLocation(v));
+      });
+      if (res && res.ok) { openSt[1](null); form.reset(blank); }
+    }
+
+    var editing = openSt[0] && openSt[0].mode === 'edit';
 
     return h(React.Fragment, null,
       h(Card, { title: 'Offices',
-        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: function () { openSt[1]('new'); } }, 'Add location') },
+        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus, onClick: openNew }, 'Add location') },
         h('p', { className: 'muted', style: { margin: 0 } },
           'Each office keeps its own time zone, working week and holiday calendar. Adding one gives it a tab in Working hours.'),
         h('div', { className: 'ad-locs' }, rows.map(function (l) {
@@ -216,34 +227,64 @@
               h('strong', { className: 'row gap-2', style: { alignItems: 'center' } }, l.name,
                 l.hq ? h(V.Chip, { size: 'sm', shape: 'tag', variant: 'soft', tone: 'info' }, 'Head office') : null),
               h('span', { className: 'muted' }, l.address),
-              h('span', { className: 'muted' }, l.tz, ' · ', l.headcount || 0,
-                (l.headcount === 1 ? ' person' : ' people'), ' · ',
+              h('span', { className: 'muted' }, l.tz, ' \u00b7 ', l.headcount || 0,
+                (l.headcount === 1 ? ' person' : ' people'), ' \u00b7 ',
                 h('span', { className: n ? '' : 'is-warn' }, n ? n + (n === 1 ? ' holiday' : ' holidays') + ' in 2026' : 'No holidays yet'),
-                ' · ', l.days && l.days.length ? l.days.length + '-day week' : 'Head-office week')),
+                /* The week shows only where the office keeps one of its own. Saying
+                   "head-office week" on every other line named the absence of a
+                   setting as though it were one. */
+                l.days && l.days.length ? [' \u00b7 ', l.days.length + '-day week'] : null)),
             h('div', { className: 'ad-row2__c' },
               h(V.Button, { variant: 'ghost', className: 'vi-btn--sm',
                 onClick: function () { store.setPref('orgLoc', l.id); router.go('admin/org/workweek'); } }, 'Hours and holidays'),
-              h(V.Button, { variant: 'outline', className: 'vi-btn--sm',
-                onClick: function () { router.goAs('hr/people/all'); } }, 'View people')));
+              h(V.IconButton, { icon: I.pencil, title: 'Edit', 'aria-label': 'Edit ' + l.name,
+                onClick: function () { openEdit(l); } }),
+              h(V.IconButton, { icon: I.trash, title: 'Delete', 'aria-label': 'Delete ' + l.name,
+                onClick: function () { killSt[1](l); } })));
         }))),
 
       openSt[0] ? h(ui.Modal, {
-        title: 'Add location', description: 'A branch or office under a legal entity. It starts on the head office’s week.',
+        title: editing ? 'Edit location' : 'Add location',
+        description: editing
+          ? 'The address here is what prints on anything addressed to this office.'
+          : 'A new office. It starts on the head office\u2019s week until you give it one of its own.',
         onClose: function () { openSt[1](null); },
         footer: h(React.Fragment, null,
           h(V.Button, { variant: 'outline', onClick: function () { openSt[1](null); } }, 'Cancel'),
-          h(V.Button, { variant: 'primary', onClick: save }, 'Add location'))
+          h(V.Button, { variant: 'primary', onClick: save }, editing ? 'Save location' : 'Add location'))
       },
         h(V.TextField, Object.assign({ label: 'Location name', required: true, placeholder: 'e.g. Chennai' }, form.field('name'))),
-        h(V.TextArea, Object.assign({ label: 'Address', required: true, rows: 3 }, form.field('address'))),
-        h(ui.FieldRow, null,
-          h(V.Select, Object.assign({ label: 'Legal entity',
-            options: seed.entities.map(function (e) { return { value: e.id, label: e.name }; }) }, form.select('entity'))),
-          h(V.Select, Object.assign({ label: 'Time zone', options: TZ_LIST }, form.select('tz'))))) : null);
+        h(ui.FormSection, { title: 'Address' },
+          h(V.TextField, Object.assign({ label: 'Address line 1', required: true,
+            placeholder: 'Building, street' }, form.field('line1'))),
+          h(V.TextField, Object.assign({ label: 'Address line 2',
+            placeholder: 'Area, landmark' }, form.field('line2'))),
+          h(ui.FieldRow, { cols: 2 },
+            h(V.TextField, Object.assign({ label: 'City', required: true }, form.field('city'))),
+            h(V.TextField, Object.assign({ label: 'State' }, form.field('state')))),
+          h(ui.FieldRow, { cols: 2 },
+            h(V.TextField, Object.assign({ label: 'Postal code', required: true, inputMode: 'numeric' }, form.field('postcode'))),
+            h(V.TextField, Object.assign({ label: 'Country' }, form.field('country'))))),
+        h(V.Select, Object.assign({ label: 'Time zone', options: TZ_LIST }, form.select('tz'))),
+        h(V.Checkbox, {
+          label: 'Choose as head office',
+          checked: !!form.values.hq,
+          onChange: function (e) { form.set('hq', e.target.checked); }
+        }),
+        form.values.hq && !editing
+          ? h('p', { className: 'muted', style: { fontSize: 12, margin: 0 } },
+              'The office that is the head office today gives it up.')
+          : null) : null,
+
+      killSt[0] ? h(ui.Confirm, {
+        title: 'Remove ' + killSt[0].name + '?',
+        body: 'The office is taken off the list, with its working week and its holiday calendar. '
+          + 'Nobody is moved, so an office with people in it cannot be removed.',
+        confirmLabel: 'Remove', tone: 'danger',
+        onConfirm: function () { ui.report(act.deleteLocation(killSt[0].id)); },
+        onClose: function () { killSt[1](null); }
+      }) : null);
   }
-
-
-
 
   function OrgSettings() {
     return h(Grid, null,
