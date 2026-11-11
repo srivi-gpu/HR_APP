@@ -133,6 +133,24 @@
       { path: 'logins', label: 'Login history', section: '2.1', note: 'Successful and failed sign-ins with device and location.' },
       { path: 'security', label: 'Security events', section: '2.1', note: 'Lockouts, policy changes and suspicious activity.' },
       { path: 'export', label: 'Export logs', section: '8.3', note: 'Export a filtered log range as CSV for external review.' }
+    ]},
+
+    /* Admin's own Configuration: the rules the whole organisation runs on, rather than
+       the people processes HR owns. Leave, attendance and shifts are here because they
+       are settings — entitlements, working hours, shift patterns — not a case anyone
+       works; the screens are HR's own, registered against these routes too, so there
+       is one of each rather than a copy that drifts. */
+    { path: 'config', label: 'Configuration', icon: 'sliders', section: '2.2', tabs: [
+      { path: 'leave-types', label: 'Leave types', section: '4.11',
+        note: 'Casual, sick, earned and custom types with their entitlement, carry forward, notice and documentation rules.' },
+      { path: 'leave-policies', label: 'Leave policies', section: '4.11',
+        note: 'Which types apply to whom, scoped by employee type, department, location and tenure.' },
+      { path: 'attendance', label: 'Attendance', section: '4.16',
+        note: 'Working hours, grace period, overtime and work-from-home rules.' },
+      { path: 'shifts', label: 'Shifts', section: '4.20',
+        note: 'Shift definitions with timing, break, grace period and the night flag.' },
+      { path: 'workflows', label: 'Approval workflows', section: '6.2',
+        note: 'The workflow engine: triggers, approver types, sequence and escalation.' }
     ]}
   ];
 
@@ -516,8 +534,9 @@
     ]},
     { label: 'Configuration', slots: [
       /* Admin's slot here used to be `settings`, which is Security now and belongs with
-         the other administration rows. HR keeps Configuration. */
-      { label: 'Configuration', icon: 'sliders', as: { hr: 'config' } }
+         the other administration rows. Admin has a Configuration of its own again — the
+         organisation-wide rules — and HR keeps its own. */
+      { label: 'Configuration', icon: 'sliders', as: { admin: 'config', hr: 'config' } }
     ]},
     { label: 'Leaving', slots: [
       { label: 'Offboarding', icon: 'logout', as: { me: 'exit', team: 'exit' } }
