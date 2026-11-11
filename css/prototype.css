@@ -92,6 +92,29 @@
 .person__sub { font-size: 12px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---------- Filter bar above tables ---------- */
+/* ---------- One height for a toolbar row ----------
+   The search field and the filter selects are form fields, so they stand 48px; the
+   buttons beside them are the small variant, so they stand 36. Side by side on one row
+   that reads as two sizes of control rather than as one bar, however carefully they are
+   centred. Everything on this row is the medium control height instead — the same 40px
+   the top bar's search already uses, so a toolbar is a toolbar wherever you meet one. */
+.filterbar .vi-field__box,
+.filterbar .vi-btn,
+.filterbar .vi-icon-btn,
+/* The two toolbars that are not DataTable's: the document library's, and the payslip
+   filter row. Same row, same rule. */
+.libbar__tools .vi-field__box,
+.libbar__tools .vi-btn,
+.libbar__tools .vi-icon-btn,
+.pfilter .vi-field__box,
+.pfilter .vi-btn,
+.pfilter .vi-icon-btn { height: var(--tl-control-md); }
+/* The select's trigger is the input inside that box, so it follows the box rather than
+   keeping the field's own height. */
+.filterbar .vi-select__trigger,
+.libbar__tools .vi-select__trigger,
+.pfilter .vi-select__trigger { height: 100%; }
+
 .filterbar { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
 /* Wide enough for the placeholders the tables actually use: at 240px, "Search by
    asset, serial or holder" was cut off mid-word, which is a field telling you it
