@@ -17,7 +17,7 @@
      too — what leave exists, what counts as a working day, what a shift is — so they
      sit here beside the rest rather than only inside the modules that use them. */
   var CONFIG_TABS = [
-    { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments and designations, with the job level each one sits at.' },
+    { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments, designations and the teams people sit in.' },
     { path: 'employee', label: 'Employee setup', section: '3.3', note: 'Employee types, statuses and the allowed status transitions.' },
     { path: 'leave-types', label: 'Leave types', section: '4.11', note: 'Casual, sick, earned and custom types with their entitlement, carry forward, notice and documentation rules.' },
     { path: 'leave-policies', label: 'Leave policies', section: '4.11', note: 'Which types apply to whom, scoped by employee type, department, location and tenure.' },
@@ -53,7 +53,6 @@
       { path: 'profile', label: 'Company', section: '3.2', note: 'Name, industry, website, company size and the registered address that goes on invoices and contracts.' },
       { path: 'locations', label: 'Locations', section: '11.2', note: 'Office locations with address, time zone, headcount and status.' },
       { path: 'org-tree', label: 'Org tree', section: '3.2', note: 'The reporting chart, pannable and zoomable, with a person’s team loaded from the directory on selection.' },
-      { path: 'teams', label: 'Teams', section: '3.2', note: 'A team’s roster, lead, composition and the actions that change it.' },
       { path: 'workweek', label: 'Working hours', section: '3.2', note: 'Working days, weekly offs, default hours and the holiday calendar locations inherit.' },
       { path: 'branding', label: 'Branding', section: '3.2', note: 'Accent colour, logo and the email header everyone sees.' },
       { path: 'emails', label: 'Email templates', section: '7.2', note: 'The messages the product sends, each previewable and editable.' }

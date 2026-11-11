@@ -670,9 +670,20 @@
         value: tabSt[0], onChange: tabSt[1],
         items: [
           { value: 'departments', label: 'Departments', count: departments.length },
-          { value: 'designations', label: 'Designations', count: designations.length }
+          { value: 'designations', label: 'Designations', count: designations.length },
+          /* Teams were a tab of admin's Organization module. A team is part of how the
+             organisation is put together, like a department and a designation, so it
+             is read and changed where those are. The view itself is unchanged: it is
+             the same component, rendered here. */
+          { value: 'teams', label: 'Teams' }
         ]
       }),
+
+      tabSt[0] === 'teams'
+        ? (HRMS.screens.TeamsPanel
+            ? h(HRMS.screens.TeamsPanel)
+            : h(ui.Empty, { icon: I.users, title: 'Teams are unavailable' }))
+        : null,
 
       tabSt[0] === 'departments' ? h(Card, {
         title: 'Departments',
