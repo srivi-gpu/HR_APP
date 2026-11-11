@@ -525,7 +525,11 @@
       { label: 'Payroll', icon: 'card', path: 'payroll' },
       /* An employee's own assets, and HR's requests for joiners. Admin's register is
          under Administration. */
-      { label: 'Assets', icon: 'package', as: { me: 'assets', team: 'assets', hr: 'assets' } }
+      /* Admin's register sits here too. It is the same subject as everyone else's
+         assets — what the company owns and who is holding it — and a reader looking
+         for assets should find them in one place in every workspace, rather than
+         under Administration in one and Compensation and resources in the rest. */
+      { label: 'Assets', icon: 'package', as: { admin: 'assets', me: 'assets', team: 'assets', hr: 'assets' } }
     ]},
     { label: 'Organization', slots: [
       { label: 'Organization', icon: 'building', path: 'org' },
@@ -541,7 +545,6 @@
     ]},
     { label: 'Administration', slots: [
       { label: 'Users', icon: 'users', path: 'users' },
-      { label: 'Assets', icon: 'package', as: { admin: 'assets' } },
       { label: 'Permissions', icon: 'shield', path: 'roles' },
       { label: 'Billing and usage', icon: 'card', path: 'billing' },
       { label: 'Integrations', icon: 'plug', path: 'integrations' },
