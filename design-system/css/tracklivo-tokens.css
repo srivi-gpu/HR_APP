@@ -56,6 +56,9 @@
   --tl-focus-ring: 0 0 0 4px #5733c21a;
   --tl-radius-card: 20px; --tl-radius-control: 8px; --tl-radius-pill: 100px;
   --tl-control-sm: 36px; --tl-control-md: 40px; --tl-control-lg: 52px;
+  /* The page's own heading, wherever it is drawn: the frame's, a screen's, or the
+     toolbar of a table that carries the page's name. */
+  --tl-page-title: 28px; --tl-page-title-lh: 36px; --tl-page-desc: 14px;
   --font-flex: "Google Sans Flex", "Google Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-tl-sans: "Google Sans Flex", "Google Sans", system-ui, -apple-system, "Segoe UI", sans-serif;   /* Figma text styles: every style is Google Sans Flex */
 }

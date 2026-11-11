@@ -326,7 +326,7 @@
       h('section', { className: 'dash__card hero' },
         h('div', { className: 'hero__l' },
           h('span', { className: 'hero__date' }, I.calendar, seed.todayLabel),
-          h('h1', null, inAt ? 'You are checked in' : 'Attendance today'),
+          h('h1', { className: 'page-hero__title' }, inAt ? 'You are checked in' : 'Attendance today'),
           h('p', { className: 'hero__p' },
             inAt
               ? 'Checked in at ' + inAt + (outAt ? ', out at ' + outAt : '') + '. Your shift is '
@@ -1458,7 +1458,7 @@
 
     return h(React.Fragment, null,
       h(ui.PageHead, {
-        eyebrow: c.id, title: 'Exit request',
+        title: 'Exit request',
         description: 'Submitted ' + ui.dateLabel(c.resignedOn) + ' · last working day ' + c.lastWorkingDayLabel + '.',
         actions: [
           h(V.Button, { key: 'f', variant: 'outline', iconStart: I.checklist,
@@ -2108,7 +2108,7 @@
 
     return h(React.Fragment, null,
       h(ui.PageHead, {
-        eyebrow: 'My profile', title: 'Documents',
+        title: 'Documents',
         description: 'What you have shared with HR, and what each one is waiting on.',
         actions: [
           h(V.Button, { key: 's', variant: 'primary', iconStart: I.up,

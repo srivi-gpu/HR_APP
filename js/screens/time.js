@@ -127,7 +127,7 @@
       h('section', { className: 'dash__card hero' },
         h('div', { className: 'hero__l' },
           h('span', { className: 'hero__date' }, I.calendar, seed.todayLabel),
-          h('h1', null, 'Attendance today'),
+          h('h1', { className: 'page-hero__title' }, 'Attendance today'),
           h('p', { className: 'hero__p' },
             marked.length + ' of ' + workforce().length + ' employees have a record for today.'),
           h('div', { className: 'hero__acts' },
@@ -667,7 +667,7 @@
 
     return h(React.Fragment, null,
       h(ui.PageHead, {
-        eyebrow: seed.todayLabel, title: 'Leave overview',
+        title: 'Leave overview',
         description: s.pendingLeave + ' requests are awaiting a decision and ' + s.onLeaveToday + ' employees are out today.',
         actions: [
           h(V.Button, { key: 'b', variant: 'primary', iconStart: I.checklist, onClick: function () { router.go('hr/leave/requests'); } }, 'Open requests')

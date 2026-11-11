@@ -1992,7 +1992,7 @@
       h('section', { className: 'ast-hero' },
         h('div', { className: 'ast-hero__copy' },
           h('span', { className: 'ast-hero__eyebrow' }, 'Asset operations'),
-          h('h1', null, 'Your asset ecosystem ', h('em', null, 'at a glance.')),
+          h('h1', { className: 'page-hero__title' }, 'Your asset ecosystem ', h('em', null, 'at a glance.')),
           /* The headline number: the size of the register, and what it is worth. */
           h('div', { className: 'ast-hero__n' },
             h('b', null, num(total)),

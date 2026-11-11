@@ -113,18 +113,27 @@
       body = h(ui.Stub, { meta: route.meta });
     }
 
-    /* Tabs and page head belong to the frame, so a stub and a built screen agree.
-       A built screen draws its own head; only stubs get one here. */
+    /* Tabs and the page heading belong to the frame, so every page agrees: the tab
+       row, then the name of the tab you are on, then the page.
+
+       The heading is drawn here for every route, from the route's own metadata, and
+       the stylesheet hides it where the page already names itself — a screen with its
+       own PageHead, or a table whose toolbar carries the title. That way a page can
+       still call itself something better than its tab label ("Leave requests" rather
+       than "Requests") without any page being left nameless, which 16 of them were. */
     var Banner = route.meta && route.meta.item && route.meta.item.banner
       ? HRMS.screens.banners[route.meta.item.banner] : null;
     var framed = denied || route.notFound ? body : h(React.Fragment, null,
       /* Above the tabs, because it belongs to the person rather than to one tab. */
       Banner ? h(Banner, { route: route }) : null,
-      Screen || Banner ? null : h(ui.PageHead, { eyebrow: route.meta.group, title: route.meta.label }),
       route.meta.item && route.meta.item.tabs
         ? h(ui.ModuleTabs, { item: route.meta.item, role: route.meta.role, active: route.meta.tab && route.meta.tab.path })
         : null,
-      body);
+      h('div', { className: 'page-body' },
+        h(ui.PageHead, {
+          className: 'page-head--auto', title: route.meta.label, description: route.meta.note
+        }),
+        body));
 
     return h(React.Fragment, null,
       h(HRMS.shell.AppShell, {

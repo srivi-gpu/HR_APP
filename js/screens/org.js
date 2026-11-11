@@ -1250,7 +1250,7 @@
             h('span', { className: 'bu-num' }, s.bought ? '100% left' : '—')))),
 
       h('div', { className: 'bu-head' },
-        h('h2', null, 'AI credits usage'),
+        h('h2', { className: 'card__title' }, 'AI credits usage'),
         h(V.Button, {
           variant: 'primary', iconStart: I.plus,
           onClick: function () { buySt[1](20000); }
@@ -1518,7 +1518,7 @@
 
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Integrations', title: 'Connected services',
+        title: 'Connected services',
         description: connected + ' of ' + rows.length + ' providers connected. Connecting, configuring and '
           + 'disconnecting a provider is the IT administrator’s to do — this page is not in the HR or '
           + 'employee workspace.',
@@ -2206,7 +2206,7 @@
       };
     }
     return h(React.Fragment, null,
-      h(PageHead, { eyebrow: 'Security', title: 'Sign-in rules',
+      h(PageHead, { title: 'Sign-in rules',
         description: 'How people get in, and what happens when they get it wrong. Every change is written '
           + 'to the audit log.' }),
       h(SecurityHead, { counts: c, pol: pol, on: 'rules' }),
@@ -2281,7 +2281,7 @@
     }
 
     return h(React.Fragment, null,
-      h(PageHead, { eyebrow: 'Security', title: 'Second step',
+      h(PageHead, { title: 'Second step',
         description: 'Admin and HR accounts reach payroll, salaries and everyone’s records, so they are the '
           + 'ones a second step matters for.',
         actions: without.length
@@ -2333,7 +2333,7 @@
     var c = secCounts();
     var pol = secPolicy();
     return h(React.Fragment, null,
-      h(PageHead, { eyebrow: 'Security', title: 'Blocked accounts',
+      h(PageHead, { title: 'Blocked accounts',
         description: 'An account blocks itself after ' + pol.tries + '. Let it back in here, or close it '
           + 'for good from Users.' }),
       h(SecurityHead, { counts: c, pol: pol, on: 'blocked' }),
@@ -2387,7 +2387,7 @@
 
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Users', title: 'Joiner setup',
+        title: 'Joiner setup',
         description: 'Every onboarding raises an account here. Issue the employee ID and the work email '
           + 'together, and they go to the joiner’s personal address — the work one is the thing being '
           + 'created, so it cannot carry its own announcement.'

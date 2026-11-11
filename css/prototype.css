@@ -14,7 +14,31 @@
 }
 @media (max-width: 860px) { [class*='span-'] { grid-column: span 12; } }
 
-.page-head__desc { max-width: 70ch; font-size: 14px; }
+/* ---------- The page's own heading ----------
+   One block per page: the name, a line under it, and whatever acts on the whole page
+   on the same row, middle-aligned against it. */
+.page-head__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.page-head__title { font-size: var(--tl-page-title); line-height: var(--tl-page-title-lh); }
+.page-head__desc { max-width: 70ch; font-size: var(--tl-page-desc); margin: 0; }
+.page-head__tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.page-head__tools .vi-btn, .page-head__tools .vi-icon-btn, .page-head__tools .vi-field__box {
+  height: var(--tl-control-md);
+}
+.page-head__tools .vi-select__trigger { height: 100%; }
+
+/* The frame draws the heading for every route. A screen that names itself something
+   better than its tab label draws its own, and then the frame's is not drawn: one
+   page, one name, and never none. */
+.page-body { display: flex; flex-direction: column; gap: 18px; }
+.page-body:has(.page-head:not(.page-head--auto)) > .page-head--auto,
+/* A page that opens on a hero names itself in the hero. The hero is the heading
+   there, so the frame's is not drawn — and the hero is set at the page's own heading
+   size, because a heading should not change size from one module to the next. */
+.page-body:has(.page-hero__title) > .page-head--auto { display: none; }
+.page-hero__title {
+  font-family: var(--font-flex);
+  font-size: var(--tl-page-title); line-height: var(--tl-page-title-lh); font-weight: 500;
+}
 
 /* ---------- Side rail: brand mark, role switcher, grouped sections ---------- */
 .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
@@ -126,7 +150,10 @@
    line up with the title instead of sitting in a band underneath it. The heading takes
    the slack and the controls keep their own, so the whole row stays on one line until
    the viewport really cannot hold it. */
-.filterbar__head { flex: 1 1 200px; align-self: flex-end; min-width: 0; margin-right: auto; }
+.filterbar__head { flex: 1 1 200px; align-self: center; min-width: 0; margin-right: auto; }
+/* A table's toolbar names the table, not the page: the page's own heading sits above
+   it, at the page scale, and this stays at the card scale under it. A multi-table page
+   would otherwise show two and three page-sized titles and no page name at all. */
 .filterbar__head .card__title { margin: 0; }
 .filterbar__desc { margin: 2px 0 0; font-size: 13px; }
 /* What is left of a card whose body was only a table: no border, no padding, no
@@ -156,7 +183,10 @@
 .vi-table--compact .vi-th { height: 44px; padding-left: 14px; padding-right: 14px; }
 .vi-table--compact .vi-td { padding-left: 14px; padding-right: 14px; }
 .vi-th--select, .vi-td--select { padding-right: 0; }
-.filterbar--titled { align-items: flex-end; }
+/* Middle-aligned, so the search, the filters and the buttons sit on the heading's
+   centre line rather than on its baseline — which left them hanging under a
+   two-line heading. */
+.filterbar--titled { align-items: center; }
 /* Capped, so a long description wraps under the title instead of pushing the
    controls onto a line of their own. */
 .filterbar--titled .filterbar__head { flex: 0 1 auto; max-width: 380px; }

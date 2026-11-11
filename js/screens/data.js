@@ -647,7 +647,7 @@
   function wrap(title, description, Body) {
     return function () {
       return h(React.Fragment, null,
-        h(PageHead, { eyebrow: 'Data and retention', title: title, description: description }),
+        h(PageHead, { title: title, description: description }),
         h(Body, null));
     };
   }

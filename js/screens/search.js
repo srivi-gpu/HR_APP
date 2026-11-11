@@ -348,7 +348,6 @@
 
     return h(React.Fragment, null,
       h(ui.PageHead, {
-        eyebrow: 'Search',
         title: 'Search',
         description: 'People, requests, records and screens — everything this workspace may see, in one place.'
       }),

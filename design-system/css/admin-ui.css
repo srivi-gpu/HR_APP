@@ -348,7 +348,9 @@
 
 /* the heading between the two halves of Usage */
 .bu-head { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 4px; }
-.bu-head h2 { margin: 0; font: 400 24px/32px var(--font-flex); color: var(--text-primary); }
+/* A section inside the page, so it is set at the card scale: 24px read as a second
+   page heading under the page's own. */
+.bu-head h2 { margin: 0; font-size: 15px; font-weight: 500; color: var(--text-primary); }
 .bu-head > :last-child { margin-left: auto; }
 
 /* the month's headline percentage and its category split */

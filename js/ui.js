@@ -75,13 +75,32 @@
   function kids(children) { return React.Children.toArray(children); }
   function el(tag, props, list) { return React.createElement.apply(null, [tag, props].concat(kids(list))); }
 
+  /* A page names itself once: a heading, a line under it, and whatever acts on the
+     whole page, on that same row. The eyebrow is gone — it repeated the module the
+     rail and the breadcrumb already name, above every heading in the product. */
+  /* What acts on the whole page sits on the heading's row, and a screen is not where
+     the heading is drawn — the frame is. So the heading hangs one detached node here
+     and a screen fills it from wherever its own code happens to be, through
+     `PageActions`. The node is made once, at load, so a portal into it never races
+     the heading's own mount. */
+  var headHost = typeof document !== 'undefined' ? document.createElement('div') : null;
+  if (headHost) headHost.className = 'page-head__slot';
+
   function PageHead(p) {
-    return h('div', { className: 'page-head' },
-      h('div', { className: 'stack gap-1' },
-        p.eyebrow ? h('span', { className: 'eyebrow' }, p.eyebrow) : null,
-        h('h1', null, p.title),
+    return h('div', { className: ['page-head', p.className || ''].filter(Boolean).join(' ') },
+      h('div', { className: 'page-head__text' },
+        h('h1', { className: 'page-head__title' }, p.title),
         p.description ? h('p', { className: 'muted page-head__desc' }, p.description) : null),
-      p.actions ? el('div', { className: 'row gap-2 wrap' }, p.actions) : null);
+      el('div', {
+        className: 'page-head__tools',
+        ref: function (node) { if (node && headHost && headHost.parentNode !== node) node.appendChild(headHost); }
+      }, p.actions || null));
+  }
+
+  /* Renders its children onto the page's heading row, whatever draws that row. */
+  function PageActions(p) {
+    if (!headHost || !window.ReactDOM || !p.children) return null;
+    return window.ReactDOM.createPortal(p.children, headHost);
   }
 
   /* A card whose whole body is one table is a box inside a box: the card draws a
@@ -109,13 +128,33 @@
     return { table: first, rest: list.slice(1) };
   }
 
+  /* The page already carries its name, so a table that repeats it word for word is a
+     second heading saying the same thing one line down: in that case the table's title
+     is dropped and the page's stands. Where the table says something of its own —
+     "Earnings" among three tables, or "Leave requests" under a tab called "Requests" —
+     it is kept, and reads as the section heading it is. */
+  function sameAsPageName(title) {
+    if (!title || typeof title !== 'string') return false;
+    var router = HRMS.router, nav = HRMS.nav;
+    if (!router || !nav || !router.current || !nav.resolve) return false;
+    var meta = nav.resolve(router.current());
+    if (!meta || !meta.label) return false;
+    var norm = function (x) { return String(x).toLowerCase().replace(/[^a-z0-9]/g, ''); };
+    return norm(meta.label) === norm(title);
+  }
+
   function Card(p) {
     var led = leadingTable(p.children);
     if (led) {
+      var dup = sameAsPageName(p.title);
       return el('div', {
         className: ['tablewrap', p.span ? 'span-' + p.span : '', p.className || ''].filter(Boolean).join(' ')
       }, [React.cloneElement(led.table, {
-        title: p.title, description: p.description, actions: p.aside
+        title: dup ? null : p.title, description: dup ? null : p.description,
+        /* What the card called its aside is the page's primary action — New, Add,
+           Create — so it goes up onto the heading row, beside the name of the thing it
+           creates, rather than sitting a row below it. */
+        headActions: p.aside
       })].concat(led.rest));
     }
     var head = p.title || p.aside
@@ -805,6 +844,8 @@
     ];
 
     return h(React.Fragment, null,
+      /* The page's primary action, if this table was given one, onto the heading row. */
+      p.headActions ? h(PageActions, null, p.headActions) : null,
       /* With a heading the controls are grouped, so when the row runs out of width
          they move under the heading together instead of the search staying put and
          the buttons dropping away from it one at a time. */
@@ -856,7 +897,7 @@
 
   HRMS.ui = {
     inr: inr, pct: pct, tones: TONES, dateLabel: dateLabel, shortDate: shortDate, relTime: relTime,
-    PageHead: PageHead, Card: Card, Grid: Grid, Stat: Stat, Stats: Stats, KeyValue: KeyValue,
+    PageHead: PageHead, PageActions: PageActions, Card: Card, Grid: Grid, Stat: Stat, Stats: Stats, KeyValue: KeyValue,
     Person: Person, StatusChip: StatusChip, Empty: Empty, Done: Done, DoneArt: DoneArt, Stub: Stub, ModuleTabs: ModuleTabs,
     DataTable: DataTable, Bars: Bars, Timeline: Timeline,
     Modal: Modal, Drawer: Drawer, Confirm: Confirm, portal: portal, Tip: Tip,

@@ -140,7 +140,7 @@
 
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Roles & permissions', title: 'Module permissions',
+        title: 'Module permissions',
         description: 'Pick a role, then set what it may do in each module. Changes apply across the application immediately.',
         actions: [
           h(V.Button, { key: 'd', variant: 'outline', iconStart: I.copy,
@@ -331,7 +331,7 @@
 
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Permissions', title: 'Module access',
+        title: 'Module access',
         description: 'A role says what a job can do; this says what a person does. A grant only ever takes '
           + 'away from the role, so narrowing somebody can never hand them something the role did not carry.'
       }),
