@@ -2307,6 +2307,12 @@
   var PRIOR_ROLES = ['Associate', 'Senior Associate', 'Analyst', 'Consultant', 'Executive', 'Specialist'];
   var PRIOR_FIRMS = ['Brightlane Studio', 'Finwise', 'Cobalt Systems', 'Northwind Labs',
     'Meridian Consulting', 'Zephyr Technologies'];
+  var PRIOR_MANAGERS = ['Sanjay Varma', 'Ritu Agarwal', 'Daniel Mathew', 'Preeti Shah',
+    'Imran Qureshi', 'Leena Fernandes'];
+  function slug(name) { return String(name).toLowerCase().replace(/[^a-z]+/g, ''); }
+  function doc(label, file, kb, on) {
+    return { label: label, name: file, size: kb + ' KB', on: on };
+  }
 
   function idHash(str) {
     var n = 0;
@@ -2321,22 +2327,41 @@
     var joinYear = Number(String(e.joined).slice(0, 4));
     var deg = DEGREES[seedN % DEGREES.length];
     var gradYear = joinYear - (2 + (seedN % 4));
+    /* The papers each record carries. Everybody has the degree certificate, because
+       HR asks for it at hiring; the marksheet is the one that is often still missing,
+       so most records show it and some do not — which is what the slot is for. */
     qualifications.push({
       id: 'QL-' + e.id + '-1', employee: e.id, level: deg[0], specialisation: deg[1],
       institution: INSTITUTES[(seedN >> 2) % INSTITUTES.length],
-      year: gradYear, grade: (60 + (seedN % 38)) + '%'
+      year: gradYear, grade: (60 + (seedN % 38)) + '%',
+      docs: [doc('Degree certificate', 'degree-certificate.pdf', 180 + (seedN % 90), gradYear + '-06-30')]
+        .concat(seedN % 4
+          ? [doc('Marksheet', 'final-marksheet.pdf', 120 + (seedN % 60), gradYear + '-06-30')]
+          : [])
     });
     qualifications.push({
       id: 'QL-' + e.id + '-2', employee: e.id, level: 'Higher Secondary', specialisation: '',
-      institution: 'Kendriya Vidyalaya', year: gradYear - 4, grade: (62 + ((seedN >> 3) % 36)) + '%'
+      institution: 'Kendriya Vidyalaya', year: gradYear - 4, grade: (62 + ((seedN >> 3) % 36)) + '%',
+      docs: seedN % 3
+        ? [doc('Marksheet', 'hsc-marksheet.pdf', 95 + (seedN % 40), (gradYear - 4) + '-05-28')]
+        : []
     });
     /* Anyone who joined within two years of graduating started here. */
     if (joinYear - gradYear >= 2) {
+      var firm = PRIOR_FIRMS[(seedN >> 4) % PRIOR_FIRMS.length];
       experience.push({
         id: 'EX-' + e.id + '-1', employee: e.id,
         role: PRIOR_ROLES[(seedN >> 1) % PRIOR_ROLES.length],
-        company: PRIOR_FIRMS[(seedN >> 4) % PRIOR_FIRMS.length],
-        from: gradYear, to: joinYear
+        company: firm, from: gradYear, to: joinYear,
+        manager: PRIOR_MANAGERS[(seedN >> 5) % PRIOR_MANAGERS.length],
+        hrEmail: 'hr@' + slug(firm) + '.com',
+        /* The joining letter is what a joiner brings; the relieving letter follows
+           their last day, and a few are still waiting for it. */
+        docs: [doc('Offer or joining letter', 'joining-letter.pdf', 140 + (seedN % 70), gradYear + '-07-01')]
+          .concat(seedN % 5
+            ? [doc('Relieving letter', 'relieving-letter.pdf', 110 + (seedN % 50), joinYear + '-03-31'),
+               doc('Experience letter', 'experience-letter.pdf', 105 + (seedN % 45), joinYear + '-03-31')]
+            : [])
       });
     }
   });

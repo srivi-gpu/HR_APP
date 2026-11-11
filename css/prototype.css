@@ -1684,3 +1684,27 @@
   .pexc__i { grid-template-columns: minmax(0, 1fr) auto; }
   .pexc__w { display: none; }
 }
+
+/* ---------- Document slots on a qualification or an earlier role ----------
+   A named slot rather than a drop target: HR asks for the degree certificate and the
+   relieving letter by name, so the empty state has to say which paper is missing. */
+.docslot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 10px; border: 1px solid var(--border-subtle); border-radius: var(--tl-radius-field);
+  background: var(--bg-surface);
+}
+.docslot + .docslot { margin-top: 8px; }
+.docslot.is-set { border-color: var(--border-default); }
+.docslot__mark {
+  flex: none; display: grid; place-items: center; width: 28px; height: 28px;
+  border-radius: 8px; background: var(--bg-subtle); color: var(--text-secondary);
+}
+.docslot.is-set .docslot__mark { background: var(--success-bg); color: var(--success-fg); }
+.docslot__mark svg { width: 16px; height: 16px; }
+.docslot__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.docslot__name { font-size: 13.5px; color: var(--text-primary); }
+.docslot__meta {
+  font-size: 12px; color: var(--text-secondary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.docchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }

@@ -1723,15 +1723,65 @@
      Qualifications and prior roles are records now, so they can be added to and
      corrected. Leave, attendance and performance join the profile as summaries of the
      person, each pointing at the module that holds the whole of it. */
+  /* The papers behind an entry. A qualification is a claim until the certificate is
+     attached and a prior role is a claim until the letters are, so the slots are named:
+     HR asks for these particular documents, not for "a file". A slot nobody fills
+     stays empty rather than becoming a row that says nothing. */
+  var QUAL_DOCS = ['Degree certificate', 'Marksheet', 'Other certificate'];
+  var EXP_DOCS = ['Offer or joining letter', 'Relieving letter', 'Experience letter', 'Last payslip'];
+
+  function docsOf(entry) {
+    var out = {};
+    ((entry && entry.docs) || []).forEach(function (d) { if (d && d.label) out[d.label] = d; });
+    return out;
+  }
+
+  function DocSlot(p) {
+    var ref = React.useRef(null);
+    var doc = p.value;
+    return h('div', { className: 'docslot' + (doc ? ' is-set' : '') },
+      h('span', { className: 'docslot__mark' }, doc ? I.check : I.file),
+      h('div', { className: 'docslot__main' },
+        h('span', { className: 'docslot__name' }, p.label),
+        h('span', { className: 'docslot__meta' }, doc ? doc.name + ' · ' + doc.size : 'Not attached')),
+      h(V.Button, {
+        variant: 'outline', className: 'vi-btn--sm',
+        onClick: function () { if (ref.current) ref.current.click(); }
+      }, doc ? 'Replace' : 'Attach'),
+      doc
+        ? h(V.IconButton, { icon: I.trash, 'aria-label': 'Remove ' + p.label,
+            onClick: function () { p.onChange(null); } })
+        : null,
+      h('input', {
+        ref: ref, type: 'file', className: 'visually-hidden', 'aria-label': p.label,
+        onChange: function (e) {
+          var f = e.target.files && e.target.files[0];
+          e.target.value = '';
+          if (f) p.onChange({ label: p.label, name: f.name, size: prettySize(f.size), on: seed.todayIso });
+        }
+      }));
+  }
+
   function EducationEntryModal(p) {
     var isQual = p.kind === 'qualifications';
     var form = ui.useForm(p.entry || (isQual
       ? { level: '', specialisation: '', institution: '', year: '', grade: '' }
-      : { role: '', company: '', from: '', to: '' }));
+      : { role: '', company: '', from: '', to: '', manager: '', hrEmail: '' }));
+    var docsSt = React.useState(docsOf(p.entry));
+
+    function setDoc(label, doc) {
+      docsSt[1](function (prev) {
+        var next = Object.assign({}, prev);
+        if (doc) next[label] = doc; else delete next[label];
+        return next;
+      });
+    }
 
     function save() {
+      var slots = isQual ? QUAL_DOCS : EXP_DOCS;
+      var docs = slots.map(function (l) { return docsSt[0][l]; }).filter(Boolean);
       var res = form.submit(function (v) {
-        var entry = p.entry ? Object.assign({}, p.entry, v) : v;
+        var entry = Object.assign({}, p.entry || {}, v, { docs: docs });
         return ui.report(act.saveEducationEntry(p.kind, p.employee, entry));
       });
       if (res && res.ok) p.onClose();
@@ -1760,7 +1810,24 @@
           h(V.TextField, Object.assign({ label: 'Company', required: true }, form.field('company'))),
           h(ui.FieldRow, { cols: 2 },
             h(V.NumberField, Object.assign({ label: 'From', min: 1950, max: 2100 }, form.field('from', { number: true }))),
-            h(V.NumberField, Object.assign({ label: 'To', min: 1950, max: 2100 }, form.field('to', { number: true })))))); 
+            h(V.NumberField, Object.assign({ label: 'To', min: 1950, max: 2100 }, form.field('to', { number: true })))),
+          /* Who to ask, if anyone ever has to. Both are optional: a reference is not
+             something to hold a record hostage to. */
+          h(ui.FieldRow, { cols: 2 },
+            h(V.TextField, Object.assign({ label: 'Reporting manager',
+              placeholder: 'Who you reported to' }, form.field('manager'))),
+            h(V.TextField, Object.assign({ label: 'HR email', type: 'email',
+              placeholder: 'hr@company.com' },
+              form.field('hrEmail', { hint: form.errors.hrEmail || 'Where a reference check would go' }))))),
+
+      h(ui.FormSection, { title: 'Documents',
+        description: isQual
+          ? 'Your certificate and marksheet, so HR has the proof on file.'
+          : 'The letters from that employer. Verified by HR against what you have written above.' },
+        (isQual ? QUAL_DOCS : EXP_DOCS).map(function (label) {
+          return h(DocSlot, { key: label, label: label, value: docsSt[0][label],
+            onChange: function (doc) { setDoc(label, doc); } });
+        })));
   }
 
   function EducationScreen() {
@@ -1784,7 +1851,15 @@
             kind === 'qualifications' ? I.reports : I.building),
           h('div', { className: 'checks__main' },
             h('span', { className: 'checks__name' }, shown[0]),
-            h('span', { className: 'checks__meta' }, shown[1])),
+            h('span', { className: 'checks__meta' }, shown[1]),
+            /* The papers on the entry, named rather than counted: "2 documents" makes
+               you open the record to find out whether the one HR wants is there. */
+            (it.docs || []).length
+              ? h('span', { className: 'docchips' }, (it.docs || []).map(function (d) {
+                  return h(V.Chip, { key: d.label, size: 'sm', shape: 'tag', variant: 'soft',
+                    tone: 'success', icon: I.file }, d.label);
+                }))
+              : h('span', { className: 'checks__meta' }, 'No documents attached')),
           shown[2] ? h(V.Chip, { size: 'sm', shape: 'tag' }, shown[2]) : null,
           h(V.IconButton, { icon: I.pencil, 'aria-label': 'Edit ' + shown[0],
             onClick: function () { editSt[1]({ kind: kind, entry: it }); } }),
@@ -1796,7 +1871,7 @@
     return h(React.Fragment, null,
       h(Grid, null,
         h(Card, { span: 12, title: 'Qualifications',
-          description: 'Your education, newest first. Yours to keep up to date.',
+          description: 'Your education, newest first, with the certificates behind each one. Yours to keep up to date.',
           aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus,
             onClick: function () { editSt[1]({ kind: 'qualifications', entry: null }); } }, 'Add qualification') },
           quals.length
@@ -1809,12 +1884,16 @@
               body: 'Add your degrees and certificates so HR has them on file.' })),
 
         h(Card, { span: 12, title: 'Previous experience',
-          description: 'Where you worked before joining.',
+          description: 'Where you worked before joining, who you reported to, and the letters that prove it.',
           aside: h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.plus,
             onClick: function () { editSt[1]({ kind: 'experience', entry: null }); } }, 'Add a role') },
           exp.length
             ? rows(exp, 'experience', function (x) {
-              return [x.role, x.company, (x.from || '?') + ' – ' + (x.to || 'present')];
+              return [x.role,
+                x.company
+                  + (x.manager ? ' · reported to ' + x.manager : '')
+                  + (x.hrEmail ? ' · ' + x.hrEmail : ''),
+                (x.from || '?') + ' – ' + (x.to || 'present')];
             })
             : h(ui.Empty, { icon: I.building, title: 'Nothing recorded',
               body: 'If you worked elsewhere before joining, add it here.' }))),
