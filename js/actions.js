@@ -183,6 +183,12 @@
     var errors = kind === 'qualifications'
       ? rules.required([{ key: 'level', label: 'Qualification' }, { key: 'institution', label: 'Institution' }], entry)
       : rules.required([{ key: 'role', label: 'Role' }, { key: 'company', label: 'Company' }], entry);
+    /* The HR address is optional — a reference is not worth holding a record hostage
+       to — but a wrong one is worse than none, because nobody finds out until the
+       reference check bounces. */
+    if (entry.hrEmail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(entry.hrEmail))) {
+      errors.hrEmail = 'Enter a valid email address';
+    }
     if (rules.hasErrors(errors)) return fail(errors);
     if (entry.id) {
       store.setOverride(kind, entry.id, entry);
