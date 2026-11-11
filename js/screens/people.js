@@ -868,6 +868,10 @@
   }
 
   function EmployeeConfig() {
+    /* Two tables, two subjects: what an employee can be, and what an employee can
+       become. They are tabs for the same reason departments and designations are —
+       you come here to work on one of them, and the other was a scroll away. */
+    var tabSt = React.useState('types');
     var typeSt = React.useState(null);      // null | false (new) | row
     var statusSt = React.useState(null);
     var killTypeSt = React.useState(null);
@@ -883,8 +887,16 @@
     var killType = killTypeSt[0] && store.find('employeeTypes', killTypeSt[0]);
     var killStatus = killStatusSt[0] && store.find('statusTransitions', killStatusSt[0]);
 
-    return h(Grid, null,
-      h(Card, { span: 12, title: 'Employee types',
+    return h(React.Fragment, null,
+      h(V.TabGroup, {
+        value: tabSt[0], onChange: tabSt[1],
+        items: [
+          { value: 'types', label: 'Employee types', count: types.length },
+          { value: 'statuses', label: 'Statuses', count: transitions.length }
+        ]
+      }),
+
+      tabSt[0] !== 'types' ? null : h(Card, { title: 'Employee types',
         description: 'The types offered when creating an employee, and what each one implies.',
         aside: h(V.Button, {
           variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
@@ -931,7 +943,7 @@
             onClick: function () { typeSt[1](false); } }, 'Add type')
         })),
 
-      h(Card, { span: 12, title: 'Statuses and allowed transitions',
+      tabSt[0] !== 'statuses' ? null : h(Card, { title: 'Statuses and allowed transitions',
         description: 'PRD 14.1: the Change status dialog only offers what a status points to here.',
         aside: h(V.Button, {
           variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
