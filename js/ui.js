@@ -406,9 +406,20 @@
     var visible = item.tabs.filter(function (t) { return !t.hidden; });
     if (!visible.length) return null;
 
+    /* A row of twelve tabs scrolls, and the tab you are on can be past its right edge
+       — which reads as a row with nothing selected. Bring it into view when the row
+       is drawn and whenever the selection moves. */
+    var rowRef = React.useRef(null);
+    React.useEffect(function () {
+      var box = rowRef.current;
+      if (!box) return;
+      var on = box.querySelector('[aria-selected="true"]');
+      if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }, [active, item.path]);
+
     var groups = [];
     visible.forEach(function (t) { if (t.group && groups.indexOf(t.group) < 0) groups.push(t.group); });
-    if (groups.length < 2) return row(visible, 'underline', active, item.label);
+    if (groups.length < 2) return h('div', { className: 'mtabs', ref: rowRef }, row(visible, 'underline', active, item.label));
 
     var activeTab = item.tabs.filter(function (t) { return t.path === active; })[0] || visible[0];
     var inGroup = visible.filter(function (t) { return t.group === activeTab.group; });
@@ -420,7 +431,7 @@
     });
     var currentMaster = (visible.filter(function (t) { return t.group === activeTab.group; })[0] || visible[0]).path;
 
-    return h('div', { className: 'mtabs' },
+    return h('div', { className: 'mtabs', ref: rowRef },
       row(masters, 'underline', currentMaster, item.label),
       row(inGroup, 'pill', active, activeTab.group));
   }

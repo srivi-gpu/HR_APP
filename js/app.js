@@ -161,6 +161,19 @@
     });
   })();
 
+  /* The same again for admin, which now carries HR's modules: one screen answers in
+     both workspaces rather than two that start identical and drift. Anything admin
+     has registered for itself is left alone — its asset register, its own people
+     screens — because that is a different screen, not a copy of HR's. */
+  (function aliasHrScreens() {
+    var reg = HRMS.screens.registry;
+    Object.keys(reg).forEach(function (path) {
+      if (path.indexOf('hr/') !== 0) return;
+      var mirrored = 'admin/' + path.slice(3);
+      if (!reg[mirrored]) reg[mirrored] = reg[path];
+    });
+  })();
+
   HRMS.App = App;   // exported so the smoke test can render routes outside a browser
   ReactDOM.createRoot(document.getElementById('root')).render(h(App));
 })();

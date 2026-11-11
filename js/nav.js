@@ -9,6 +9,28 @@
 
   /* ------------------------------------------------------------------ ADMIN */
   /* --------------------------------------------------- ADMIN items */
+  /* ---------------------------------------------------- Configuration tabs
+     One list, carried by both workspaces. Configuration is the organisation's rules
+     rather than one workspace's work: the admin who owns them and the HR who applies
+     them look at the same settings, so they look at the same tabs, in the same order,
+     and at the same records behind them. Leave, attendance and shifts are settings
+     too — what leave exists, what counts as a working day, what a shift is — so they
+     sit here beside the rest rather than only inside the modules that use them. */
+  var CONFIG_TABS = [
+    { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments and designations, with the job level each one sits at.' },
+    { path: 'employee', label: 'Employee setup', section: '3.3', note: 'Employee types, statuses and the allowed status transitions.' },
+    { path: 'leave-types', label: 'Leave types', section: '4.11', note: 'Casual, sick, earned and custom types with their entitlement, carry forward, notice and documentation rules.' },
+    { path: 'leave-policies', label: 'Leave policies', section: '4.11', note: 'Which types apply to whom, scoped by employee type, department, location and tenure.' },
+    { path: 'attendance', label: 'Attendance', section: '4.16', note: 'Working hours, grace period, overtime and work-from-home rules.' },
+    { path: 'shifts', label: 'Shifts', section: '4.20', note: 'Shift definitions with timing, break, grace period and the night flag.' },
+    { path: 'payroll', label: 'Payroll configuration', section: '4.34', note: 'Frequency, cut-off, statutory rules and the approval workflow.' },
+    { path: 'onboarding', label: 'Onboarding', section: '4.7', note: 'Templates, task categories, assignees and dependencies.' },
+    { path: 'offboarding', label: 'Offboarding', section: '4.48', note: 'Exit reasons, notice rules and clearance checklists.' },
+    { path: 'performance', label: 'Performance', section: '4.43', note: 'Cycles, competencies, rating scales and review hierarchy.' },
+    { path: 'surveys', label: 'Surveys', section: '4.40', note: 'Question banks, templates and anonymity defaults.' },
+    { path: 'workflows', label: 'Approval workflows', section: '6.2', note: 'The workflow engine: triggers, approver types, sequence and escalation.' }
+  ];
+
   var ADMIN_ITEMS = [
     { path: 'dashboard', label: 'Dashboard', icon: 'home', section: '9.1',
       note: 'Organization governance: headcount, setup progress, seat and AI usage, recent activity.' },
@@ -140,18 +162,6 @@
        are settings — entitlements, working hours, shift patterns — not a case anyone
        works; the screens are HR's own, registered against these routes too, so there
        is one of each rather than a copy that drifts. */
-    { path: 'config', label: 'Configuration', icon: 'sliders', section: '2.2', tabs: [
-      { path: 'leave-types', label: 'Leave types', section: '4.11',
-        note: 'Casual, sick, earned and custom types with their entitlement, carry forward, notice and documentation rules.' },
-      { path: 'leave-policies', label: 'Leave policies', section: '4.11',
-        note: 'Which types apply to whom, scoped by employee type, department, location and tenure.' },
-      { path: 'attendance', label: 'Attendance', section: '4.16',
-        note: 'Working hours, grace period, overtime and work-from-home rules.' },
-      { path: 'shifts', label: 'Shifts', section: '4.20',
-        note: 'Shift definitions with timing, break, grace period and the night flag.' },
-      { path: 'workflows', label: 'Approval workflows', section: '6.2',
-        note: 'The workflow engine: triggers, approver types, sequence and escalation.' }
-    ]}
   ];
 
   /* --------------------------------------------------------------------- HR */
@@ -295,17 +305,24 @@
       { path: 'offboarding', label: 'Offboarding', section: '8.2', note: 'Exit summary, attrition reasons, pending clearance and settlements.' }
     ]},
 
-    { path: 'config', label: 'Configuration', icon: 'sliders', section: '2.2', tabs: [
-      { path: 'structure', label: 'Organization structure', section: '3.3', note: 'Departments and designations, with the job level each one sits at.' },
-      { path: 'employee', label: 'Employee setup', section: '3.3', note: 'Employee types, statuses and the allowed status transitions.' },
-      { path: 'payroll', label: 'Payroll configuration', section: '4.34', note: 'Frequency, cut-off, statutory rules and the approval workflow.' },
-      { path: 'onboarding', label: 'Onboarding', section: '4.7', note: 'Templates, task categories, assignees and dependencies.' },
-      { path: 'offboarding', label: 'Offboarding', section: '4.48', note: 'Exit reasons, notice rules and clearance checklists.' },
-      { path: 'performance', label: 'Performance', section: '4.43', note: 'Cycles, competencies, rating scales and review hierarchy.' },
-      { path: 'surveys', label: 'Surveys', section: '4.40', note: 'Question banks, templates and anonymity defaults.' },
-      { path: 'workflows', label: 'Approval workflows', section: '6.2', note: 'The workflow engine: triggers, approver types, sequence and escalation.' }
-    ]}
+    { path: 'config', label: 'Configuration', icon: 'sliders', section: '2.2', tabs: CONFIG_TABS }
   ];
+
+  /* ------------------------------------------- Admin carries HR's modules too
+     Admin owns the organisation, so it sees what the organisation does: the roster,
+     the lifecycle, time, pay, documents, performance, engagement and the reports, not
+     only the accounts and the platform underneath them.
+
+     The items are HR's own, so there is one definition of what a module is and what
+     tabs it has. A tab that names an absolute route is rebased to the workspace asking
+     for it (`rebase`), so admin's copy answers at admin/... and HR's keeps hr/...;
+     js/app.js registers the same screen against both. Where admin already has an item
+     of that name its own wins — its asset register is not HR's asset requests. */
+  (function adminTakesHrModules() {
+    var mine = {};
+    ADMIN_ITEMS.forEach(function (item) { mine[item.path] = true; });
+    HR_ITEMS.forEach(function (item) { if (!mine[item.path]) ADMIN_ITEMS.push(item); });
+  }());
 
   /* --------------------------------------------------------------- EMPLOYEE */
   /* ------------------------------------------------ EMPLOYEE items */
@@ -497,7 +514,7 @@
       { label: 'Onboarding', icon: 'person', path: 'onboarding' },
       /* HR's offboarding belongs beside onboarding; an employee's own exit does not.
          It is the last thing they will ever use here, so it sits at the bottom. */
-      { label: 'Offboarding', icon: 'logout', as: { hr: 'offboarding' } }
+      { label: 'Offboarding', icon: 'logout', as: { admin: 'offboarding', hr: 'offboarding' } }
     ]},
     { label: 'Time & attendance', slots: [
       { label: 'Attendance & leave', icon: 'clock', path: 'time' },
