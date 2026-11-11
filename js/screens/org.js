@@ -339,7 +339,7 @@
           csv: function (u) { var e = emp(u.employee); return e ? e.name : u.email; },
           cell: function (u) {
             var e = emp(u.employee);
-            return e ? h(ui.Person, { employee: e, sub: u.email, onClick: function () { router.goAs('hr/people/all'); } })
+            return e ? h(ui.Person, { employee: e, sub: u.email, onClick: function () { router.goAs('hr/people'); } })
               : h('span', null, u.email);
           } },
         { key: 'role', header: 'Role', sortable: true, cell: function (u) { return ROLE_LABEL[u.role] || u.role; } },

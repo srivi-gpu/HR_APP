@@ -1471,7 +1471,7 @@
 
     return h(ui.Modal, {
       title: w ? 'Edit ' + w.name : 'New approval flow',
-      description: 'What raises the request, who decides it, and what happens if nobody does.',
+      description: 'What raises the request, who decides it, and in what order.',
       wide: true,
       onClose: p.onClose,
       footer: h(React.Fragment, null,
@@ -1520,22 +1520,17 @@
           ? h('p', { style: { color: 'var(--danger-fg)', fontSize: 13, margin: 0 } }, form.errors.stages)
           : null),
 
-      h(ui.FormSection, { title: 'How it runs' },
-        h(ui.FieldRow, null,
-          h(V.Select, Object.assign({ label: 'Sequence', options: SEQUENCES,
-            hint: single ? 'One decision completes the request'
-              : form.values.sequence === 'Parallel' ? 'Everyone is asked at once and all must approve'
-                : 'Each level is asked after the one before it approves' }, form.select('sequence'))),
-          h(V.Select, Object.assign({ label: 'Status', options: WF_STATUS }, form.select('status')))),
-        h(ui.FieldRow, null,
-          h(V.NumberField, Object.assign({ label: 'Escalate after', min: 0, max: 60,
-            hint: 'Days a level may sit untouched. Zero never escalates.' },
-            form.field('escalate', { number: true }))),
-          h(V.Select, Object.assign({ label: 'Escalate to', options: ESCALATE_TO }, form.select('escalateTo')))),
-        h(V.TextField, Object.assign({ label: 'On rejection',
-          placeholder: 'What happens to the request when a level rejects it' }, form.field('reject'))),
-        h(V.TextArea, Object.assign({ label: 'Notes', rows: 2,
-          placeholder: 'Anything an approver should know about this flow' }, form.field('note')))),
+      /* Sequence and status, and nothing else. The escalation, the rejection text and
+         the notes made a third section of the dialog that most flows accepted as it
+         stood; they keep the values the form already carries and are left to the
+         flow's own panel. These two change what the chain above actually does, so
+         they stay with it. */
+      h(ui.FieldRow, null,
+        h(V.Select, Object.assign({ label: 'Sequence', options: SEQUENCES,
+          hint: single ? 'One decision completes the request'
+            : form.values.sequence === 'Parallel' ? 'Everyone is asked at once and all must approve'
+              : 'Each level is asked after the one before it approves' }, form.select('sequence'))),
+        h(V.Select, Object.assign({ label: 'Status', options: WF_STATUS }, form.select('status')))),
 
       (function () {
         var bound = ['name', 'module', 'trigger', 'sequence', 'escalate', 'escalateTo', 'reject', 'status', 'note', 'stages'];

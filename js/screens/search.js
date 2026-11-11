@@ -95,7 +95,7 @@
       row: function (e) {
         return { avatar: e.name, title: e.name, sub: e.designation + ' · ' + deptName(e.department) + ' · ' + locName(e.location), chip: e.status };
       },
-      to: { admin: 'admin/users/all', hr: 'hr/people/all', me: 'me/profile' } },
+      to: { admin: 'admin/users/all', hr: 'hr/people', me: 'me/profile' } },
 
     { key: 'leave', label: 'Leave requests', icon: 'calendar', module: 'leave',
       rows: function () { return store.collection('leaveRequests'); },
@@ -140,7 +140,7 @@
       text: function (d) { return [d.name, d.category, empName(d.employee), d.status].join(' '); },
       row: function (d) { return { title: d.name, sub: d.category + ' · ' + empName(d.employee), chip: d.status }; },
       /* An employee's documents are on their profile now, not in the library. */
-      to: { hr: 'hr/people/all', me: 'me/documents' } },
+      to: { hr: 'hr/people', me: 'me/documents' } },
 
     { key: 'policies', label: 'Policies', icon: 'shield', module: 'documents',
       rows: function () { return store.collection('policies'); },
@@ -231,7 +231,7 @@
       { t: 'Audit logs', s: 'Who did what, and when', to: 'admin/audit/activity', icon: 'history' }
     ],
     hr: [
-      { t: 'Employees', s: 'The roster, filtered and exportable', to: 'hr/people/all', icon: 'users' },
+      { t: 'Employees', s: 'The roster, filtered and exportable', to: 'hr/people', icon: 'users' },
       { t: 'Approval inbox', s: 'Everything waiting on you', to: 'hr/approvals', icon: 'checklist' },
       { t: 'Payroll', s: 'The current run and its cut-off', to: 'hr/payroll/dashboard', icon: 'card' },
       { t: 'Onboarding', s: 'Who is joining, and what is blocking them', to: 'hr/onboarding/cases', icon: 'person' },

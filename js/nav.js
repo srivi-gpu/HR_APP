@@ -26,7 +26,6 @@
     { path: 'leaves', label: 'Leaves', section: '4.11', note: 'Leave types with their entitlement and rules, and the policies that hand them to people.' },
     { path: 'attendance', label: 'Attendance', section: '4.16', note: 'Working hours, grace period, overtime and work-from-home rules.' },
     { path: 'shifts', label: 'Shifts', section: '4.20', note: 'Shift definitions with timing, break, grace period and the night flag.' },
-    { path: 'payroll', label: 'Payroll configuration', section: '4.34', note: 'Frequency, cut-off, statutory rules and the approval workflow.' },
     { path: 'onboarding', label: 'Onboarding', section: '4.7', note: 'Templates, task categories, assignees and dependencies.' },
     { path: 'offboarding', label: 'Offboarding', section: '4.48', note: 'Exit reasons, notice rules and clearance checklists.' },
     { path: 'performance', label: 'Performance', section: '4.43', note: 'Cycles, competencies, rating scales and review hierarchy.' },
@@ -178,13 +177,13 @@
     { path: 'approvals', label: 'Approval inbox', icon: 'checklist', section: '6.5',
       note: 'One queue for every request type, with approve, reject and request-changes.' },
 
-    { path: 'people', label: 'Employees', icon: 'users', section: '4.2', tabs: [
-      { path: 'all', label: 'All employees', section: '4.2', note: 'The central employee table with search, filters, sorting and bulk actions.' },
-      { path: 'new', label: 'New joiners', section: '4.1', note: 'Employees who joined inside the current review window.' },
-      { path: 'probation', label: 'Probation', section: '3.3', note: 'Employees on probation, with confirmation dates approaching.' },
-      { path: 'notice', label: 'Notice period', section: '3.3', note: 'Employees serving notice, with last working day and clearance progress.' },
-      { path: 'exited', label: 'Exited', section: '14.1', note: 'Archived records, excluded from active headcount.' }
-    ]},
+    /* One table, no tabs. The five tabs were one list cut five ways by status, which
+       meant the same search, the same filters and the same columns five times over,
+       and no way to see probation and notice together. Status is a filter beside
+       department, location and type, drawn from the statuses employee setup
+       configures, so a status somebody adds there turns up here on its own. */
+    { path: 'people', label: 'Employees', icon: 'users', section: '4.2',
+      note: 'The central employee table with search, status and other filters, sorting and bulk actions.' },
 
     /* Who reports to whom is a question about the organisation rather than about any
        one record, so it is its own item rather than a sixth tab of Employees. The tree
@@ -260,7 +259,12 @@
       { path: 'run', label: 'Run payroll', section: '4.35', note: 'The open cycle through inputs, preview, approval, payment and filing, with every exception called out first.' },
       { path: 'statutory', label: 'Statutory', section: '4.36', note: 'PF, ESI, professional tax and TDS: what is owed, to whom, by when, and the rates behind each.' },
       { path: 'reimbursements', label: 'Reimbursements', section: '4.36', note: 'Expense claims across the organization and which ones the next cycle carries.' },
-      { path: 'loans', label: 'Loans & advances', section: '4.36', note: 'What the company has lent, what is outstanding and what each cycle recovers.' }
+      { path: 'loans', label: 'Loans & advances', section: '4.36', note: 'What the company has lent, what is outstanding and what each cycle recovers.' },
+      /* Payroll configuration was a tab of the Configuration module, where it sat
+         among settings that belong to no single module. Frequency, cut-off, statutory
+         rules and the payroll approval chain are payroll's own, and the screens that
+         link to it are all here, so it is a tab of payroll instead. */
+      { path: 'configuration', label: 'Configuration', section: '4.34', note: 'Frequency, cut-off, statutory rules and the approval workflow.' }
     ]},
 
     /* One place, no tabs. The five screens this replaced split one library across

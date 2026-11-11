@@ -147,7 +147,7 @@
         title: 'Cannot activate yet', items: blocked ? [blocked] : [],
         actions: h(V.Button, {
           variant: 'outline', className: 'vi-btn--sm',
-          onClick: function () { p.onClose(); router.goAs('hr/people/all'); }
+          onClick: function () { p.onClose(); router.goAs('hr/people'); }
         }, 'Open employee record')
       }),
       h('div', { className: 'stack gap-2' },
@@ -3189,11 +3189,41 @@
         }))));
   }
 
+  /* Notice rules are read once, when somebody wants to know what the notice period
+     is or change whether access is revoked on the last day. They were a card taking
+     half the screen beside the checklists, which are the thing this page is for, so
+     they are behind a button now and the checklists have the width. */
+  function NoticeRulesModal(p) {
+    return h(ui.Modal, {
+      title: 'Notice rules',
+      description: 'What a notice period is, who approves it, and what the system does at each end of it.',
+      onClose: p.onClose,
+      footer: h(V.Button, { variant: 'primary', onClick: p.onClose }, 'Done')
+    },
+      h(ui.KeyValue, { rows: [
+        ['Default notice period', '60 days'],
+        ['Probation notice', '30 days'],
+        ['Shortfall', 'Recorded against the case, not refused'],
+        ['Approval chain', 'Reporting Manager, then HR Administrator'],
+        ['On approval', 'Employee moves to Notice Period and clearance opens'],
+        ['On completion', 'Employee moves to Exited and the user account is deactivated']
+      ]}),
+      h('div', { className: 'checks' },
+        [['Allow the last working day to be revised after approval', true],
+          ['Require an exit interview before settlement', true],
+          ['Revoke system access on the last working day', true]].map(function (row) {
+          return h('div', { className: 'checks__row', key: row[0] },
+            h(V.Switch, { defaultChecked: row[1], 'aria-label': row[0],
+              onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); } }),
+            h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
+        })));
+  }
+
   function OffboardingConfig() {
     var editSt = React.useState(null);     // null | false (new) | checklist
     var openSt = React.useState(null);
     var killSt = React.useState(null);
-    var cases = offboardingCases();
+    var noticeSt = React.useState(false);
     var lists = store.collection('exitChecklists');
     var open = openSt[0] && store.find('exitChecklists', openSt[0]);
     var kill = killSt[0] && store.find('exitChecklists', killSt[0]);
@@ -3202,8 +3232,11 @@
       h(Card, { span: 12, title: 'Exit clearance checklists',
         description: 'What an exit has to clear, who does each step and who signs it off. '
           + 'A resignation picks up the checklist that matches the leaver.',
-        aside: h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
-          onClick: function () { editSt[1](false); } }, 'New checklist') },
+        aside: h('div', { className: 'row gap-2' },
+          h(V.Button, { variant: 'secondary', className: 'vi-btn--sm', iconStart: I.clock,
+            onClick: function () { noticeSt[1](true); } }, 'Notice rules'),
+          h(V.Button, { variant: 'primary', className: 'vi-btn--sm', iconStart: I.plus,
+            onClick: function () { editSt[1](false); } }, 'New checklist')) },
         h(ui.DataTable, {
           exportName: 'exit-checklists', label: 'Exit clearance checklists', rows: lists, pageSize: 10,
           search: function (c) { return c.name + ' ' + c.appliesTo + ' ' + (c.description || ''); },
@@ -3259,54 +3292,7 @@
             onClick: function () { editSt[1](false); } }, 'New checklist')
         })),
 
-      h(Card, { span: 7, title: 'Notice rules' },
-        h(ui.KeyValue, { rows: [
-          ['Default notice period', '60 days'],
-          ['Probation notice', '30 days'],
-          ['Shortfall', 'Recorded against the case, not refused'],
-          ['Approval chain', 'Reporting Manager, then HR Administrator'],
-          ['On approval', 'Employee moves to Notice Period and clearance opens'],
-          ['On completion', 'Employee moves to Exited and the user account is deactivated']
-        ]}),
-        h('div', { className: 'checks' },
-          [['Allow the last working day to be revised after approval', true],
-            ['Require an exit interview before settlement', true],
-            ['Revoke system access on the last working day', true]].map(function (row) {
-            return h('div', { className: 'checks__row', key: row[0] },
-              h(V.Switch, { defaultChecked: row[1], 'aria-label': row[0],
-                onChange: function (e) { ui.toast(row[0] + ' ' + (e.target.checked ? 'enabled' : 'disabled'), 'success'); } }),
-              h('div', { className: 'checks__main' }, h('span', { className: 'checks__name' }, row[0])));
-          }))),
-
-      h(Card, { span: 5, title: 'Who owns a step',
-        description: 'What each owner resolves to when a resignation opens.' },
-        h(ui.KeyValue, { rows: [
-          ['HR Administrator', 'The HR account on the organisation'],
-          ['Reporting Manager', 'The leaver’s own manager'],
-          ['Department Head', 'The head of the leaver’s department'],
-          ['IT Administrator', 'The IT account, for access and assets'],
-          ['Finance Controller', 'Finance, for the settlement'],
-          ['Facilities', 'Whoever holds the building and the cards'],
-          ['Organization Admin', 'The admin account']
-        ]})),
-
-      h(Card, { span: 12, title: 'Exit reasons',
-        description: 'The reasons offered when a resignation is recorded, with how often each has been used.' },
-        h(ui.DataTable, {
-          exportName: 'config-exit-reasons', label: 'Exit reasons', pageSize: 10, onExport: false,
-          rows: seed.exitReasons.map(function (reason) {
-            return { id: reason, reason: reason, used: cases.filter(function (c) { return c.reason === reason; }).length, status: 'Active' };
-          }),
-          columns: [
-            { key: 'reason', header: 'Reason', sortable: true },
-            { key: 'used', header: 'Recorded exits', numeric: true, align: 'right', sortable: true },
-            { key: 'share', header: 'Share', numeric: true, align: 'right',
-              csv: function (r) { return ui.pct(r.used, cases.length) + '%'; },
-              cell: function (r) { return h(V.ProgressBar, { value: ui.pct(r.used, cases.length), size: 'sm', 'aria-label': r.reason }); } },
-            { key: 'status', header: 'Status', cell: function (r) { return h(ui.StatusChip, { status: r.status }); } }
-          ]
-        })),
-
+      noticeSt[0] ? h(NoticeRulesModal, { onClose: function () { noticeSt[1](false); } }) : null,
       editSt[0] !== null ? h(ChecklistModal, {
         checklist: editSt[0] || null, onClose: function () { editSt[1](null); }
       }) : null,

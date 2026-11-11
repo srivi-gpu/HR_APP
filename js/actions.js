@@ -221,7 +221,7 @@
     store.add('profileChanges', { id: id, employee: employeeId, fields: fields, requestedOn: today() });
     raiseApproval({
       id: id, kind: 'Profile Change', module: 'people', employee: employeeId,
-      detail: (label || 'Profile details') + ' updated', approver: hr, route: 'hr/people/all'
+      detail: (label || 'Profile details') + ' updated', approver: hr, route: 'hr/people'
     });
     store.log('requested a change to ' + (label || 'profile details').toLowerCase(), 'User activity');
     return done('Change submitted for HR approval', { id: id });

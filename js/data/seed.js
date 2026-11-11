@@ -1247,7 +1247,7 @@
      and the register only issues against what Tracklivo has cleared. */
   approvals.push(
     { id: 'PC9501', kind: 'Profile Change', module: 'people', employee: id('Pooja Agarwal'),
-      detail: 'Bank account details updated', submitted: '2026-10-31', approver: id('Ananya Reddy'), status: 'Pending Approval', route: 'hr/people/all' },
+      detail: 'Bank account details updated', submitted: '2026-10-31', approver: id('Ananya Reddy'), status: 'Pending Approval', route: 'hr/people' },
     /* The id must be the offboarding case's own, since decideApproval looks the case
        up by it to start the notice period. */
     { id: 'OFB200', kind: 'Resignation', module: 'offboarding', employee: PENDING_EXIT,

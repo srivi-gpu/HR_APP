@@ -115,7 +115,7 @@
         description: s.pendingApprovals + ' requests are waiting on you, and November payroll is open for review.',
         actions: [
           h(V.Button, { key: 'a', variant: 'outline', iconStart: I.download }, 'Export'),
-          h(V.Button, { key: 'b', variant: 'primary', iconStart: I.plus, onClick: function () { router.go('hr/people/all'); } }, 'Add employee')
+          h(V.Button, { key: 'b', variant: 'primary', iconStart: I.plus, onClick: function () { router.go('hr/people'); } }, 'Add employee')
         ]
       }),
 

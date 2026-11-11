@@ -192,7 +192,7 @@
             ['Employer cost above gross', ui.inr(t.employerCost - t.gross)]
           ]}),
           h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: I.sliders,
-            onClick: function () { router.goAs('hr/config/payroll'); } }, 'Payroll configuration')),
+            onClick: function () { router.goAs('hr/payroll/configuration'); } }, 'Payroll configuration')),
 
         h(Card, { span: 12, title: 'Payroll history' },
           h(ui.DataTable, {
@@ -1645,7 +1645,7 @@
     'hr/performance/calibration': Calibration,
     'hr/performance/results': Results,
 
-    'hr/config/payroll': PayrollConfig,
+    'hr/payroll/configuration': PayrollConfig,
     'hr/config/performance': PerformanceConfig
   });
 

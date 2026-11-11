@@ -589,9 +589,11 @@
       var addSt = React.useState(false);
       var importSt = React.useState(false);
       var deptSt = React.useState(''), locSt = React.useState(''), typeSt = React.useState('');
+      var statusSt = React.useState('');
 
       var all = store.collection('employees');
-      var rows = all.filter(opts.filter);
+      var rows = opts.filter ? all.filter(opts.filter) : all.slice();
+      if (statusSt[0]) rows = rows.filter(function (e) { return e.status === statusSt[0]; });
       if (deptSt[0]) rows = rows.filter(function (e) { return e.department === deptSt[0]; });
       if (locSt[0]) rows = rows.filter(function (e) { return e.location === locSt[0]; });
       if (typeSt[0]) rows = rows.filter(function (e) { return e.type === typeSt[0]; });
@@ -629,6 +631,10 @@
             search: function (e) { return e.name + ' ' + e.id + ' ' + e.designation + ' ' + deptName(e.department); },
             searchPlaceholder: 'Search by name, ID or designation',
             filters: h(React.Fragment, null,
+              /* Statuses come from the collection employee setup edits, so one added
+                 there is offered here without this list being touched. */
+              h(ui.Filter, { label: 'Status', value: statusSt[0], onChange: statusSt[1],
+                options: store.collection('statusTransitions').map(function (r) { return r.status; }) }),
               h(ui.Filter, { label: 'Department', value: deptSt[0], onChange: deptSt[1], options: deptOptions() }),
               h(ui.Filter, { label: 'Location', value: locSt[0], onChange: locSt[1], options: locOptions() }),
               h(ui.Filter, { label: 'Type', value: typeSt[0], onChange: typeSt[1], options: typeNames() })),
@@ -1005,9 +1011,10 @@
 
   /* ---------------------------------------------------------------- Register */
   HRMS.screens.register({
-    'hr/people/all': employeesScreen({
-      key: 'all', filter: function (e) { return e.status !== 'Exited'; },
-      title: 'All employees', description: 'The central employee record every other module references.',
+    'hr/people': employeesScreen({
+      key: 'all', filter: null,
+      title: 'Employees', description: 'The central employee record every other module references. '
+        + 'Archived records are included — filter by status to narrow the list.',
       stats: function (s) {
         return [
           h(Stat, { key: 1, label: 'Total employees', value: s.headcount, sub: s.newJoiners + ' joined this month', tone: 'good' }),
@@ -1016,26 +1023,6 @@
           h(Stat, { key: 4, label: 'Serving notice', value: s.notice, sub: s.exited + ' exited in total', tone: s.notice ? 'warn' : null })
         ];
       }
-    }),
-    'hr/people/new': employeesScreen({
-      key: 'new', filter: function (e) { return e.status !== 'Exited' && e.joined >= '2026-11-01'; },
-      title: 'New joiners', description: 'Employees who joined this month.',
-      emptyTitle: 'No one joined this month'
-    }),
-    'hr/people/probation': employeesScreen({
-      key: 'probation', filter: function (e) { return e.status === 'Probation'; },
-      title: 'Probation', description: 'Employees on probation, with confirmation approaching.',
-      emptyTitle: 'Nobody is on probation'
-    }),
-    'hr/people/notice': employeesScreen({
-      key: 'notice', filter: function (e) { return e.status === 'Notice Period'; },
-      title: 'Notice period', description: 'Employees serving notice. Clearance progress is on the offboarding screens.',
-      emptyTitle: 'Nobody is serving notice'
-    }),
-    'hr/people/exited': employeesScreen({
-      key: 'exited', filter: function (e) { return e.status === 'Exited'; },
-      title: 'Exited', description: 'Archived records, excluded from active headcount.',
-      emptyTitle: 'No exited employees'
     }),
     'hr/config/structure': OrgStructure,
     'hr/config/employee': EmployeeConfig
