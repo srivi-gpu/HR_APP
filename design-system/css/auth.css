@@ -10,14 +10,14 @@
 .auth__main { display: flex; flex-direction: column; padding-block: 24px 24px; padding-inline: 40px; min-width: 0; min-height: 0; overflow-y: auto; }
 .auth__top { display: flex; align-items: center; justify-content: space-between; min-height: 40px; }
 .auth__form { width: 100%; max-width: var(--tl-form); margin: auto; display: flex; flex-direction: column; gap: var(--space-6); padding-block: 32px; }
-.auth__title { font-family: var(--font-flex); font-size: 32px; line-height: 1.2; font-weight: 500; color: var(--text-primary); }
+.auth__title { font-family: var(--font-display); font-size: 32px; line-height: 1.2; font-weight: 500; color: var(--text-primary); }
 .auth__lede { color: var(--text-secondary); font-size: 16px; }
 .auth__foot { font-size: 12px; color: var(--text-muted); display: flex; gap: 16px; flex-wrap: wrap; }
 .auth__foot a { color: inherit; text-decoration: none; }
 .auth__foot a:hover { color: var(--text-primary); }
 
 /* Brand lockup */
-.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text-primary); font-family: var(--font-flex); font-size: 19px; font-weight: 600; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: var(--text-primary); font-family: var(--font-display); font-size: 19px; font-weight: 600; }
 .brand__mark { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--brand-solid); color: var(--brand-on-solid); box-shadow: var(--tl-button-primary-glow); }
 .brand__mark svg { width: 18px; height: 18px; }
 
@@ -92,7 +92,7 @@
   background: radial-gradient(closest-side, #ffffff26, transparent); pointer-events: none;
 }
 .auth__pitch { position: relative; display: flex; flex-direction: column; gap: 12px; max-width: 460px; }
-.auth__pitch h2 { font-family: var(--font-flex); font-size: 34px; line-height: 1.2; font-weight: 500; color: inherit; }
+.auth__pitch h2 { font-family: var(--font-display); font-size: 34px; line-height: 1.2; font-weight: 500; color: inherit; }
 .auth__pitch p { font-size: 16px; line-height: 1.5; color: #ffffffcc; }
 
 /* The glimpse: a small, real-looking slice of the HRMS, always on light surfaces */
@@ -102,7 +102,7 @@
 .glimpse__head small { font-size: 12px; font-weight: 400; color: #8a8a8a; }
 .glimpse__stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .glimpse__stat { background: #f6f6f6; border-radius: 12px; padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
-.glimpse__stat b { font-family: var(--font-flex); font-size: 22px; line-height: 28px; font-weight: 300; font-variant-numeric: tabular-nums; }
+.glimpse__stat b { font-family: var(--font-display); font-size: 22px; line-height: 28px; font-weight: 300; font-variant-numeric: tabular-nums; }
 .glimpse__stat span { font-size: 11px; color: #555555; }
 .glimpse__row { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .glimpse__who { flex: 1; min-width: 0; display: flex; flex-direction: column; }

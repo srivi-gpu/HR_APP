@@ -117,6 +117,13 @@
 .vi-menu { position: absolute; z-index: 20; top: calc(100% + 4px); left: -1px; right: -1px; margin: 0; padding: var(--space-1); list-style: none;
   max-height: 240px; overflow: auto; box-sizing: border-box; background: var(--alternate); border: 1px solid var(--elevation-5);
   border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
+/* Floated onto the body and fixed to its trigger, so neither a modal body nor a
+   drawer nor any other scrolling box can clip it. Its position comes from the
+   trigger's own rectangle, so `top`, `left` and `width` are set inline. */
+/* `top` and `bottom` are cleared because the inline style sets exactly one of them —
+   whichever side the menu opens on. Leaving the base rule's `top` in place pinned the
+   menu to both edges at once and stretched it off the window. */
+.vi-menu--float { position: fixed; top: auto; bottom: auto; left: auto; right: auto; max-height: 240px; }
 .vi-menu__item { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-height: 40px; padding: 0 var(--space-3);
   border-radius: var(--radius-sm); font-size: 14px; line-height: 1.3; color: var(--text-main); cursor: pointer; }
 .vi-menu__item.is-active { background: var(--elevation-3); }

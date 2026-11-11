@@ -759,7 +759,7 @@
       h('div', { className: 'adm__head' },
         h('div', null,
           h('span', { className: 'adm__eyebrow' }, 'Accounts, access and platform'),
-          h('h1', null, 'Admin ', h('em', null, 'dashboard')),
+          h('h1', { className: 'page-hero__title' }, 'Admin ', h('em', null, 'dashboard')),
           h('div', { className: 'adm__status' },
             h('b', null, CHECK, 'Platform health: Healthy'),
             h('i', null),
@@ -1407,7 +1407,7 @@
       /* ---- greeting ---- */
       h('div', { className: 'dash__head' },
         h('div', null,
-          h('h1', { className: 'dash__hi' },
+          h('h1', { className: 'dash__hi page-hero__title' },
             greeting() + ', ', h('em', null, who.name.split(' ')[0]), '!'),
           h('p', { className: 'dash__sub' },
             actions.length

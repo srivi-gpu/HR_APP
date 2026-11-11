@@ -30,7 +30,7 @@
 
 .ovt-av { flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
   background: var(--ovt-bg, var(--brand-soft)); color: var(--ovt-fg, var(--brand-solid));
-  font-family: var(--font-flex); font-size: 14px; font-weight: 600; letter-spacing: .02em; }
+  font-family: var(--font-display); font-size: 14px; font-weight: 600; letter-spacing: .02em; }
 .ovt-av--sm { width: 24px; height: 24px; font-size: 10px; }
 
 /* --- a person --- */
@@ -139,7 +139,7 @@
 .ast-iso__dot { fill: var(--chart-4); opacity: .7; }
 
 .ast-hero__n { display: flex; align-items: center; gap: 14px; margin-top: 18px; }
-.ast-hero__n b { font-family: var(--font-flex); font-size: clamp(44px, 4.4vw, 60px); line-height: 1; font-weight: 420; letter-spacing: -.03em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ast-hero__n b { font-family: var(--font-display); font-size: clamp(44px, 4.4vw, 60px); line-height: 1; font-weight: 420; letter-spacing: -.03em; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ast-hero__n > span { display: flex; flex-direction: column; gap: 3px; }
 .ast-hero__n strong { font-size: 15px; font-weight: 600; color: var(--text-primary); }
 .ast-hero__n small { font-size: 13px; color: var(--text-secondary); }

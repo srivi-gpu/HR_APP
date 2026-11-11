@@ -1497,7 +1497,7 @@
                 h('div', { className: 'chain__f' },
                   h(V.Select, {
                     label: 'Approver kind', options: approverTypeOptions(), value: st.type,
-                    onChange: function (e) { pickType(i, e.target.value); }
+                    onChange: function (v) { pickType(i, v); }
                   })),
                 h('div', { className: 'chain__f' },
                   h(V.TextField, {
@@ -2230,7 +2230,7 @@
       var rows = announcementsNewestFirst();
       return h(React.Fragment, null,
         h(ui.PageHead, {
-          eyebrow: canPost ? 'Engagement' : 'Home', title: 'Announcements',
+          title: 'Announcements',
           description: canPost
             ? 'Post to the whole organization. Everyone can react and comment.'
             : 'Company announcements, newest first. React or comment to join in.'

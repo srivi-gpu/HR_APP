@@ -112,6 +112,57 @@
   function normOptions(opts) {
     return (opts || []).map(function (o) { return typeof o === 'string' ? { value: o, label: o } : o; });
   }
+  /* A menu that floats clear of whatever scrolls.
+
+     The list used to be absolutely positioned inside the field, which is fine on a
+     page and wrong everywhere else: a modal body and a drawer both scroll, so an open
+     dropdown was cut off at their edge and you had to scroll the dialog to read your
+     own options. It is rendered on the body now, fixed to the trigger's box, and it
+     flips above the trigger when there is more room up there than down. */
+  function useFloatingMenu(boxRef, open) {
+    var posSt = React.useState(null);
+    React.useEffect(function () {
+      if (!open) { posSt[1](null); return; }
+      function place() {
+        var box = boxRef.current;
+        if (!box) return;
+        var r = box.getBoundingClientRect();
+        var below = window.innerHeight - r.bottom - 12;
+        var above = r.top - 12;
+        /* Downward unless downward does not work: a menu that opens upward when there
+           was room below reads as a mistake. It flips only when the gap below is too
+           small for a menu at all and the gap above is bigger. The height is then
+           clamped to whichever side it took, because a floor higher than the gap is
+           how a menu ends up hanging off the edge of the window. */
+        var up = below < 180 && above > below;
+        var space = Math.max(72, up ? above : below);
+        posSt[1]({
+          position: 'fixed', left: Math.max(8, Math.min(r.left, window.innerWidth - r.width - 8)),
+          width: r.width, zIndex: 80,
+          top: up ? undefined : r.bottom + 4,
+          bottom: up ? (window.innerHeight - r.top + 4) : undefined,
+          maxHeight: Math.min(240, space)
+        });
+      }
+      place();
+      /* `true` so a scroll inside the dialog moves the menu with its trigger, not just
+         a scroll of the page. */
+      window.addEventListener('scroll', place, true);
+      window.addEventListener('resize', place);
+      return function () {
+        window.removeEventListener('scroll', place, true);
+        window.removeEventListener('resize', place);
+      };
+    }, [open]);
+    return posSt[0];
+  }
+
+  function floatMenu(node, pos) {
+    if (!node) return null;
+    if (!pos || typeof document === 'undefined' || !window.ReactDOM) return node;
+    return window.ReactDOM.createPortal(node, document.body);
+  }
+
   function Select(props) {
     var id = useIdFor(props, 'select');
     var options = normOptions(props.options);
@@ -131,9 +182,16 @@
       val[1](o.value); if (props.onChange) props.onChange(o.value, o);
       setOpen(false);
     }
+    var menuPos = useFloatingMenu(boxRef, open);
     React.useEffect(function () {
       if (!open) return;
-      function onDoc(e) { if (boxRef.current && !boxRef.current.contains(e.target)) setOpen(false); }
+      /* The list is on the body now, so "outside" has to mean outside both of them —
+         otherwise the first click on an option closed the menu before it chose. */
+      function onDoc(e) {
+        var inBox = boxRef.current && boxRef.current.contains(e.target);
+        var inList = listRef.current && listRef.current.contains(e.target);
+        if (!inBox && !inList) setOpen(false);
+      }
       document.addEventListener('mousedown', onDoc);
       return function () { document.removeEventListener('mousedown', onDoc); };
     }, [open]);
@@ -163,7 +221,8 @@
       disabled: props.disabled, name: props.name,
       onClick: function () { open ? setOpen(false) : openList(); }, onKeyDown: onKey
     }), selected ? selected.label : (props.placeholder || 'Select'));
-    var list = open ? h('ul', { className: 'vi-menu', role: 'listbox', id: listId, ref: listRef, 'aria-labelledby': props.label != null ? id + '-label' : undefined },
+    var list = open ? h('ul', { className: cx('vi-menu', menuPos && 'vi-menu--float'), style: menuPos || undefined,
+      role: 'listbox', id: listId, ref: listRef, 'aria-labelledby': props.label != null ? id + '-label' : undefined },
       options.map(function (o, i) {
         return h('li', {
           key: o.value, id: listId + '-' + i, role: 'option', 'aria-selected': o.value === val[0] ? 'true' : 'false', 'aria-disabled': o.disabled ? 'true' : undefined,
@@ -174,7 +233,8 @@
         }, h('span', { className: 'vi-menu__label' }, o.label), o.value === val[0] ? h('span', { className: 'vi-menu__check' }, G.check()) : null);
       })) : null;
     return Shell(props, id, [h(React.Fragment, { key: 'k' }, icon(props.iconStart), trigger,
-      h('span', { className: cx('vi-field__icon', 'vi-select__chevron', open && 'is-open'), 'aria-hidden': 'true' }, G.chevron()), list)],
+      h('span', { className: cx('vi-field__icon', 'vi-select__chevron', open && 'is-open'), 'aria-hidden': 'true' }, G.chevron()),
+      floatMenu(list, menuPos))],
       { className: cx('vi-select', open && 'is-open'), labelFor: id, boxRef: boxRef });
   }
 

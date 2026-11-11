@@ -7,6 +7,19 @@
 <meta name="description" content="HRMS platform prototype — Admin, HR and Employee workspaces.">
 <link rel="stylesheet" href="design-system/css/index.css">
 <link rel="stylesheet" href="css/prototype.css">
+<style>
+/* Unlayered, and on purpose. Every stylesheet above sits inside a cascade layer, and
+   an unlayered rule from whatever page frame this prototype is embedded in beats all
+   of them however specific they are. So text that merely inherited its type from the
+   body came out in the host's typeface while anything with a rule of its own stayed
+   Google Sans — two fonts on one page. `html body` outranks the plain `body` such a
+   frame writes, whichever of the two loads last, and the form controls are named
+   because they do not inherit type at all. */
+html body,
+html body button, html body input, html body select, html body textarea, html body optgroup {
+  font-family: var(--font-sans);
+}
+</style>
 </head>
 <body>
 <div id="root"></div>

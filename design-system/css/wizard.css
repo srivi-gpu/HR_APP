@@ -9,7 +9,7 @@
   background: radial-gradient(780px 420px at 50% -10%, color-mix(in srgb, var(--brand-solid) 9%, transparent), transparent 70%), var(--bg-page); }
 .launch__c { width: min(430px, 100%); display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
 .launch__c .brand__mark { width: 46px; height: 46px; border-radius: 14px; }
-.launch__c h1 { font-family: var(--font-flex); font-size: 27px; line-height: 1.2; font-weight: 600; color: var(--text-primary); }
+.launch__c h1 { font-family: var(--font-display); font-size: 27px; line-height: 1.2; font-weight: 600; color: var(--text-primary); }
 .launch__c p { font-size: 15px; color: var(--text-secondary); }
 .launch__note { font-size: 12px; color: var(--text-muted); }
 
@@ -24,7 +24,7 @@
 
 /* Rail */
 .osm__rail { display: flex; flex-direction: column; gap: 18px; padding: 22px 16px; background: var(--bg-page); border-right: 1px solid var(--border-subtle); min-height: 0; }
-.osm__brand { display: flex; align-items: center; gap: 9px; font-family: var(--font-flex); font-size: 16px; font-weight: 600; color: var(--text-primary); padding: 0 6px; }
+.osm__brand { display: flex; align-items: center; gap: 9px; font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--text-primary); padding: 0 6px; }
 .osm__brand .brand__mark { width: 28px; height: 28px; border-radius: 9px; }
 .osm__brand .brand__mark svg { width: 15px; height: 15px; }
 .osm__steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -62,7 +62,7 @@
 .osm__head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 24px 14px 28px; }
 .osm__head__t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .osm__count { font-size: 12px; font-weight: 600; color: var(--text-brand); letter-spacing: .04em; }
-.osm__head h2 { font-family: var(--font-flex); font-size: 22px; line-height: 1.25; font-weight: 600; color: var(--text-primary); }
+.osm__head h2 { font-family: var(--font-display); font-size: 22px; line-height: 1.25; font-weight: 600; color: var(--text-primary); }
 .osm__head p { font-size: 14px; color: var(--text-secondary); max-width: 62ch; }
 .osm__progress { height: 3px; background: var(--bg-muted); }
 .osm__progress i { display: block; height: 100%; background: var(--brand-solid); transition: width .3s ease; }
@@ -89,7 +89,7 @@
 .pv__week { display: flex; gap: 3px; }
 .pv__d { flex: 1; height: 26px; border-radius: 7px; display: grid; place-items: center; font-size: 10.5px; font-weight: 600; background: var(--bg-muted); color: var(--text-muted); }
 .pv__d.is-on { background: var(--brand-soft); color: var(--text-brand); }
-.pv__id { font-family: var(--font-flex); font-size: 17px; font-weight: 600; color: var(--text-brand); letter-spacing: .02em; }
+.pv__id { font-family: var(--font-display); font-size: 17px; font-weight: 600; color: var(--text-brand); letter-spacing: .02em; }
 
 /* ---------- Drop zone ---------- */
 .drop { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 28px 20px; text-align: center;

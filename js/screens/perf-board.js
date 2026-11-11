@@ -249,7 +249,7 @@
       .sort(function (a, b) { return b.prog - a.prog; })[0];
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Performance', title: 'Where you stand',
+      h(ui.PageHead, { title: 'Where you stand',
         description: 'Your score, what it is made of, and the badges you have earned.' }),
       h(Stats, null,
         h(Stat, { label: 'Score', value: sc, tone: statTone(bd.tone), sub: bd.label }),
@@ -290,7 +290,7 @@
     });
     var rows = perf.standings(peers);
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Performance', title: 'Leaderboard',
+      h(ui.PageHead, { title: 'Leaderboard',
         description: 'Your department, by score.' }),
       h(Board, { rows: rows, me: person, title: deptName(person.department),
         note: rows.length + ' people, ranked by performance score — this cycle.' }));
@@ -318,7 +318,7 @@
     }
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Performance', title: 'Rewards',
+      h(ui.PageHead, { title: 'Rewards',
         description: 'Points come from badges, goals finished and recognition. They only go up.' }),
       h(Stats, null,
         h(Stat, { label: 'Points earned', value: pts, sub: tier.n }),
@@ -380,7 +380,7 @@
     var unsettled = rows.filter(function (r) { return !r.settled; }).length;
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Performance', title: 'Leaderboard',
+      h(ui.PageHead, { title: 'Leaderboard',
         description: 'Everyone, by performance score. Open a row for what the score is made of.' }),
       h(Stats, null,
         bands.map(function (b) {
@@ -419,7 +419,7 @@
     perf.BADGES.forEach(function (b) { (byTier[b.t] = byTier[b.t] || []).push(b); });
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Performance', title: 'Badges',
+      h(ui.PageHead, { title: 'Badges',
         description: 'What the organization recognises, what each one asks for, and who holds it.' }),
       Object.keys(byTier).sort().map(function (t) {
         var tier = perf.TIER[t];
@@ -457,7 +457,7 @@
       .reduce(function (t, c) { return t + c.cost; }, 0);
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Performance', title: 'Rewards',
+      h(ui.PageHead, { title: 'Rewards',
         description: 'The catalogue people claim against, and where each claim stands.' }),
       h(Stats, null,
         h(Stat, { label: 'Claims raised', value: claims.length }),

@@ -34,7 +34,7 @@
 
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: seed.todayLabel, title: 'Organization overview',
+        title: 'Organization overview',
         description: seed.org.name + ' · ' + seed.org.industry + ' · ' + s.locations + ' locations under ' + s.entities + ' legal entity.',
         actions: [
           h(V.Button, { key: 'a', variant: 'outline', iconStart: I.download }, 'Export'),
@@ -111,7 +111,7 @@
 
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: seed.todayLabel, title: 'Good morning, ' + me.name.split(' ')[0],
+        title: 'Good morning, ' + me.name.split(' ')[0],
         description: s.pendingApprovals + ' requests are waiting on you, and November payroll is open for review.',
         actions: [
           h(V.Button, { key: 'a', variant: 'outline', iconStart: I.download }, 'Export'),
@@ -283,7 +283,7 @@
 
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Overview', title: 'Approval inbox',
+        title: 'Approval inbox',
         description: 'One queue for every request type. Approving here updates the source record, as PRD 5.1 requires.'
       }),
       h('div', { className: 'row gap-2 wrap' }, Object.keys(byKind).map(function (k) {
@@ -330,7 +330,7 @@
 
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: role === 'me' ? 'Home' : 'Overview', title: 'Notifications',
+        title: 'Notifications',
         description: unread.length ? unread.length + ' unread of ' + notes.length + '.' : 'Everything is read.',
         actions: unread.length ? [h(V.Button, {
           key: 'a', variant: 'outline', iconStart: I.check,
@@ -362,7 +362,7 @@
   function RolesPredefined() {
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Roles & permissions', title: 'Predefined roles',
+        title: 'Predefined roles',
         description: 'The four built-in roles. Manager is an employee with extra team-level rights, not a fourth workspace.'
       }),
       h(Grid, null,
@@ -388,7 +388,7 @@
   function RolesModules() {
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Roles & permissions', title: 'Module permissions',
+        title: 'Module permissions',
         description: 'The permission matrix in PRD section 10. Each level expands to the actions listed below.'
       }),
       h(Card, null,
@@ -423,7 +423,7 @@
   function RolesData() {
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Roles & permissions', title: 'Data access',
+        title: 'Data access',
         description: 'The data boundary each role sees per module, on top of its permission level.'
       }),
       h(Card, null,
@@ -681,7 +681,7 @@
   function Help() {
     var s = store.stats();
     return h(React.Fragment, null,
-      h(PageHead, { eyebrow: 'Global', title: 'Help & support', description: 'How this prototype maps to the product requirements document.' }),
+      h(PageHead, { title: 'Help & support', description: 'How this prototype maps to the product requirements document.' }),
       h(Grid, null,
         h(Card, { span: 7, title: 'What is built' },
           h(ui.KeyValue, { rows: [
@@ -729,7 +729,7 @@
     var built = Object.keys(REGISTRY);
     return h(React.Fragment, null,
       h(PageHead, {
-        eyebrow: 'Global', title: 'Screen map',
+        title: 'Screen map',
         description: HRMS.nav.count + ' routes across three workspaces, mapped from PRD sections 2 and 11. Opening a screen in another workspace switches account.'
       }),
       HRMS.nav.roles.map(function (role) {
@@ -811,7 +811,7 @@
 
   function SimpleAuth(p) {
     return h('div', { className: 'card', style: { maxWidth: 420, margin: '6vh auto' } },
-      h('h1', { style: { font: '500 22px/1.3 var(--font-flex)' } }, p.title),
+      h('h1', { style: { font: '500 22px/1.3 var(--font-display)' } }, p.title),
       h('p', { className: 'muted' }, p.body),
       h(V.TextField, { label: p.field, placeholder: p.placeholder }),
       h(V.Button, { variant: 'primary', onClick: function () { router.go('global/login'); } }, p.cta),

@@ -23,7 +23,7 @@
   padding: 20px; display: flex; flex-direction: column; gap: 14px; max-height: min(70vh, 560px); overflow-y: auto;
 }
 .proto__eyebrow { font-size: 13px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
-.proto__title { margin: 0; font-family: var(--font-flex); font-size: 20px; line-height: 1.25; font-weight: 600; color: var(--text-primary); }
+.proto__title { margin: 0; font-family: var(--font-display); font-size: 20px; line-height: 1.25; font-weight: 600; color: var(--text-primary); }
 .proto__where { font-size: 15px; color: var(--text-secondary); }
 .proto__head { display: flex; flex-direction: column; gap: 4px; }
 

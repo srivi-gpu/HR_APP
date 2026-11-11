@@ -14,16 +14,40 @@
 }
 @media (max-width: 860px) { [class*='span-'] { grid-column: span 12; } }
 
-.page-head__desc { max-width: 70ch; font-size: 14px; }
+/* ---------- The page's own heading ----------
+   One block per page: the name, a line under it, and whatever acts on the whole page
+   on the same row, middle-aligned against it. */
+.page-head__text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.page-head__title { font-size: var(--tl-page-title); line-height: var(--tl-page-title-lh); }
+.page-head__desc { max-width: 70ch; font-size: var(--tl-page-desc); margin: 0; }
+.page-head__tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.page-head__tools .vi-btn, .page-head__tools .vi-icon-btn, .page-head__tools .vi-field__box {
+  height: var(--tl-control-md);
+}
+.page-head__tools .vi-select__trigger { height: 100%; }
+
+/* The frame draws the heading for every route. A screen that names itself something
+   better than its tab label draws its own, and then the frame's is not drawn: one
+   page, one name, and never none. */
+.page-body { display: flex; flex-direction: column; gap: 18px; }
+.page-body:has(.page-head:not(.page-head--auto)) > .page-head--auto,
+/* A page that opens on a hero names itself in the hero. The hero is the heading
+   there, so the frame's is not drawn — and the hero is set at the page's own heading
+   size, because a heading should not change size from one module to the next. */
+.page-body:has(.page-hero__title) > .page-head--auto { display: none; }
+.page-hero__title {
+  font-family: var(--font-display);
+  font-size: var(--tl-page-title); line-height: var(--tl-page-title-lh); font-weight: 500;
+}
 
 /* ---------- Side rail: brand mark, role switcher, grouped sections ---------- */
 .brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
 .brand__mark {
   width: 28px; height: 28px; flex: none; border-radius: 9px; display: grid; place-items: center;
   background: var(--brand-solid); color: var(--brand-on-solid); box-shadow: var(--tl-button-primary-glow);
-  font: 600 13px/1 var(--font-flex);
+  font: 600 13px/1 var(--font-display);
 }
-.brand__name { font: 500 16px/1.2 var(--font-flex); letter-spacing: -0.01em; white-space: nowrap; }
+.brand__name { font: 500 16px/1.2 var(--font-display); letter-spacing: -0.01em; white-space: nowrap; }
 
 .roleswitch { position: relative; padding: 0 2px 10px; }
 .roleswitch__btn {
@@ -126,7 +150,10 @@
    line up with the title instead of sitting in a band underneath it. The heading takes
    the slack and the controls keep their own, so the whole row stays on one line until
    the viewport really cannot hold it. */
-.filterbar__head { flex: 1 1 200px; align-self: flex-end; min-width: 0; margin-right: auto; }
+.filterbar__head { flex: 1 1 200px; align-self: center; min-width: 0; margin-right: auto; }
+/* A table's toolbar names the table, not the page: the page's own heading sits above
+   it, at the page scale, and this stays at the card scale under it. A multi-table page
+   would otherwise show two and three page-sized titles and no page name at all. */
 .filterbar__head .card__title { margin: 0; }
 .filterbar__desc { margin: 2px 0 0; font-size: 13px; }
 /* What is left of a card whose body was only a table: no border, no padding, no
@@ -156,7 +183,10 @@
 .vi-table--compact .vi-th { height: 44px; padding-left: 14px; padding-right: 14px; }
 .vi-table--compact .vi-td { padding-left: 14px; padding-right: 14px; }
 .vi-th--select, .vi-td--select { padding-right: 0; }
-.filterbar--titled { align-items: flex-end; }
+/* Middle-aligned, so the search, the filters and the buttons sit on the heading's
+   centre line rather than on its baseline — which left them hanging under a
+   two-line heading. */
+.filterbar--titled { align-items: center; }
 /* Capped, so a long description wraps under the title instead of pushing the
    controls onto a line of their own. */
 .filterbar--titled .filterbar__head { flex: 0 1 auto; max-width: 380px; }
@@ -196,7 +226,7 @@
   background: var(--brand-softer); color: var(--text-brand); border: 1px solid var(--brand-border);
 }
 .stub__body { min-width: 0; }
-.stub__title { margin: 0; font: 500 19px/1.3 var(--font-flex); }
+.stub__title { margin: 0; font: 500 19px/1.3 var(--font-display); }
 .stub__note { margin: 0; font-size: 14px; line-height: 1.6; color: var(--text-secondary); max-width: 74ch; }
 
 /* ---------- Setup progress checklist (admin dashboard) ---------- */
@@ -248,7 +278,7 @@
 
 /* ---------- Check in / out panel (employee dashboard) ---------- */
 .punch { display: flex; flex-direction: column; gap: 14px; }
-.punch__clock { font: 300 40px/1.1 var(--font-flex); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.punch__clock { font: 300 40px/1.1 var(--font-display); font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
 .punch__meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 13px; color: var(--text-secondary); }
 .punch__meta b { display: block; color: var(--text-primary); font-weight: 500; font-variant-numeric: tabular-nums; }
 
@@ -318,7 +348,7 @@
 
 /* ---------- Modal additions ---------- */
 .modal--wide { width: min(860px, 100%); }
-.modal__title { margin: 0; font: 500 18px/1.3 var(--font-flex); }
+.modal__title { margin: 0; font: 500 18px/1.3 var(--font-display); }
 .modal__head { align-items: flex-start; gap: 12px; }
 
 /* ---------- Side drawer (PRD 12.4) ---------- */
@@ -332,7 +362,7 @@
 }
 @media (min-width: 861px) { .drawer { margin: 10px 10px 10px 0; height: calc(100% - 20px); border-radius: var(--tl-radius-card); border-left: 1px solid var(--border-subtle); } }
 .drawer__head { display: flex; align-items: flex-start; gap: 12px; padding: 20px 20px 14px; border-bottom: 1px solid var(--border-subtle); }
-.drawer__title { margin: 0; font: 500 19px/1.3 var(--font-flex); }
+.drawer__title { margin: 0; font: 500 19px/1.3 var(--font-display); }
 .drawer__body { flex: 1; min-height: 0; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 18px; }
 .drawer__foot { display: flex; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border-subtle); }
 @media (prefers-reduced-motion: no-preference) {
@@ -408,7 +438,7 @@
   background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: var(--tl-radius-card); box-shadow: var(--tl-elevation-1);
 }
 .record__main { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 5px; }
-.record__name { margin: 0; font: 500 21px/1.25 var(--font-flex); }
+.record__name { margin: 0; font: 500 21px/1.25 var(--font-display); }
 .record__meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; font-size: 13px; color: var(--text-secondary); }
 .record__acts { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
@@ -448,7 +478,7 @@
   display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 14px 16px;
   background: var(--brand-softer); border: 1px solid var(--brand-border); border-radius: var(--tl-radius-field);
 }
-.payslip__net b { font: 300 26px/1 var(--font-flex); font-variant-numeric: tabular-nums; color: var(--text-brand); }
+.payslip__net b { font: 300 26px/1 var(--font-display); font-variant-numeric: tabular-nums; color: var(--text-brand); }
 
 /* ---------- Checklist rows ---------- */
 .checks { display: flex; flex-direction: column; }
@@ -474,7 +504,7 @@
 .ehero__m { min-width: 0; flex: 1 1 340px; }
 .ehero__eyebrow { display: block; font-size: 12px; font-weight: 700; letter-spacing: .08em;
   text-transform: uppercase; color: var(--text-secondary); }
-.ehero__m h1 { margin: 8px 0 0; font: 600 32px/1.15 var(--font-flex); color: var(--text-primary); }
+.ehero__m h1 { margin: 8px 0 0; font: 600 32px/1.15 var(--font-display); color: var(--text-primary); }
 .ehero__m p { margin: 8px 0 0; font-size: 14.5px; color: var(--text-secondary); }
 .ehero__punch {
   flex: 0 0 auto; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
@@ -483,7 +513,7 @@
 }
 .ehero__p1 { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 8px; }
 .ehero__p1 > span:nth-child(2) { font-size: 12.5px; color: var(--text-secondary); }
-.ehero__p1 b { grid-column: 2; font: 400 28px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ehero__p1 b { grid-column: 2; font: 400 28px/1 var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ehero__dot { width: 9px; height: 9px; border-radius: 50%; background: var(--success-fg); }
 .ehero__dot.is-off { background: var(--text-muted); }
 .ehero__p2 { display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
@@ -548,7 +578,7 @@
 .ering svg { width: 100%; height: 100%; display: block; transform: rotate(-90deg); }
 .ering__mid { position: absolute; inset: 0; display: flex; flex-direction: column;
   align-items: center; justify-content: center; gap: 1px; }
-.ering__mid b { font: 500 30px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ering__mid b { font: 500 30px/1 var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ering__mid > span { font-size: 11px; color: var(--text-muted); }
 .emonth__key { flex: 1 1 150px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 .emonth__k { display: flex; gap: 10px; min-width: 0; }
@@ -562,7 +592,7 @@
 .ehol__r + .ehol__r { border-top: 1px solid var(--border-subtle); }
 .ehol__d { flex: none; width: 44px; display: flex; flex-direction: column; align-items: center;
   padding: 5px 0 6px; border-radius: 11px; background: var(--bg-subtle); }
-.ehol__d b { font: 500 17px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.ehol__d b { font: 500 17px/1 var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .ehol__d span { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--text-muted); }
 .ehol__m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .ehol__m strong { font-size: 13.5px; font-weight: 600; color: var(--text-primary);
@@ -572,7 +602,7 @@
 .echips { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 10px; }
 .echip { display: flex; flex-direction: column; gap: 3px; padding: 12px 13px; border-radius: 13px;
   background: var(--bg-subtle); min-width: 0; }
-.echip b { font: 400 22px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.echip b { font: 400 22px/1 var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .echip span { font-size: 11.5px; line-height: 1.3; color: var(--text-secondary); }
 
 /* ---- this week ---- */
@@ -721,7 +751,7 @@
   margin-top: -56px;
 }
 .phead__who { flex: 1; min-width: 0; padding-bottom: 4px; }
-.phead__name { margin: 0; font: 500 22px/1.25 var(--font-flex); color: var(--text-primary); }
+.phead__name { margin: 0; font: 500 22px/1.25 var(--font-display); color: var(--text-primary); }
 .phead__sub { display: block; margin-top: 3px; font-size: 13px; color: var(--text-secondary); }
 .phead__sub .mono { color: var(--text-primary); }
 .phead__aside { display: flex; align-items: center; gap: 10px; padding-bottom: 6px; }
@@ -782,7 +812,7 @@
   background: var(--bg-surface); border: 1px solid var(--border-subtle); border-radius: 14px;
 }
 .exitgate__copy { max-width: 42ch; display: flex; flex-direction: column; gap: 20px; align-items: flex-start; }
-.exitgate__text { margin: 0; font: 400 19px/1.55 var(--font-flex); color: var(--text-primary); }
+.exitgate__text { margin: 0; font: 400 19px/1.55 var(--font-display); color: var(--text-primary); }
 .exitgate__note { margin: 0; font-size: 13px; color: var(--text-secondary); }
 .exitgate__art { flex: none; width: 260px; max-width: 60vw; }
 .exitgate__art svg { width: 100%; height: auto; }
@@ -822,14 +852,14 @@
 }
 /* Medium rather than light: at 34px the thin weight washed out against the tinted
    accent colour, which is the one number on the card somebody is reading. */
-.lkpi__n { font: 500 34px/1 var(--font-flex); color: var(--lkpi-fg, var(--text-brand)); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.lkpi__n { font: 500 34px/1 var(--font-display); color: var(--lkpi-fg, var(--text-brand)); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 .lkpi__n small { font-size: 19px; font-weight: 400; color: var(--text-muted); }
 .lkpi__foot {
   display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
   margin-top: auto; padding-top: 12px; border-top: 1px solid var(--border-subtle);
   font-size: 12px; color: var(--text-secondary);
 }
-.lkpi__foot b { font: 400 16px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.lkpi__foot b { font: 400 16px/1 var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 /* The design system's categorical chart colours: a leave type is a series, and this
    is the same palette any chart of leave types would draw in. The chip tint is mixed
    from the same value rather than kept as a second token, so the two cannot drift. */
@@ -864,10 +894,10 @@
   min-width: 42px; padding: 5px 7px 6px; border-radius: 12px;
   background: var(--bg-surface); box-shadow: var(--tl-elevation-1);
 }
-.hol__d { font: 400 19px/1 var(--font-flex); color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.hol__d { font: 400 19px/1 var(--font-display); color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .hol__m { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-secondary); }
 .hol__body { display: flex; flex-direction: column; gap: 6px; padding: 13px 15px 15px; }
-.hol__name { margin: 0; font: 500 15.5px/1.3 var(--font-flex); color: var(--text-primary); }
+.hol__name { margin: 0; font: 500 15.5px/1.3 var(--font-display); color: var(--text-primary); }
 .hol__sub { margin: 0; font-size: 12.5px; color: var(--text-secondary); }
 .hol__tags { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 
@@ -896,7 +926,7 @@
 .composer__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .composer__title {
   border: 0; background: none; padding: 0; width: 100%; color: var(--text-primary);
-  font: 500 16px/1.4 var(--font-flex);
+  font: 500 16px/1.4 var(--font-display);
 }
 .composer__title::placeholder { color: var(--text-muted); }
 .composer__title:focus { outline: none; }
@@ -984,7 +1014,7 @@
   padding: 16px 18px; border-top: 1px solid var(--border-subtle);
   font-size: 14px; line-height: 1.7; color: var(--text-primary);
 }
-.post__body > h3 { margin: 0 0 10px; font: 500 16px/1.4 var(--font-flex); }
+.post__body > h3 { margin: 0 0 10px; font: 500 16px/1.4 var(--font-display); }
 .post__body p { margin: 0 0 10px; }
 .post__body p:last-child { margin-bottom: 0; }
 .post__body ul, .post__body ol { margin: 0 0 10px; padding-left: 22px; }
@@ -1337,7 +1367,7 @@
 .gauge__track { fill: none; stroke: var(--elevation-3, var(--bg-subtle)); }
 .gauge__fill { fill: none; transition: stroke-dasharray .5s cubic-bezier(.3,.8,.4,1); }
 .gauge__mid { position: absolute; bottom: 2px; display: grid; justify-items: center; gap: 1px; }
-.gauge__mid strong { font-family: var(--font-flex); font-size: 34px; line-height: 1; font-weight: 600; color: var(--text-primary); }
+.gauge__mid strong { font-family: var(--font-display); font-size: 34px; line-height: 1; font-weight: 600; color: var(--text-primary); }
 .gauge__pc { font-size: 17px; font-weight: 500; color: var(--text-secondary); margin-left: 1px; }
 .gauge__mid span { font-size: 12.5px; color: var(--text-secondary); }
 
@@ -1347,12 +1377,12 @@
 .hero__l { display: grid; gap: 10px; min-width: 0; }
 .hero__date { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-secondary); }
 .hero__date svg { width: 16px; height: 16px; }
-.hero h1 { font-family: var(--font-flex); font-size: clamp(26px, 3.2vh, 36px); line-height: 1.1; font-weight: 600; color: var(--text-primary); }
+.hero h1 { font-family: var(--font-display); font-size: clamp(26px, 3.2vh, 36px); line-height: 1.1; font-weight: 600; color: var(--text-primary); }
 .hero__p { font-size: 14px; color: var(--text-secondary); max-width: 46ch; }
 .hero__acts { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 2px; }
 .hero__sep { align-self: stretch; width: 1px; background: var(--border-subtle); }
 .hero__r { display: grid; gap: 14px; }
-.hero__fig strong { display: block; font-family: var(--font-flex); font-size: 30px; line-height: 1.05; font-weight: 600; color: var(--text-primary); }
+.hero__fig strong { display: block; font-family: var(--font-display); font-size: 30px; line-height: 1.05; font-weight: 600; color: var(--text-primary); }
 .hero__fig span { font-size: 12.5px; color: var(--text-secondary); }
 .hero__fig em { font-style: normal; display: inline-flex; align-items: center; gap: 3px; margin-left: 8px;
   padding: 1px 7px; border-radius: var(--tl-round); background: var(--success-bg); color: var(--success-fg); font-size: 12px; font-weight: 500; }
@@ -1372,7 +1402,7 @@
 .tile__ico { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 12px; }
 .tile__ico svg { width: 19px; height: 19px; }
 .tile__m { display: grid; min-width: 0; }
-.tile__m strong { font-family: var(--font-flex); font-size: 23px; line-height: 1.15; font-weight: 600; color: var(--text-primary); }
+.tile__m strong { font-family: var(--font-display); font-size: 23px; line-height: 1.15; font-weight: 600; color: var(--text-primary); }
 /* The label wraps rather than truncates. These are two- and three-word labels in a
    grid that can land a few pixels short — “On time, in a ro…” costs the reader the
    whole point of the tile to save one line. */

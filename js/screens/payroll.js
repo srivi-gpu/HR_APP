@@ -111,7 +111,7 @@
     var y = pay.ytd(person);
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Payroll', title: 'Payslips',
+      h(ui.PageHead, { title: 'Payslips',
         description: 'Every component, what it is worked out from, and what reached your bank.' }),
       h(Stats, null,
         h(Stat, { label: 'Net this month', value: inr(slip.net), sub: cycle.period }),
@@ -142,7 +142,7 @@
     var annual = function (n) { return n * 12; };
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Payroll', title: 'Salary',
+      h(ui.PageHead, { title: 'Salary',
         description: 'How your cost to company is split, and what it has been over time.' }),
       h(Stats, null,
         h(Stat, { label: 'Cost to company', value: inr(person.ctc), sub: 'A year' }),
@@ -217,7 +217,7 @@
     }
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Payroll', title: 'Tax',
+      h(ui.PageHead, { title: 'Tax',
         description: 'What is being deducted, why, and what the other regime would have cost.' }),
       h(Stats, null,
         h(Stat, { label: 'Deducted each month', value: inr(slip.tds.monthly),
@@ -272,7 +272,7 @@
     var approved = mine.filter(function (x) { return x.status === 'Approved'; });
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Payroll', title: 'Reimbursements',
+      h(ui.PageHead, { title: 'Reimbursements',
         description: 'Money you have spent on company work, and where each claim stands.',
         actions: h(V.Button, { iconStart: I.plus, onClick: function () { openSt[1](true); } }, 'New claim') }),
       h(Stats, null,
@@ -347,7 +347,7 @@
     var delta = prevTotals ? totals.net - prevTotals.net : 0;
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Payroll', title: 'Run ' + cycle.period,
+      h(ui.PageHead, { title: 'Run ' + cycle.period,
         description: 'Everyone who is paid this month, what it comes to, and what still needs a decision.',
         actions: h(V.Button, { variant: 'primary', iconEnd: I.arrow, onClick: advance },
           stageIdx >= pay.STAGES.length - 1 ? 'Close the cycle' : 'Move to ' + pay.STAGES[stageIdx + 1].label.toLowerCase()) }),
@@ -426,7 +426,7 @@
     var items = pay.liabilities(cycle);
     var R = pay.RATES;
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Payroll', title: 'Statutory',
+      h(ui.PageHead, { title: 'Statutory',
         description: 'What ' + cycle.period + ' owes, to whom and by when — and the rates it was worked out on.' }),
       h(Stats, null, items.map(function (x) {
         return h(Stat, { key: x.k, label: x.label, value: inr(x.amount),
@@ -493,7 +493,7 @@
     }
 
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Payroll', title: 'Reimbursements',
+      h(ui.PageHead, { title: 'Reimbursements',
         description: 'Claims across the organization, and which ones the next cycle will carry.' }),
       h(Stats, null,
         h(Stat, { label: 'Awaiting approval', value: waiting.length,
@@ -535,7 +535,7 @@
     var rows = store.collection('loans').slice();
     var running = rows.filter(function (x) { return x.status === 'Running'; });
     return h('div', { className: 'stack gap-4' },
-      h(ui.PageHead, { eyebrow: 'Payroll', title: 'Loans and advances',
+      h(ui.PageHead, { title: 'Loans and advances',
         description: 'What the company has lent, what is still outstanding, and what each cycle recovers.' }),
       h(Stats, null,
         h(Stat, { label: 'Running', value: running.length }),
