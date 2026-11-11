@@ -2254,6 +2254,9 @@
     'hr/announcements': announcementsScreen(true),
     'me/announcements': announcementsScreen(false),
     'hr/config/surveys': SurveyConfig,
-    'hr/config/workflows': WorkflowConfig
+    'hr/config/workflows': WorkflowConfig,
+    /* The approval engine is organisation-wide, so it answers in admin's Configuration
+       as well as HR's — one engine, one screen. */
+    'admin/config/workflows': WorkflowConfig
   });
 })();

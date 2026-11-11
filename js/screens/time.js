@@ -1966,6 +1966,15 @@
     'hr/shifts/roster': ShiftRoster,
     'hr/shifts/swaps': ShiftSwaps,
 
+    /* Admin's Configuration reaches the same four screens. These are settings — what
+       leave exists, who it applies to, what counts as a working day, what a shift is —
+       so the admin who owns the organisation's rules edits the same records HR does,
+       on the same screens, rather than on a second set that drifts from them. */
+    'admin/config/leave-types': LeaveTypes,
+    'admin/config/leave-policies': LeavePolicies,
+    'admin/config/attendance': AttendancePolicies,
+    'admin/config/shifts': ShiftTemplates,
+
     'hr/holidays': Holidays,
 
   });
