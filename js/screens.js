@@ -481,6 +481,77 @@
         h('path', { d: 'M-50 268C170 348 320 208 500 232 660 254 800 352 950 330', strokeWidth: 1.5, opacity: .7 })));
   }
 
+  /* A few of the product's surfaces, floating over the pitch pane: the month's leave
+     and attendance on the card that leads, what the record earned beside it, and the
+     two small things that happen every day — a punch and a payslip. Confetti behind
+     them for depth, which is the one part of this that means nothing. */
+  function AuthScene() {
+    var BADGES = [
+      { tone: 'a', icon: I.ok, title: 'On time all month', sub: '21 of 21 days' },
+      { tone: 'b', icon: I.target, title: 'Goal achieved', sub: 'Q4 hiring plan' },
+      { tone: 'c', icon: I.star, title: 'Five years today', sub: 'Since Nov 2021' }
+    ];
+    return h('div', { className: 'ascene', 'aria-hidden': 'true' },
+      h('span', { className: 'ascene__dot ascene__dot--1' }),
+      h('span', { className: 'ascene__dot ascene__dot--2' }),
+      h('span', { className: 'ascene__dot ascene__dot--3' }),
+      h('span', { className: 'ascene__dot ascene__dot--4' }),
+      h('span', { className: 'ascene__dot ascene__dot--5' }),
+      h('span', { className: 'ascene__arcs' },
+        h('svg', { viewBox: '0 0 60 40', fill: 'none' },
+          h('path', { d: 'M4 34c6-12 16-18 26-18', stroke: 'currentColor', strokeWidth: 3, strokeLinecap: 'round' }),
+          h('path', { d: 'M14 36c5-9 12-14 20-14', stroke: 'currentColor', strokeWidth: 3, strokeLinecap: 'round' }))),
+
+      /* The card that leads: this month, as the employee sees it. */
+      h('div', { className: 'ascene__main' },
+        h('div', { className: 'ascene__art' },
+          h('svg', { viewBox: '0 0 220 120', fill: 'none' },
+            h('rect', { x: 0, y: 0, width: 220, height: 120, rx: 14, fill: 'var(--ascene-art)' }),
+            /* a desk, a person, and the month they are looking at */
+            h('rect', { x: 118, y: 26, width: 74, height: 62, rx: 9, fill: '#fff', opacity: .95 }),
+            h('rect', { x: 118, y: 26, width: 74, height: 14, rx: 7, fill: 'var(--brand-solid)', opacity: .85 }),
+            h('g', { fill: 'var(--brand-solid)', opacity: .35 },
+              h('rect', { x: 126, y: 48, width: 12, height: 10, rx: 3 }),
+              h('rect', { x: 144, y: 48, width: 12, height: 10, rx: 3 }),
+              h('rect', { x: 162, y: 48, width: 12, height: 10, rx: 3 }),
+              h('rect', { x: 126, y: 64, width: 12, height: 10, rx: 3 }),
+              h('rect', { x: 162, y: 64, width: 12, height: 10, rx: 3 })),
+            h('rect', { x: 144, y: 64, width: 12, height: 10, rx: 3, fill: 'var(--brand-solid)' }),
+            h('circle', { cx: 62, cy: 44, r: 14, fill: 'var(--ascene-skin)' }),
+            h('path', { d: 'M48 42a14 14 0 0 1 28 0c0-9-6-13-14-13s-14 4-14 13Z', fill: 'var(--ascene-hair)' }),
+            h('path', { d: 'M38 100c0-15 11-26 24-26s24 11 24 26Z', fill: 'var(--brand-solid)' }),
+            h('path', { d: 'M78 86c8 2 18-2 26-10', stroke: 'var(--ascene-skin)', strokeWidth: 9, strokeLinecap: 'round' }))),
+        h('span', { className: 'ascene__eyebrow' }, 'This month'),
+        h('span', { className: 'ascene__title' }, 'Leave and attendance'),
+        h('div', { className: 'ascene__rows' },
+          h('div', { className: 'ascene__row' },
+            h('span', { className: 'ascene__n' }, '1'),
+            h('span', { className: 'ascene__rt' }, 'Casual leave'),
+            h('span', { className: 'ascene__rv ascene__rv--ok' }, 'Approved')),
+          h('div', { className: 'ascene__row' },
+            h('span', { className: 'ascene__n' }, '2'),
+            h('span', { className: 'ascene__rt' }, 'Days present'),
+            h('span', { className: 'ascene__rv' }, '21'))),
+        h('span', { className: 'ascene__chip' }, 'Payslip ready')),
+
+      /* What the record earned. */
+      h('div', { className: 'ascene__badges' }, BADGES.map(function (b) {
+        return h('div', { className: 'ascene__badge', key: b.title },
+          h('span', { className: 'ascene__bi ascene__bi--' + b.tone }, b.icon),
+          h('span', { className: 'ascene__bt' },
+            h('strong', null, b.title),
+            h('span', null, b.sub)));
+      })),
+
+      /* The two small things that happen every day. */
+      h('div', { className: 'ascene__punch' },
+        h('span', { className: 'ascene__play' }, I.clock),
+        h('span', { className: 'ascene__bt' },
+          h('strong', null, 'Checked in at 09:02'),
+          h('span', null, 'Six hours so far'))),
+      h('div', { className: 'ascene__tile' }, I.check));
+  }
+
   function Login() {
     var roles = HRMS.nav.roles;
     var roleSt = React.useState(store.pref('role') || 'admin');
@@ -667,28 +738,17 @@
       h('div', { className: 'authb__pitch' },
         h(AuthWaves),
         h('div', { className: 'authb__pitchin' },
-          h('h2', { className: 'authb__h' }, 'One place for your people, their work and their pay.'),
 
-          h('figure', { className: 'authq' },
-            h('span', { className: 'authq__mark', 'aria-hidden': 'true' }, '\u201c'),
-            h('blockquote', { className: 'authq__text' },
-              'Leave, attendance and payroll used to live in three different spreadsheets. '
-                + 'The whole month now closes before the first coffee.'),
-            h('figcaption', { className: 'authq__by' },
-              h(V.Avatar, { name: 'Priya Sharma', size: 'md' }),
-              h('span', { className: 'authq__who' },
-                h('strong', null, 'Priya Sharma'),
-                h('span', null, 'HR Manager at ' + seed.org.name)))),
+          /* The scene: a few of the product's own surfaces, floating. Drawn from real
+             cards and real chips rather than as one flat picture, so it says what the
+             application is in the application's own vocabulary — and so it carries the
+             theme and the type scale rather than freezing a copy of them into an SVG. */
+          h(AuthScene),
 
-          /* Not a wall of other companies' logos: this is what the product does, which
-             is both true and the thing somebody signing in actually wants to know. */
-          h('div', { className: 'authb__inside' },
-            h('span', { className: 'authb__insideh' }, 'What is inside'),
-            h('div', { className: 'authb__chips' },
-              ['Onboarding', 'Attendance & leave', 'Payroll', 'Performance',
-               'Documents & policies', 'Assets', 'Engagement', 'Offboarding'].map(function (t) {
-                return h('span', { className: 'authb__chip', key: t }, t);
-              })))))); 
+          h('div', { className: 'authb__say' },
+            h('h2', { className: 'authb__h' }, 'Leave, attendance and pay, in one place'),
+            h('p', { className: 'authb__sub' },
+              'Apply, approve and get paid without chasing a single spreadsheet.'))))); 
   }
 
   function Help() {
