@@ -1497,7 +1497,7 @@
                 h('div', { className: 'chain__f' },
                   h(V.Select, {
                     label: 'Approver kind', options: approverTypeOptions(), value: st.type,
-                    onChange: function (e) { pickType(i, e.target.value); }
+                    onChange: function (v) { pickType(i, v); }
                   })),
                 h('div', { className: 'chain__f' },
                   h(V.TextField, {
