@@ -19,7 +19,10 @@
      off a brand token would flip it to dark the moment the theme does, over a panel
      that did not. */
   --authb-pitch-ink:#ffffff;
-  --authb-chip-bg:#ffffff1f; --authb-chip-border:#ffffff38;
+  /* The floating cards are the product's own surfaces, so they stay light in both
+     themes: they are a picture of the app, not a part of this page's chrome. */
+  --ascene-card:#ffffff; --ascene-ink:#1b1a1f; --ascene-muted:#6b6975;
+  --ascene-line:#eceaf2; --ascene-art:#ffd9a8; --ascene-skin:#f0b48a; --ascene-hair:#2f2a3d;
 }
 /* Dark follows the OS unless the theme is pinned, the same two-rule shape the tokens use. */
 @media (prefers-color-scheme: dark) {
@@ -35,7 +38,8 @@
     --authb-pitch-1:#2a1f52; --authb-pitch-2:#3b2a77; --authb-pitch-3:#17142a;
     --authb-pitch-glow:#6b56b05c;
     --authb-pitch-ink:#f1eefc;
-    --authb-chip-bg:#ffffff14; --authb-chip-border:#ffffff2b;
+    --ascene-card:#f6f4fb; --ascene-ink:#1b1a1f; --ascene-muted:#6b6975;
+    --ascene-line:#e6e3ef; --ascene-art:#f3c492; --ascene-skin:#e8a87c; --ascene-hair:#2f2a3d;
   }
 }
 :root[data-theme="dark"] {
@@ -50,7 +54,8 @@
     --authb-pitch-1:#2a1f52; --authb-pitch-2:#3b2a77; --authb-pitch-3:#17142a;
     --authb-pitch-glow:#6b56b05c;
     --authb-pitch-ink:#f1eefc;
-    --authb-chip-bg:#ffffff14; --authb-chip-border:#ffffff2b;
+    --ascene-card:#f6f4fb; --ascene-ink:#1b1a1f; --ascene-muted:#6b6975;
+    --ascene-line:#e6e3ef; --ascene-art:#f3c492; --ascene-skin:#e8a87c; --ascene-hair:#2f2a3d;
 }
 
 .authb {
@@ -106,33 +111,87 @@
 }
 .authb__pitchin { display: flex; flex-direction: column; gap: clamp(18px, 3.4vh, 38px); width: 100%; max-width: 520px; }
 .authb__h {
-  font-family: var(--font-flex); font-size: clamp(28px, 2.9vw, 42px); line-height: 1.2;
+  font-family: var(--font-flex); font-size: clamp(24px, 2.3vw, 34px); line-height: 1.22;
   font-weight: 500; color: inherit; margin: 0;
 }
 
-/* The quotation */
-.authq { margin: 0; display: flex; flex-direction: column; gap: 14px; position: relative; }
-/* The mark belongs to the sentence under it, so it sits on the quote rather than
-   floating as a row of its own. */
-.authq__mark { font-family: var(--font-flex); font-size: 46px; line-height: .55; opacity: .45; margin-bottom: -12px; }
-.authq__text { margin: 0; font-size: clamp(15px, 1.2vw, 18px); line-height: 1.65; opacity: .92; }
-.authq__by { display: flex; align-items: center; gap: 12px; }
-.authq__who { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
-.authq__who span { font-size: 13px; opacity: .78; }
+/* ---- The scene: the product's own surfaces, floating ----
+   Cards rather than one flat picture, so the illustration carries the theme and the
+   type scale instead of freezing a copy of them into an SVG. */
+.ascene {
+  position: relative; width: min(100%, 420px); margin: 0 auto;
+  aspect-ratio: 420 / 400; flex: 0 1 auto; min-height: 0;
+  color: var(--authb-pitch-ink);
+}
+.ascene__dot { position: absolute; border-radius: 50%; opacity: .9; }
+.ascene__dot--1 { width: 18px; height: 26px; border-radius: 40%; background: #f6a46a; top: 4%; left: 4%; transform: rotate(-18deg); }
+.ascene__dot--2 { width: 16px; height: 16px; background: #5ad1a5; top: 1%; left: 38%; }
+.ascene__dot--3 { width: 22px; height: 16px; border-radius: 40%; background: #ffd166; top: 12%; right: 10%; transform: rotate(16deg); }
+.ascene__dot--4 { width: 14px; height: 14px; background: #ff7a85; top: 46%; left: 1%; }
+.ascene__dot--5 { width: 26px; height: 18px; border-radius: 40%; background: #ff7a85; top: 33%; right: 2%; transform: rotate(-12deg); }
+.ascene__arcs { position: absolute; left: 28%; bottom: -1%; width: 64px; color: #a08cf5; opacity: .9; }
+.ascene__arcs svg { width: 100%; height: auto; display: block; }
 
-/* What is inside, in place of a wall of other companies' logos */
-.authb__inside { display: flex; flex-direction: column; gap: 12px; }
-.authb__insideh {
-  display: flex; align-items: center; gap: 14px; white-space: nowrap;
-  font-size: 11px; letter-spacing: .12em; text-transform: uppercase; opacity: .75;
+/* The card that leads */
+.ascene__main {
+  position: absolute; left: 3%; top: 5%; width: 55%;
+  display: flex; flex-direction: column; gap: 6px;
+  padding: 10px 10px 14px; border-radius: 18px; background: var(--ascene-card);
+  box-shadow: 0 18px 40px -14px #0c0725a6, 0 2px 6px #0c072533;
+  transform: rotate(-2deg);
 }
-.authb__insideh::after { content: ""; flex: 1; height: 1px; background: currentColor; opacity: .35; }
-.authb__chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.authb__chip {
-  display: inline-flex; align-items: center; height: 30px; padding: 0 12px;
-  border: 1px solid var(--authb-chip-border); border-radius: var(--tl-radius-pill);
-  background: var(--authb-chip-bg); font-size: 13px;
+.ascene__art { border-radius: 14px; overflow: hidden; }
+.ascene__art svg { width: 100%; height: auto; display: block; }
+.ascene__eyebrow { font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ascene-muted); margin-top: 4px; }
+.ascene__title { font-family: var(--font-flex); font-size: 15px; line-height: 1.25; font-weight: 600; color: var(--ascene-ink); }
+/* The card the badges overlap keeps its right edge clear below the picture, so what
+   floats over it covers card and not content — which is how the reference stacks. */
+.ascene__rows { display: flex; flex-direction: column; gap: 2px; margin-top: 2px; padding-right: 46px; }
+.ascene__row { display: flex; align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--ascene-line); font-size: 11px; }
+.ascene__n { color: var(--ascene-muted); width: 9px; }
+.ascene__rt { flex: 1; min-width: 0; color: var(--ascene-ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ascene__rv { color: var(--ascene-muted); font-variant-numeric: tabular-nums; }
+.ascene__rv--ok { color: #1f8a4c; font-weight: 500; }
+.ascene__chip {
+  align-self: flex-start; margin-top: 4px; padding: 3px 9px; border-radius: 999px;
+  background: var(--brand-softer, #ece5fc); color: var(--brand-solid); font-size: 10.5px; font-weight: 500;
 }
+
+/* What the record earned */
+.ascene__badges {
+  position: absolute; right: 0; top: 52%; width: 50%;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 12px; border-radius: 16px; background: var(--ascene-card);
+  box-shadow: 0 18px 40px -14px #0c0725a6, 0 2px 6px #0c072533;
+  transform: rotate(1.5deg);
+}
+.ascene__badge { display: flex; align-items: center; gap: 9px; }
+.ascene__bi { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; color: #fff; }
+.ascene__bi svg { width: 15px; height: 15px; }
+.ascene__bi--a { background: #3a86ff; } .ascene__bi--b { background: #2bb673; } .ascene__bi--c { background: #ff6b6b; }
+.ascene__bt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.ascene__bt strong { font-size: 11px; font-weight: 600; color: var(--ascene-ink); white-space: nowrap; }
+.ascene__bt span { font-size: 10px; color: var(--ascene-muted); white-space: nowrap; }
+
+/* The two small things that happen every day */
+.ascene__punch {
+  position: absolute; left: 0; bottom: 8%; display: flex; align-items: center; gap: 9px;
+  padding: 9px 12px 9px 9px; border-radius: 14px; background: var(--ascene-card);
+  box-shadow: 0 14px 32px -12px #0c072599, 0 2px 5px #0c072529;
+  transform: rotate(-1.5deg);
+}
+.ascene__play { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--brand-solid); color: #fff; }
+.ascene__play svg { width: 15px; height: 15px; }
+.ascene__tile {
+  position: absolute; right: 9%; top: 18%; display: grid; place-items: center;
+  width: 46px; height: 46px; border-radius: 14px; background: var(--ascene-card); color: #2bb673;
+  box-shadow: 0 14px 30px -12px #0c072599;
+}
+.ascene__tile svg { width: 22px; height: 22px; }
+
+/* The line under it */
+.authb__say { text-align: center; display: flex; flex-direction: column; gap: 10px; }
+.authb__sub { margin: 0; font-size: clamp(14px, 1.1vw, 16px); line-height: 1.6; opacity: .82; }
 
 .authb__foot { flex: none; display: flex; gap: 20px; flex-wrap: wrap; font-size: 13px; color: var(--text-muted); }
 .authb__foot a { color: inherit; text-decoration: none; }
@@ -166,6 +225,11 @@
 @media (max-height: 760px) {
   .authb__form { padding-block: 24px; gap: 16px; }
   .authb__pitchin { gap: 20px; }
+  /* The scene is the one thing here that can give up height without losing meaning. */
+  .ascene { width: min(100%, 340px); }
+}
+@media (max-height: 640px) {
+  .ascene { display: none; }
 }
 }
 
