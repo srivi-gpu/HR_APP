@@ -1961,19 +1961,79 @@
      previewable before it is edited, because the thing being changed is what a person
      receives, not a row in a table. */
   var EMAIL_SEED = [
-    { k: 'invite', name: 'Invitation to join', when: 'When an admin invites someone', subject: 'You have been invited to {{org}}',
+    { k: 'invite', name: 'Invitation to join', when: 'When an admin invites someone', from: 'noreply', subject: 'You have been invited to {{org}}',
       body: 'Hi {{name}},\n\n{{inviter}} has invited you to join {{org}} on Aptagrim HR. Set your password and you are in.\n\n{{button:Accept the invitation}}\n\nThe link expires in 7 days.' },
-    { k: 'welcome', name: 'Welcome on day one', when: 'On the joining date', subject: 'Welcome to {{org}}, {{name}}',
+    { k: 'welcome', name: 'Welcome on day one', when: 'On the joining date', from: 'people', subject: 'Welcome to {{org}}, {{name}}',
       body: 'Hi {{name}},\n\nWelcome aboard. Your manager is {{manager}} and your first-day checklist is waiting for you.\n\n{{button:Open your checklist}}' },
-    { k: 'leave', name: 'Leave decision', when: 'When leave is approved or rejected', subject: 'Your leave request was {{decision}}',
+    { k: 'leave', name: 'Leave decision', when: 'When leave is approved or rejected', from: 'noreply', subject: 'Your leave request was {{decision}}',
       body: 'Hi {{name}},\n\nYour {{leaveType}} request for {{dates}} was {{decision}} by {{approver}}.\n\n{{button:View the request}}' },
-    { k: 'payslip', name: 'Payslip published', when: 'When a payroll run is released', subject: 'Your {{month}} payslip is ready',
+    { k: 'payslip', name: 'Payslip published', when: 'When a payroll run is released', from: 'payroll', subject: 'Your {{month}} payslip is ready',
       body: 'Hi {{name}},\n\nYour payslip for {{month}} is available now.\n\n{{button:Download the payslip}}' },
-    { k: 'reset', name: 'Password reset', when: 'When someone asks to reset their password', subject: 'Reset your {{org}} password',
+    { k: 'reset', name: 'Password reset', when: 'When someone asks to reset their password', from: 'noreply', subject: 'Reset your {{org}} password',
       body: 'Hi {{name}},\n\nSomebody asked to reset this password. If it was not you, ignore this email.\n\n{{button:Choose a new password}}\n\nThe link expires in 1 hour.' },
-    { k: 'exit', name: 'Exit confirmation', when: 'When an exit is approved', subject: 'Your last working day at {{org}}',
+    { k: 'exit', name: 'Exit confirmation', when: 'When an exit is approved', from: 'people', subject: 'Your last working day at {{org}}',
       body: 'Hi {{name}},\n\nYour last working day is {{date}}. Your clearance checklist is below, and access closes at the end of that day.\n\n{{button:Open clearance}}' }
   ];
+
+  /* Who an email comes from is part of what the reader receives, so it is edited
+     beside the subject and the message rather than assumed. The addresses themselves
+     are a short list the organisation keeps — a reply-to that nobody reads, the people
+     team, payroll — and a template picks one of them. The domain is the organisation's
+     own website, so a sender added here already looks like it belongs. */
+  var SENDER_SEED = [
+    { id: 'noreply', name: 'Aptagrim HR', local: 'noreply' },
+    { id: 'people', name: 'People team', local: 'people' },
+    { id: 'payroll', name: 'Payroll', local: 'payroll' }
+  ];
+  function senderDomain() { return (org().website || 'example.com').replace(/^www\./, ''); }
+  function senderAddress(sn) { return sn ? sn.local + '@' + senderDomain() : ''; }
+  function senderOf(list, id) {
+    return list.filter(function (sn) { return sn.id === id; })[0] || list[0];
+  }
+  function senderLabel(sn) { return sn ? sn.name + ' <' + senderAddress(sn) + '>' : 'Not set'; }
+
+  /* An address somebody adds, so a template can be sent from a mailbox that is
+     actually read. The local part is asked for on its own because the domain is not
+     the organisation's to choose here — an email from another domain would be sent
+     on their behalf without their having said so. */
+  function SenderModal(p) {
+    var form = ui.useForm({ name: '', local: '' }, function (v) {
+      var errors = HRMS.rules.required([{ key: 'name', label: 'Sender name' },
+        { key: 'local', label: 'Address' }], v);
+      var local = String(v.local || '').trim().toLowerCase();
+      if (!errors.local && !/^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/.test(local)) {
+        errors.local = 'Letters, numbers, dots, hyphens and underscores only, before the @';
+      }
+      if (!errors.local && p.senders.some(function (sn) { return sn.local.toLowerCase() === local; })) {
+        errors.local = senderAddress({ local: local }) + ' is already on the list';
+      }
+      return errors;
+    });
+
+    function save() {
+      var res = form.submit(function (v) {
+        var local = String(v.local).trim().toLowerCase();
+        return { ok: true, value: { id: 'sn-' + local, name: String(v.name).trim(), local: local } };
+      });
+      if (res && res.ok) p.onAdd(res.value);
+    }
+
+    return h(ui.Modal, {
+      title: 'Add a sender address',
+      description: 'The name and address an email is sent from. Replies go to this mailbox.',
+      onClose: p.onClose,
+      footer: h(React.Fragment, null,
+        h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
+        h(V.Button, { variant: 'primary', onClick: save }, 'Add sender'))
+    },
+      h(V.TextField, Object.assign({ label: 'Sender name', required: true, placeholder: 'e.g. People team' },
+        form.field('name', { hint: 'What the recipient sees instead of the address' }))),
+      h(V.TextField, Object.assign({ label: 'Address', required: true, placeholder: 'e.g. people' },
+        form.field('local', { hint: 'The part before @' + senderDomain() }))),
+      h('p', { className: 'muted', style: { margin: 0 } },
+        'Sent as ', h('strong', null, (String(form.values.name || '').trim() || 'Sender name')
+          + ' <' + (String(form.values.local || '').trim().toLowerCase() || 'address') + '@' + senderDomain() + '>'), '.'));
+  }
 
   function EmailPreview(p) {
     var o = org();
@@ -1989,8 +2049,12 @@
     },
       h('div', { className: 'ad-mail' },
         h('div', { className: 'ad-mail__head' },
-          h('span', { className: 'muted' }, 'Subject'),
-          h('strong', null, fill(t.subject))),
+          h('div', { className: 'ad-mail__f' },
+            h('span', { className: 'muted' }, 'From'),
+            h('strong', null, senderLabel(senderOf(p.senders, t.from)))),
+          h('div', { className: 'ad-mail__f' },
+            h('span', { className: 'muted' }, 'Subject'),
+            h('strong', null, fill(t.subject)))),
         h('div', { className: 'ad-mail__body' },
           lines.map(function (ln, n) {
             var btn = ln.match(/^\{\{button:(.+)\}\}$/);
@@ -2000,9 +2064,11 @@
   }
 
   function EmailEditor(p) {
-    var form = ui.useForm({ subject: p.t.subject, body: p.t.body }, function (v) {
-      return HRMS.rules.required([{ key: 'subject', label: 'Subject' }, { key: 'body', label: 'Message' }], v);
+    var form = ui.useForm({ from: senderOf(p.senders, p.t.from).id, subject: p.t.subject, body: p.t.body }, function (v) {
+      return HRMS.rules.required([{ key: 'from', label: 'From' },
+        { key: 'subject', label: 'Subject' }, { key: 'body', label: 'Message' }], v);
     });
+    var addSt = React.useState(false);
     function save() {
       var res = form.submit(function (v) { return { ok: true, message: p.t.name + ' saved', value: v }; });
       if (res && res.ok) { p.onSave(res.value); }
@@ -2014,17 +2080,37 @@
         h(V.Button, { variant: 'outline', onClick: p.onClose }, 'Cancel'),
         h(V.Button, { variant: 'primary', onClick: save }, 'Save template'))
     },
+      h('div', { className: 'stack gap-2' },
+        h(V.Select, Object.assign({ label: 'From', required: true,
+          options: p.senders.map(function (sn) { return { value: sn.id, label: senderLabel(sn) }; }) },
+          form.select('from'))),
+        h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', iconStart: I.plus,
+          onClick: function () { addSt[1](true); } }, 'Add a sender address')),
       h(V.TextField, Object.assign({ label: 'Subject', required: true }, form.field('subject'))),
       h(V.TextArea, Object.assign({ label: 'Message', required: true, rows: 9 }, form.field('body'))),
       h('p', { className: 'muted', style: { margin: 0 } },
-        'Placeholders in double braces are filled in when the email is sent: {{name}}, {{org}}, {{manager}}, {{date}}.'));
+        'Placeholders in double braces are filled in when the email is sent: {{name}}, {{org}}, {{manager}}, {{date}}.'),
+      addSt[0] ? h(SenderModal, {
+        senders: p.senders,
+        onClose: function () { addSt[1](false); },
+        /* A sender added from here is the one you came to pick, so it is selected. */
+        onAdd: function (sn) { p.onAddSender(sn); form.set('from', sn.id); addSt[1](false); }
+      }) : null);
   }
 
   function EmailTemplates() {
     var rowsSt = React.useState(EMAIL_SEED.map(function (t) { return Object.assign({}, t); }));
+    var sendersSt = React.useState(SENDER_SEED.map(function (sn) { return Object.assign({}, sn); }));
     var openSt = React.useState(null);
     var rows = rowsSt[0];
+    var senders = sendersSt[0];
     var open = openSt[0];
+
+    function addSender(sn) {
+      sendersSt[1](senders.concat([sn]));
+      store.log('added the email sender ' + senderAddress(sn), 'Organization');
+      ui.toast(senderAddress(sn) + ' added', 'success');
+    }
 
     function save(v) {
       var k = open.t.k;
@@ -2045,7 +2131,7 @@
               h('span', { className: 'ad-mailrow__i' }, I.mail),
               h('div', { className: 'stack gap-1 grow', style: { minWidth: 0 } },
                 h('strong', null, t.name),
-                h('span', { className: 'muted' }, t.when),
+                h('span', { className: 'muted' }, t.when + ' \u00b7 from ' + senderAddress(senderOf(senders, t.from))),
                 h('span', { className: 'muted ad-mailrow__sub' }, t.subject)),
               h(V.Button, { variant: 'ghost', className: 'vi-btn--sm', onClick: function () { openSt[1]({ t: t, mode: 'preview' }); } }, 'Preview'),
               h(V.Button, { variant: 'outline', className: 'vi-btn--sm', onClick: function () { openSt[1]({ t: t, mode: 'edit' }); } }, 'Edit'));
@@ -2053,11 +2139,12 @@
 
       open && open.mode === 'preview'
         ? h(EmailPreview, {
-            t: open.t, onClose: function () { openSt[1](null); },
+            t: open.t, senders: senders, onClose: function () { openSt[1](null); },
             onEdit: function () { openSt[1]({ t: open.t, mode: 'edit' }); }
           }) : null,
       open && open.mode === 'edit'
-        ? h(EmailEditor, { t: open.t, onClose: function () { openSt[1](null); }, onSave: save }) : null);
+        ? h(EmailEditor, { t: open.t, senders: senders, onAddSender: addSender,
+            onClose: function () { openSt[1](null); }, onSave: save }) : null);
   }
 
   /* ====================================================== Working hours

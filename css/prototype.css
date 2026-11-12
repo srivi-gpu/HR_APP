@@ -3,6 +3,11 @@
    Declared in the `tl` layer so it sits with the rest of the app patterns. */
 @layer tl {
 
+/* The preview's header is a stack of label-and-value pairs — who it is from, then what
+   it is about — and the pairs need more air between them than the two lines of one pair. */
+.ad-mail__f { display: flex; flex-direction: column; gap: 3px; }
+.ad-mail__head { gap: 10px; }
+
 /* A colour picker whose swatches are chips. The design system's selected state repaints
    a chip in the primary tint, which would hide the very thing being chosen here, so
    selection is a ring around the swatch and the swatch keeps its own colour. */
