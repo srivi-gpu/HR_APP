@@ -214,6 +214,7 @@
     darwinbox: '#0b2d71', keka: '#f05a28', bamboo: '#8dc63f', workday: '#f68c1e',
     greythr: '#e4002b', tally: '#005ca9', jamf: '#1f2a44', device: '#0f7b53',
     intune: '#0f6cbd', ldap: '#4a5568', zendesk: '#03363d',
+    springverify: '#3f3bd6', authbridge: '#e4572e', idfy: '#1f8fd6', hireright: '#00558c',
     generic: '#5b6472'
   };
 
