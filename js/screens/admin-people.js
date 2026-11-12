@@ -384,7 +384,7 @@
         setOpen(id, true);
         busySt[1](function (prev) { var b = Object.assign({}, prev); delete b[id]; return b; });
         var c = cacheRef.current;
-        p.onCount(Object.keys(c).reduce(function (a, k) { return a + c[k].length; }, 1));
+        if (p.onCount) p.onCount(Object.keys(c).reduce(function (a, k) { return a + c[k].length; }, 1));
       });
     }
     function toggle(id) { if (openSt[0][id]) setOpen(id, false); else expand(id); }
@@ -863,15 +863,13 @@
   function PeopleModule(p) {
     var teamSt = useState('Product Design'), focusSt = useState('Ananya Reddy');
     var openSt = useState({ 'Engineering': true, 'People & Culture': true });
-    var loadedSt = useState(1), teamRowsSt = useState({ loading: true, rows: [] }), panelSt = useState('team');
+    var teamRowsSt = useState({ loading: true, rows: [] }), panelSt = useState('team');
     var lifeSt = useState(LIFE_SEED.map(function (r) { return Object.assign({}, r); }));
     var moveKeySt = useState(0), actSt = useState(null), bigSt = useState(false), sheetSt = useState(false);
-    /* tree | vertical | network | cards. The tree is the default reading now; cards
-       is the original and is kept because it is the only one people can be dragged
-       around in. A stored 'horizontal' is from before the tree turned upright and
-       reads as the vertical view rather than as nothing. */
-    var savedView = store.pref('orgView');
-    var viewSt = useState(savedView === 'horizontal' ? 'vertical' : (savedView || 'tree'));
+    /* One chart, not four. The tree, vertical and network readings were three ways of
+       looking at the same reporting line, chosen from a control above it, and the card
+       chart is the one you can actually rearrange people in. The others are gone for
+       now; the components behind them are untouched in js/screens/orgcharts.js. */
 
     /* The chart holds only what was expanded, so the team always comes from the directory. */
     React.useEffect(function () {
@@ -913,90 +911,25 @@
         var team = teamRowsSt[0];
 
         return h('div', { className: 'stack gap-4' },
-          h('div', { className: 'astat' },
-            h('span', { className: 'astat__i' }, I.sitemap, 'Loaded in the chart ', h('b', null, loadedSt[0])),
-            h('span', { className: 'astat__i' }, TEAMS, 'Reporting to ' + sel.id + ' ',
-              team.loading ? h('b', null, '…') : h('b', null, team.rows.length)),
-            !team.loading && team.rows.length > loadedSt[0] - 1
-              ? h('span', { className: 'astat__warn' }, 'Counted from the directory, not the chart')
-              : h('span', { className: 'astat__ok' }, 'In step'),
-            (function () {
-              var pr = 0, nt = 0;
-              staff().forEach(function (n) { var st = statusOf(n.id); if (st) { if (st.k === 'prob') pr++; else nt++; } });
-              return h('span', { className: 'astat__i' }, I.person,
-                h('span', { className: 'chip-st st--prob' }, pr + ' on probation'),
-                h('span', { className: 'chip-st st--notice' }, nt + ' on notice'));
-            })(),
-            h('span', { className: 'astat__sp anote' }, 'Expanding loads a branch; the team panel always re-queries the whole subtree.')),
-
           h('div', { className: 'agrid' },
             h('section', { className: 'dash__card c12', style: { padding: 0, overflow: 'hidden' } },
               h('div', { className: 'dash__card__head', style: { padding: '18px 20px 10px' } },
                 h('h2', null, 'Reporting chart'),
                 h('span', { className: 'row gap-2', style: { alignItems: 'center' } },
-                  /* Three readings of one reporting line: cards to change it, a vertical
-                     tree to follow it, network to see its shape. */
-                  h('div', { className: 'ad-seg', role: 'tablist', 'aria-label': 'Chart view' },
-                    [['tree', 'Tree'], ['vertical', 'Vertical'], ['network', 'Network'], ['cards', 'Cards']]
-                      .map(function (v) {
-                      return h('button', {
-                        key: v[0], type: 'button', role: 'tab',
-                        'aria-selected': viewSt[0] === v[0] ? 'true' : 'false',
-                        className: 'ad-seg__b' + (viewSt[0] === v[0] ? ' is-on' : ''),
-                        onClick: function () { viewSt[1](v[0]); store.setPref('orgView', v[0]); }
-                      }, v[1]);
-                    })),
-                  h('span', { className: 'anote' }, viewSt[0] === 'cards'
-                    ? 'The original card chart \u00b7 drag a person onto a manager to move them'
-                    : viewSt[0] === 'tree' ? 'Opens three levels deep \u00b7 a handle under a card opens the rest'
-                    : viewSt[0] === 'vertical' ? 'Click a card to open their team'
-                    : 'Scroll to zoom \u00b7 drag to pan \u00b7 click to open a branch'),
+                  h('span', { className: 'anote' }, store.pref('role') === 'admin'
+                    ? 'Drag a person onto a manager to move them'
+                    : 'Click a person to open their record'),
                   h(V.Button, { variant: 'outline', className: 'vi-btn--sm', iconStart: bigSt[0] ? I.shrink : I.expand,
                     onClick: function () { bigSt[1](!bigSt[0]); } }, bigSt[0] ? 'Exit full screen' : 'Full screen'))),
               bigSt[0] ? h('div', { className: 'oc__scrim', onClick: function () { bigSt[1](false); } }) : null,
 
-              /* The tree is the default reading of the reporting line. The card
-                 chart below it is the original and is kept because it is the only
-                 one you can rearrange people in. */
-              viewSt[0] === 'tree' && HRMS.orgcharts && HRMS.orgcharts.apexReady()
-                ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
-                    h(HRMS.orgcharts.ApexOrgTree, {
-                      key: 'tree:' + moveKeySt[0] + ':' + (bigSt[0] ? 'full' : 'inline'),
-                      staff: all, rootId: root.id, big: bigSt[0], epoch: moveKeySt[0],
-                      onSelect: function (id) { focusSt[1](id); sheetSt[1](true); }
-                    }))
-                : null,
-
-              viewSt[0] === 'vertical' && HRMS.orgcharts
-                ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
-                    h(HRMS.orgcharts.VerticalTree, {
-                      key: 'vertical:' + moveKeySt[0], staff: all, rootId: root.id, big: bigSt[0],
-                      onSelect: function (id) { focusSt[1](id); sheetSt[1](true); }
-                    }))
-                : null,
-
-              viewSt[0] === 'network' && HRMS.orgcharts && HRMS.orgcharts.ready()
-                ? h('div', { className: 'amc__wrap' + (bigSt[0] ? ' is-full' : '') },
-                    h(HRMS.orgcharts.AmChart, {
-                      key: viewSt[0] + ':' + moveKeySt[0] + ':' + (bigSt[0] ? 'full' : 'inline'),
-                      view: viewSt[0], epoch: moveKeySt[0],
-                      label: 'Reporting network',
-                      draw: HRMS.orgcharts.drawNetwork(
-                        HRMS.orgcharts.treeData(all, root.id),
-                        function (id) { focusSt[1](id); sheetSt[1](true); }
-                      )
-                    }))
-                : null,
-
-              viewSt[0] !== 'cards' ? null :
               h(OrgChart, { key: moveKeySt[0], rootId: root.id, selected: focusSt[0], big: bigSt[0],
                 onSelect: function (id) { focusSt[1](id); sheetSt[1](true); },
-                onCount: function (n) { loadedSt[1](n); },
                 onMove: function (who, to) {
                   /* Who reports to whom is admin's to change. HR changes a reporting
                      line on the employee's record, where the change is audited, and an
-                     employee changes nobody's — so outside this workspace the card
-                     chart is the fourth reading of the line, not a way to redraw it. */
+                     employee changes nobody's — so outside this workspace the chart
+                     reads the line rather than redrawing it. */
                   if (store.pref('role') !== 'admin') {
                     toast('Reporting lines are changed on the employee\u2019s record.');
                     return;
@@ -1008,7 +941,6 @@
                   while (cur) { if (cur.id === who) { toast('That would put ' + who + ' under their own report.'); return; } cur = staff().find(function (x) { return x.id === cur.k; }); }
                   p1.k = to;
                   moveKeySt[1](moveKeySt[0] + 1);
-                  loadedSt[1](1);
                   toast(who + ' now reports to ' + to + '.');
                 } })),
 

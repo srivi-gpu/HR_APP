@@ -1546,7 +1546,7 @@
   var INT_CATEGORIES = [
     'Identity and access', 'Mail and calendar', 'Collaboration', 'Work management',
     'HR and payroll systems', 'Finance and payouts', 'Documents and signing',
-    'Recruitment', 'Devices and service desk'
+    'Recruitment', 'Background verification', 'Devices and service desk'
   ];
 
   /* Three field shapes carry every provider's form, so a new entry in the catalogue is
@@ -1570,6 +1570,33 @@
         hint: 'Issued by the provider. Only the last four characters are shown.' },
       syncField(o.every),
       { id: 'dry', kind: 'switch', label: 'Report what would change before writing anything', value: true }
+    ];
+    /* A background check is not a sync. What an administrator has to settle is which
+       checks are run, what starts one, whether a joiner may be activated before it
+       clears, and whether the candidate is asked first — so the form asks those rather
+       than offering a sync interval for something that runs once per person. */
+    if (shape === 'bgv') return [
+      { id: 'base', kind: 'text', label: o.label || 'Account', value: o.value || '',
+        hint: o.hint || 'The provider account checks are raised against.' },
+      { id: 'key', kind: 'text', label: 'API key', value: '', secret: true,
+        hint: 'Issued by the provider. Only the last four characters are shown.' },
+      { id: 'package', kind: 'select', label: 'Default check package', value: o.pack || 'standard', options: [
+        { value: 'basic', label: 'Identity and address' },
+        { value: 'standard', label: 'Identity, education and employment' },
+        { value: 'extended', label: 'Identity, education, employment and court record' },
+        { value: 'executive', label: 'Extended, plus credit and global database' }
+      ], hint: 'What is run unless the role asks for something else.' },
+      { id: 'trigger', kind: 'select', label: 'A check starts', value: 'offer', options: [
+        { value: 'offer', label: 'When the offer is accepted' },
+        { value: 'joining', label: 'On the joining date' },
+        { value: 'manual', label: 'Only when HR raises one' }
+      ] },
+      { id: 'consent', kind: 'switch', value: true,
+        label: 'Ask the candidate for consent before a check starts',
+        hint: 'The provider collects it and the signed form is filed on the employee record.' },
+      { id: 'gate', kind: 'switch', value: o.gate !== false,
+        label: 'Hold activation until the check clears',
+        hint: 'The joiner stays on Onboarding while a check is open, as a mandatory task.' }
     ];
     if (shape === 'device') return [
       { id: 'gateway', kind: 'text', label: 'Gateway address', value: o.value || '',
@@ -1940,6 +1967,45 @@
       can: ['Requisitions as job posts', 'Applicant intake', 'Profile on the candidate record'],
       imports: ['Candidates'],
       opts: { label: 'LinkedIn company page', provision: false }
+    }),
+
+    /* ---------------------------------------------- Background verification
+       Who a joiner says they are, checked before they are activated. The result lands
+       on the onboarding checklist as a mandatory task, which is why every one of these
+       offers to hold activation: the point of the check is to be answered before
+       somebody has a login, not after. */
+    provider({
+      id: 'springverify', name: 'SpringVerify', by: 'SpringWorks', mark: 'springverify',
+      cat: 'Background verification', kind: 'Background checks', scope: 'India',
+      summary: 'Raises a background check when an offer is accepted and reports each component back onto '
+        + 'the joiner\u2019s onboarding checklist, so activation waits on a verdict rather than on somebody '
+        + 'remembering to ask for one.',
+      can: ['Check raised on offer acceptance', 'Identity, education and employment', 'Verdict on the onboarding checklist'],
+      shape: 'bgv', opts: { label: 'SpringVerify account', hint: 'For example nexoratech.springverify.com.' }
+    }),
+    provider({
+      id: 'authbridge', name: 'AuthBridge', mark: 'authbridge',
+      cat: 'Background verification', kind: 'Background checks', scope: 'India',
+      summary: 'Runs identity, address, education, employment and court-record checks against Indian '
+        + 'sources, and files each returned document on the employee record.',
+      can: ['Court record and address checks', 'Documents filed on the record', 'Case status on the checklist'],
+      shape: 'bgv', opts: { label: 'AuthBridge client code', pack: 'extended' }
+    }),
+    provider({
+      id: 'idfy', name: 'IDfy', mark: 'idfy',
+      cat: 'Background verification', kind: 'Identity and document checks', scope: 'India',
+      summary: 'Verifies the identity documents a joiner uploads \u2014 PAN, Aadhaar, bank account and '
+        + 'degree certificates \u2014 so document verification stops being somebody reading a scan.',
+      can: ['PAN, Aadhaar and bank verification', 'Degree certificate checks', 'Result on document verification'],
+      shape: 'bgv', opts: { label: 'IDfy account', pack: 'basic' }
+    }),
+    provider({
+      id: 'hireright', name: 'HireRight', mark: 'hireright',
+      cat: 'Background verification', kind: 'Background checks', scope: 'Global',
+      summary: 'Screens joiners outside India to the local rules of wherever they are hired, and returns '
+        + 'one verdict per case however many jurisdictions it took.',
+      can: ['Checks in the country of hire', 'Local consent handling', 'One verdict per case'],
+      shape: 'bgv', opts: { label: 'HireRight account', pack: 'executive' }
     }),
 
     /* ---------------------------------------------- Devices and service desk */
